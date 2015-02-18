@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-project(openmc Fortran)
+project(openmc Fortran CXX)
 
 # Setup output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -249,7 +249,8 @@ add_subdirectory(xml/fox)
 
 set(program "openmc")
 file(GLOB source *.F90 xml/openmc_fox.F90)
-add_executable(${program} ${source})
+file(GLOB csource *.c++)
+add_executable(${program} ${source} ${csource})
 target_link_libraries(${program} ${libraries} fox_dom)
 set_target_properties(${program} PROPERTIES
   COMPILE_FLAGS "${f90flags}"
