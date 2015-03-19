@@ -7,7 +7,8 @@ module cmfd_solver
   use cmfd_prod_operator, only: init_prod_matrix, build_prod_matrix
   use matrix_header,      only: Matrix
   use vector_header,      only: Vector
-
+  use loo_pass_data,      only: pass_data_into_loo
+  
   implicit none
   private
   public :: cmfd_solver_execute
@@ -137,6 +138,9 @@ contains
     k_ln = ONE/(ONE/k_n - ONE/k_s)
     k_lo = k_ln
 
+    ! FIXME: pass data for LOO and calls C++ codes
+    !call pass_data_into_loo()
+    
     ! Fill in loss matrix
     call build_loss_matrix(loss, adjoint=adjoint)
 
@@ -154,7 +158,7 @@ contains
     ! Set norms to 0
     norm_n = ZERO
     norm_o = ZERO
-
+    
     ! Set up solver
     select case(cmfd % indices(4))
       case(1)
@@ -208,8 +212,10 @@ contains
     use constants,  only: ONE
     use error,      only: fatal_error
     use global,     only: cmfd_atoli, cmfd_rtoli
-
+    use string,     only: to_str
+    
     integer :: i ! iteration counter
+    integer :: imax ! maximum iteration counter
     integer :: innerits ! # of inner iterations
     integer :: totalits ! total number of inners
     logical :: iconv ! did the problem converged
@@ -228,14 +234,17 @@ contains
     ! Perform shift
     call wielandt_shift()
     totalits = 0
-
+    imax = 20000
+    
     ! Begin power iteration
-    do i = 1, 10000
+    do i = 1, imax
 
       ! Check if reached iteration 10000
-      if (i == 10000) then
-        call fatal_error('Reached maximum iterations in CMFD power iteration &
-             &solver.')
+      if (i == imax) then
+         call fatal_error("Reached maximum iterations of "// trim(to_str(i)) //&
+              &" in CMFD power iteration solver, kerr, ktol = "//&
+              & trim(to_str(kerr))//" " // trim(to_str(ktol)) // &
+              & " ,serr, stol = "// trim(to_str(serr))//" "//trim(to_str(stol)))
       end if
 
       ! Compute source vector

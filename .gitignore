@@ -10,6 +10,14 @@
 
 # OpenMC executable
 src/openmc
+src/bin
+
+$ generated files?
+src/CMakeFiles/
+src/CMakeCache.txt
+src/CTestTestfile.cmake
+src/DartConfiguration.tcl
+src/cmake_install.cmake
 
 # emacs backups
 *~
@@ -23,6 +31,7 @@ docs/source/_images/*.pdf
 
 # Source build
 src/build
+build
 
 # build from src/utils/setup.py
 src/utils/build
@@ -41,3 +50,8 @@ results_error.dat
 
 # Data downloaded from NNDC
 data/nndc
+data/293.6K
+data/tsl
+
+# Makefile
+src/Makefile

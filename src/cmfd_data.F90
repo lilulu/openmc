@@ -60,6 +60,7 @@ contains
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
     use tally_header, only: TallyObject
+    use output,       only: write_message
 
     integer :: nx            ! number of mesh cells in x direction
     integer :: ny            ! number of mesh cells in y direction
@@ -81,7 +82,11 @@ contains
     real(8) :: flux          ! temp variable for flux
     type(TallyObject),    pointer :: t => null() ! pointer for tally object
     type(StructuredMesh), pointer :: m => null() ! pointer for mesh object
-
+    ! for debugging
+    integer :: ii
+    integer :: jj
+    integer :: kk
+    
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
@@ -160,6 +165,16 @@ contains
 
                 ! Detect zero flux, abort if located
                 if ((flux - ZERO) < TINY_BIT) then
+                  do ii= 1,nx
+                    do jj = 1,ny
+                      do kk = 1,nz
+                         call write_message("flux at (" // to_str(ii) //&
+                             &to_str(jj) // to_str(kk) // &
+                             &" 1) group 1 = "//&
+                             &to_str(cmfd % flux(ii, jj, kk, 1)), 5)
+                      enddo
+                    enddo
+                  enddo
                   call fatal_error('Detected zero flux without coremap overlay &
                        &at: (' // to_str(i) // ',' // to_str(j) // ',' // &
                        &to_str(k) // ') in group ' // to_str(h))
