@@ -38,6 +38,7 @@ src/utils/build
 
 # xml-fortran reader
 src/xml-fortran/xmlreader
+src/xml/fox
 
 # Modules built from XML templates
 src/templates/*.f90

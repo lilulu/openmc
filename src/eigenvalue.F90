@@ -30,7 +30,8 @@ module eigenvalue
   real(8)                   :: keff_generation ! Single-generation k on each
                                                ! processor
   real(8)                   :: k_sum(2) = ZERO ! Used to reduce sum and sum_sq
-
+  real(8)                   :: entropy_sum(2) = ZERO ! 
+  
 contains
 
 !===============================================================================
@@ -180,7 +181,8 @@ contains
 
     ! Calculate shannon entropy
     if (entropy_on) call shannon_entropy()
-
+    if (entropy_on) call calculate_average_entropy()
+    
     ! Collect results and statistics
     call calculate_generation_keff()
     call calculate_average_keff()
@@ -604,6 +606,52 @@ contains
   end subroutine calculate_generation_keff
 
 !===============================================================================
+! CALCULATE_AVERAGE_ENTROPY calculates the mean and standard deviation
+! of the mean of entropy during active generations and broadcasts the
+! mean to all processors
+! ===============================================================================
+
+  subroutine calculate_average_entropy()
+
+    integer :: n        ! number of active generations
+    real(8) :: alpha    ! significance level for CI
+    real(8) :: t_value  ! t-value for confidence intervals
+
+    ! Determine number of active generations
+    n = overall_gen - n_inactive*gen_per_batch
+
+    if (n <= 0) then
+      ! For inactive generations, use current generation entropy as
+      ! estimate for next generation
+      entropy_average = entropy(overall_gen)
+
+    else
+      ! Sample mean of entropy
+      entropy_sum(1) = entropy_sum(1) + entropy(overall_gen)
+      entropy_sum(2) = entropy_sum(2) + entropy(overall_gen)**2
+
+      ! Determine mean
+      entropy_average = entropy_sum(1) / n
+
+      if (n > 1) then
+        if (confidence_intervals) then
+          ! Calculate t-value for confidence intervals
+          alpha = ONE - CONFIDENCE_LEVEL
+          t_value = t_percentile(ONE - alpha/TWO, n - 1)
+        else
+          t_value = ONE
+        end if
+
+        ! Standard deviation of the sample mean of k
+        entropy_std = t_value * sqrt((entropy_sum(2)/n - entropy_average**2) &
+             / (n - 1))
+      end if
+    end if
+
+  end subroutine calculate_average_entropy
+
+  
+!===============================================================================
 ! CALCULATE_AVERAGE_KEFF calculates the mean and standard deviation of the mean
 ! of k-effective during active generations and broadcasts the mean to all
 ! processors
@@ -808,7 +856,8 @@ contains
     do current_gen = 1, gen_per_batch
       overall_gen = overall_gen + 1
       call calculate_average_keff()
-
+      if (entropy_on) call calculate_average_entropy()
+      
       ! print out batch keff
       if (current_gen < gen_per_batch) then
         if (master) call print_generation()

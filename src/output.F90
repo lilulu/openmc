@@ -1300,6 +1300,8 @@ contains
     write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "   k    "
     if (entropy_on) write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Entropy "
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "     Average k      "
+    if (entropy_on) write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') &
+         "     Average Ent    "
     if (cmfd_run) then
       write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') " CMFD k "
       select case(trim(cmfd_display))
@@ -1347,8 +1349,13 @@ contains
     if (overall_gen - n_inactive*gen_per_batch > 1) then
       write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
            keff, keff_std
-    end if
-
+   end if
+   
+    if ((overall_gen - n_inactive*gen_per_batch > 1) .and. (entropy_on)) then
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
+           entropy_average, entropy_std
+   end if
+   
     ! next line
     write(UNIT=OUTPUT_UNIT, FMT=*)
 
@@ -1370,7 +1377,7 @@ contains
     ! write out entropy info
     if (entropy_on) write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
          entropy(current_batch*gen_per_batch)
-
+    
     ! write out accumulated k-effective if after first active batch
     if (overall_gen - n_inactive*gen_per_batch > 1) then
       write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
@@ -1378,6 +1385,15 @@ contains
     else
       write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
     end if
+
+    ! write out accumulated entropy if after first active batch
+    if ((overall_gen - n_inactive*gen_per_batch > 1) .and. (entropy_on)) then
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
+           entropy_average, entropy_std
+    else
+      write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
+    end if
+
 
     ! write out cmfd keff if it is active and other display info
     if (cmfd_on) then

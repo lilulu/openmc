@@ -177,6 +177,8 @@ module global
   logical :: entropy_on = .false.
   real(8), allocatable :: entropy(:)         ! shannon entropy at each generation
   real(8), allocatable :: entropy_p(:,:,:,:) ! % of source sites in each cell
+  real(8) :: entropy_average = ONE           ! average entropy over active batches
+  real(8) :: entropy_std                     ! standard deviation of average entropy
   type(StructuredMesh), pointer :: entropy_mesh
 
   ! Uniform fission source weighting
