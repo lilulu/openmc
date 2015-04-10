@@ -5,6 +5,8 @@ module cmfd_data
 ! parameters for CMFD calculation.
 !==============================================================================
 
+  use, intrinsic :: ISO_FORTRAN_ENV
+
   use constants
 
   implicit none
@@ -312,9 +314,10 @@ contains
 
     end do TAL
 
-    ! Normalize openmc source distribution
+    ! Normalize openmc source distribution to the sum being 1.0
     cmfd % openmc_src = cmfd % openmc_src/sum(cmfd % openmc_src) * cmfd % norm
-
+    ! write(OUTPUT_UNIT,'(1X,A,F8.4)') '    cmfd norm = ', cmfd % norm
+    
     ! Nullify all pointers
     if (associated(t)) nullify(t)
     if (associated(m)) nullify(m)

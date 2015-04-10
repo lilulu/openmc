@@ -362,6 +362,9 @@ module global
   character(len=25) :: cmfd_display = 'balance'
   character(len=25) :: cmfd_second_display = 'source'
 
+  ! CMFD display RMS deviation of openmc and cmfd sources from 1.0
+  logical :: cmfd_cmp_flat       = .false.
+  
   ! Estimate of spectral radius of CMFD matrices and tolerances
   real(8) :: cmfd_spectral = ZERO
   real(8) :: cmfd_shift = 1.e6

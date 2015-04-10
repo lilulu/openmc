@@ -5,6 +5,7 @@ module cmfd_execute
 ! cross section generation, diffusion calculation, and source re-weighting
 !==============================================================================
 
+  use, intrinsic :: ISO_FORTRAN_ENV
   use global
 
   implicit none
@@ -150,7 +151,11 @@ contains
     real(8) :: hxyz(3) ! cell dimensions of current ijk cell
     real(8) :: vol     ! volume of cell
     real(8),allocatable :: source(:,:,:,:)  ! tmp source array for entropy
-
+    real(8) :: avg     ! avg source if it is flat
+    real(8) :: temp1   ! temporary counter
+    real(8) :: temp2   ! temporary counter 
+    
+    
     ! Get maximum of spatial and group indices
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
@@ -158,6 +163,8 @@ contains
     ng = cmfd % indices(4)
     n  = ng*nx*ny*nz
 
+    avg = 1.0 / (nx * ny * nz)
+    
     ! Allocate cmfd source if not already allocated and allocate buffer
     if (.not. allocated(cmfd % cmfd_src)) &
        allocate(cmfd % cmfd_src(ng,nx,ny,nz))
@@ -235,7 +242,26 @@ contains
 
       ! Calculate differences between normalized sources
       cmfd % src_cmp(current_batch) = sqrt(ONE/cmfd % norm * &
-             sum((cmfd % cmfd_src - cmfd % openmc_src)**2))
+           sum((cmfd % cmfd_src - cmfd % openmc_src)**2))
+
+      ! write(OUTPUT_UNIT, '(1X,A,E8.3)')'  avg source = ', avg
+      temp1 = 0
+      temp2 = 0
+      do k = 1, nz
+         do j = 1, ny
+            do i = 1, nx
+               temp1 = temp1 + (avg - cmfd % openmc_src(1, i, j, k))**2
+               temp2 = temp2 + (avg - cmfd % cmfd_src(1, i, j, k))**2
+               !do g = 1, ng
+               !   write(OUTPUT_UNIT, '(1X,A,E8.3)')'  openmc source = ', cmfd % openmc_src(g, i, j, k)
+               !   write(OUTPUT_UNIT, '(1X,A,E8.3)')'  cmfd source = ', cmfd % cmfd_src(g, i, j, k)
+               !enddo
+            enddo
+         enddo
+      enddo
+
+      cmfd % src_cmp_openmc(current_batch) = sqrt(ONE/cmfd % norm * temp1)
+      cmfd % src_cmp_cmfd(current_batch) = sqrt(ONE/cmfd % norm * temp2)
 
     end if
 

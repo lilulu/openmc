@@ -254,8 +254,15 @@ contains
            &iteration solver')
        cmfd_second_display = ''
     end if
-   
 
+    ! Get whether to compare openmc and cmfd sources to flat source
+    if (check_for_node(doc, "cmp_flat")) then
+       call get_node_value(doc, "cmp_flat", temp_str)
+       temp_str = to_lower(temp_str)
+       if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
+            cmfd_cmp_flat = .true.
+    end if
+    
     ! Read in spectral radius estimate and tolerances
     if (check_for_node(doc, "spectral")) &
          call get_node_value(doc, "spectral", cmfd_spectral)
