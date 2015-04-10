@@ -240,10 +240,21 @@ contains
          call get_node_value(doc, "display", cmfd_display)
     if (trim(cmfd_display) == 'dominance' .and. &
          trim(cmfd_solver_type) /= 'power') then
-      if (master) call warning('Dominance Ratio only aviable with power &
+       if (master) call warning('Dominance Ratio only aviable with power &
            &iteration solver')
-      cmfd_display = ''
+       cmfd_display = ''
     end if
+    
+    ! Get second display
+    if (check_for_node(doc, "second_display")) &
+         call get_node_value(doc, "second_display", cmfd_second_display)
+    if (trim(cmfd_second_display) == 'dominance' .and. &
+         trim(cmfd_solver_type) /= 'power') then
+       if (master) call warning('Dominance Ratio only aviable with power &
+           &iteration solver')
+       cmfd_second_display = ''
+    end if
+   
 
     ! Read in spectral radius estimate and tolerances
     if (check_for_node(doc, "spectral")) &

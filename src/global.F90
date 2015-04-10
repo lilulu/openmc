@@ -360,6 +360,7 @@ module global
 
   ! CMFD display info
   character(len=25) :: cmfd_display = 'balance'
+  character(len=25) :: cmfd_second_display = 'source'
 
   ! Estimate of spectral radius of CMFD matrices and tolerances
   real(8) :: cmfd_spectral = ZERO

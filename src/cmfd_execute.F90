@@ -231,7 +231,7 @@ contains
       end if
 
       ! Normalize source so average is 1.0
-      cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)*cmfd % norm
+      cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src) * cmfd % norm
 
       ! Calculate differences between normalized sources
       cmfd % src_cmp(current_batch) = sqrt(ONE/cmfd % norm * &

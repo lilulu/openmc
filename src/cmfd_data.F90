@@ -313,7 +313,7 @@ contains
     end do TAL
 
     ! Normalize openmc source distribution
-    cmfd % openmc_src = cmfd % openmc_src/sum(cmfd % openmc_src)*cmfd%norm
+    cmfd % openmc_src = cmfd % openmc_src/sum(cmfd % openmc_src) * cmfd % norm
 
     ! Nullify all pointers
     if (associated(t)) nullify(t)
