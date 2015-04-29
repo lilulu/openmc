@@ -344,6 +344,9 @@ module global
   ! Compute effective downscatter cross section
   logical :: cmfd_downscatter = .false.
 
+  ! Rebalance: adjust thermal parameters such that neutron is balanced in each cell
+  logical :: cmfd_rebalance = .false. 
+  
   ! Convergence monitoring
   logical :: cmfd_snes_monitor  = .false.
   logical :: cmfd_ksp_monitor   = .false.

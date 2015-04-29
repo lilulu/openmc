@@ -36,7 +36,7 @@ contains
 
     ! Check neutron balance
     call neutron_balance()
-
+    
     ! Calculate dtilde
     call compute_dtilde()
 
@@ -189,8 +189,11 @@ contains
                 cmfd % p1scattxs(h,i,j,k) = t % results(3,score_index) % sum / flux
 
                 ! Calculate diffusion coefficient
+                ! FIXME
                 cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(cmfd % totalxs(h,i,j,k) - &
                      cmfd % p1scattxs(h,i,j,k)))
+                !cmfd % diffcof(1, i, j, k) = 1.4
+                !cmfd % diffcof(2, i, j, k) = 0.3
 
               else if (ital == 2) then
 
@@ -392,7 +395,7 @@ contains
   subroutine neutron_balance()
 
     use constants,    only: ONE, ZERO, CMFD_NOACCEL, CMFD_NORES
-    use global,       only: cmfd, keff, current_batch
+    use global,       only: cmfd, keff, k_generation, current_batch, cmfd_rebalance
 
     integer :: nx           ! number of mesh cells in x direction
     integer :: ny           ! number of mesh cells in y direction
@@ -405,12 +408,27 @@ contains
     integer :: h            ! iteration counter for outgoing groups
     integer :: l            ! iteration counter for leakage
     integer :: cnt          ! number of locations to count neutron balance
-    real(8) :: leakage      ! leakage term in neutron balance
+    real(8), allocatable :: leakage(:)    ! leakage term in neutron balance
+    real(8) :: total_leakage
     real(8) :: interactions ! total number of interactions in balance
     real(8) :: scattering   ! scattering term in neutron balance
-    real(8) :: fission      ! fission term in neutron balance
-    real(8) :: res          ! residual of neutron balance
+    real(8), allocatable :: fission(:)      ! fission term in neutron balance
+    real(8) :: total_fission
+    real(8) :: res          ! residual of neutron balance for whole geometry
     real(8) :: rms          ! RMS of the residual
+    real(8) :: flux1             ! group 1 volume int flux
+    real(8) :: flux2             ! group 2 volume int flux
+    real(8) :: sigt1             ! group 1 total xs
+    real(8) :: sigt2_old         ! group 2 total xs
+    real(8) :: sigt2             ! group 2 total xs
+    real(8) :: sigs11            ! scattering transfer 1 --> 1
+    real(8) :: sigs21            ! scattering transfer 2 --> 1
+    real(8) :: sigs12            ! scattering transfer 1 --> 2
+    real(8) :: sigs22            ! scattering transfer 2 --> 2
+    real(8) :: siga1             ! group 1 abs xs
+    real(8) :: siga2_old         ! group 2 abs xs
+    real(8) :: siga2             ! group 2 abs xs
+    real(8) :: sigs12_eff        ! effective downscatter xs    
 
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
@@ -418,8 +436,11 @@ contains
     nz = cmfd % indices(3)
     ng = cmfd % indices(4)
 
+    if (.not. allocated(leakage)) allocate(leakage(ng))
+    if (.not. allocated(fission)) allocate(fission(ng))
+
     ! Allocate res dataspace
-    if (.not. allocated(cmfd%resnb)) allocate(cmfd%resnb(ng,nx,ny,nz))
+    if (.not. allocated(cmfd % resnb)) allocate(cmfd % resnb(ng,nx,ny,nz))
 
     ! Reset rms and cnt
     rms = ZERO
@@ -432,57 +453,91 @@ contains
 
         XLOOP: do i = 1, nx
 
-          GROUPG: do g = 1, ng
+           leakage = ZERO
+           fission = ZERO
+           
+           GROUPG: do g = 1, ng
 
             ! Check for active mesh
-            if (allocated(cmfd%coremap)) then
-              if (cmfd%coremap(i,j,k) == CMFD_NOACCEL) then
-                cmfd%resnb(g,i,j,k) = CMFD_NORES
+            if (allocated(cmfd % coremap)) then
+              if (cmfd % coremap(i,j,k) == CMFD_NOACCEL) then
+                cmfd % resnb(g,i,j,k) = CMFD_NORES
                 cycle
               end if
             end if
 
             ! Get leakage
-            leakage = ZERO
             LEAK: do l = 1, 3
 
-              leakage = leakage + ((cmfd % current(4*l,g,i,j,k) - &
+              leakage(g) = leakage(g) + ((cmfd % current(4*l,g,i,j,k) - &
                    cmfd % current(4*l-1,g,i,j,k))) - &
                    ((cmfd % current(4*l-2,g,i,j,k) - &
                    cmfd % current(4*l-3,g,i,j,k)))
 
             end do LEAK
 
-            ! Interactions
-            interactions = cmfd % totalxs(g,i,j,k) * cmfd % flux(g,i,j,k)
-
-            ! Get scattering and fission
-            scattering = ZERO
-            fission = ZERO
             GROUPH: do h = 1, ng
 
-              scattering = scattering + cmfd % scattxs(h,g,i,j,k) * &
-                   cmfd % flux(h,i,j,k)
-
-              fission = fission + cmfd % nfissxs(h,g,i,j,k) * &
+              fission(g) = fission(g) + cmfd % nfissxs(h,g,i,j,k) * &
                    cmfd % flux(h,i,j,k)
 
             end do GROUPH
 
-            ! Compute residual
-            res = leakage + interactions - scattering - (ONE/keff)*fission
-
-            ! Normalize by flux
-            res = res/cmfd%flux(g,i,j,k)
-
-            ! Bank res in cmfd object
-            cmfd%resnb(g,i,j,k) = res
-
-            ! Take square for RMS calculation
-            rms = rms + res**2
-            cnt = cnt + 1
-
           end do GROUPG
+
+          if ((cmfd_rebalance) .and. (ng == 2)) then
+             flux1 = cmfd % flux(1,i,j,k)
+             flux2 = cmfd % flux(2,i,j,k)
+             sigt1 = cmfd % totalxs(1,i,j,k)
+             sigt2_old = cmfd % totalxs(2,i,j,k)
+             sigs11 = cmfd % scattxs(1,1,i,j,k)
+             sigs21 = cmfd % scattxs(2,1,i,j,k)
+             sigs12 = cmfd % scattxs(1,2,i,j,k)
+             sigs22 = cmfd % scattxs(2,2,i,j,k)
+             siga1 = sigt1 - sigs11 - sigs12
+             siga2 = sigt2 - sigs22 - sigs21
+
+             sigs12 = ((ONE / keff) * fission(1) + sigs21 * flux2 - leakage(1) &
+                  & - siga1 * flux1) / flux1
+             cmfd % scattxs(1,2,i,j,k) = sigs12
+             sigt1 = siga1 + sigs11 + sigs12
+             cmfd % totalxs(1, i, j, k) = sigt1
+             
+             siga2 = (sigs12 * flux1 + (ONE / keff) * fission(2) - leakage(2) &
+                  & - sigs21 * flux2 ) / flux2
+             sigt2 =  siga2 + sigs22 + sigs21
+             cmfd % totalxs(2, i, j, k) = sigt2
+          end if
+
+          GROUPG2: do g = 1, ng
+
+             ! Interactions
+             interactions = cmfd % totalxs(g,i,j,k) * cmfd % flux(g,i,j,k)
+
+             ! Get scattering and fission
+             scattering = ZERO
+             GROUPH2: do h = 1, ng
+
+                scattering = scattering + cmfd % scattxs(h,g,i,j,k) * &
+                     cmfd % flux(h,i,j,k)
+
+             end do GROUPH2
+
+             ! Compute residual
+             res = leakage(g) + interactions - scattering - &
+                  & (ONE / keff) * fission(g)
+             ! write(OUTPUT_UNIT, FMT='(" res_bef =", ES9.2  )') res
+             ! Normalize by flux
+             res = res / cmfd % flux(g,i,j,k)
+             
+             ! Bank res in cmfd object
+             cmfd % resnb(g,i,j,k) = res
+             
+             ! Take square for RMS calculation
+             rms = rms + res ** 2
+             cnt = cnt + 1
+             ! write(OUTPUT_UNIT, FMT='("res_aft =", ES9.2  )') res
+          end do GROUPG2
 
         end do XLOOP
 

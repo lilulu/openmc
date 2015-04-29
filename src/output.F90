@@ -1420,7 +1420,7 @@ contains
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % balance(current_batch)
         case('source')
-          write(UNIT=OUTPUT_UNIT, FMT='(3X, ES9.3)', ADVANCE='NO') &
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
             cmfd % src_cmp(current_batch)
         case('dominance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
@@ -1436,12 +1436,12 @@ contains
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % balance(current_batch)
         case('source')
-           write(UNIT=OUTPUT_UNIT, FMT='(3X, ES9.3)', ADVANCE='NO') &
+           write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
                 cmfd % src_cmp(current_batch)
            if (cmfd_cmp_flat) then
-              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES9.3)', ADVANCE='NO') &
+              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
                    cmfd % src_cmp_openmc(current_batch)
-              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES9.3)', ADVANCE='NO') &
+              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
                    cmfd % src_cmp_cmfd(current_batch)
            end if
         case('dominance')

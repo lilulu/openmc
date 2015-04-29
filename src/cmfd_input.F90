@@ -165,6 +165,14 @@ contains
            cmfd_downscatter = .true.
     end if
 
+    ! Set rebalance logical
+    if (check_for_node(doc, "rebalance")) then
+      call get_node_value(doc, "rebalance", temp_str)
+      temp_str = to_lower(temp_str)
+      if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
+           cmfd_rebalance = .true.
+    end if
+    
     ! Reset dhat parameters 
     if (check_for_node(doc, "dhat_reset")) then
       call get_node_value(doc, "dhat_reset", temp_str)
