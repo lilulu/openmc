@@ -279,7 +279,9 @@ contains
                     & cmfd % resnb(2, i, j, k), &
                     & cmfd % balance(current_batch)
 #endif
-               temp = temp + (temp1 /temp2 - 1) ** 2
+               if (temp2 > 1e-10) then
+                  temp = temp + (temp1 /temp2 - 1) ** 2
+               endif
                temp3 = temp3 + (temp1 / avg - 1) ** 2
                temp4 = temp4 + (temp2 / avg - 1 ) ** 2
             enddo
