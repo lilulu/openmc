@@ -105,10 +105,8 @@ Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs, void *pcu
       _current(_nx, _ny, _nz, _ng, _ns, pcur)
 {
     generate2dTrack(_i_array, _t_array, _t_arrayb);
-
-
 // variables untested:
-//    printMeshElement(_total_xs, "total xs");
+    //printMeshElement(_total_xs, "total xs");
 }
 
 void Loo::generate2dTrack(int *i_array, int *t_array, int *t_arrayb)

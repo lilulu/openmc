@@ -61,7 +61,9 @@ private:
     int _ns;
     int _num_loop;
     int _num_track;
-    int *_i_array, *_t_array, *_t_arrayb;
+    int *_i_array;
+    int *_t_array;
+    int *_t_arrayb;
     meshElement _old_flux;
     meshElement _total_xs;
     meshElement _nfiss_xs;
