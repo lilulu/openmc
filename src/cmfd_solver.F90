@@ -139,7 +139,7 @@ contains
     k_lo = k_ln
 
     ! FIXME: pass data for LOO and calls C++ codes
-    !call pass_data_into_loo()
+    call pass_data_into_loo()
     
     ! Fill in loss matrix
     call build_loss_matrix(loss, adjoint=adjoint)
@@ -208,7 +208,8 @@ contains
 !===============================================================================
 
   subroutine execute_power_iter()
-
+    use, intrinsic :: ISO_FORTRAN_ENV
+    
     use constants,  only: ONE
     use error,      only: fatal_error
     use global,     only: cmfd_atoli, cmfd_rtoli
@@ -222,7 +223,12 @@ contains
     real(8) :: atoli ! absolute minimum tolerance
     real(8) :: rtoli ! relative tolerance based on source conv
     real(8) :: toli ! the current tolerance of inners
+    real(8) :: dr
+    real(8) :: k_oo ! (n-2) iteration's eigenvalue. 
 
+    k_oo = 1.0
+    k_o = 1.0
+    k_n = 1.0
     ! Reset convergence flag
     iconv = .false.
 
@@ -265,6 +271,13 @@ contains
       ! Compute new eigenvalue
       k_n = ONE/(ONE/k_ln + ONE/k_s)
 
+      ! Debug block: compute and print out estimate for dominance rate
+      ! (dr) by comparing successive iteration eigenvalue: 
+      if (.false. .and. (abs(k_oo - k_o) > 1e-10)) then
+         dr = (k_o - k_n) / (k_oo - k_o)
+         write(OUTPUT_UNIT,*) i, innerits, k_oo, k_o, k_n, dr
+      endif
+
       ! Renormalize the old source
       s_o % val = s_o % val * k_lo
 
@@ -277,6 +290,7 @@ contains
 
       ! Record old values
       phi_o % val = phi_n % val
+      k_oo = k_o
       k_o = k_n
       k_lo = k_ln
       norm_o = norm_n
