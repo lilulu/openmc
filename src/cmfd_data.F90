@@ -189,9 +189,9 @@ contains
                 cmfd % p1scattxs(h,i,j,k) = t % results(3,score_index) % sum / flux
 
                 ! Calculate diffusion coefficient
-                ! FIXME
                 cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(cmfd % totalxs(h,i,j,k) - &
                      cmfd % p1scattxs(h,i,j,k)))
+                ! FIXME
                 !cmfd % diffcof(1, i, j, k) = 1.4
                 !cmfd % diffcof(2, i, j, k) = 0.3
 
@@ -611,8 +611,8 @@ contains
             end if
 
             ! Get cell data
-            cell_dc = cmfd%diffcof(g,i,j,k)
-            cell_hxyz = cmfd%hxyz(:,i,j,k)
+            cell_dc = cmfd % diffcof(g,i,j,k)
+            cell_hxyz = cmfd % hxyz(:,i,j,k)
 
             ! Setup of vector to identify boundary conditions
             bound = (/i,i,j,j,k,k/)
