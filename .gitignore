@@ -19,6 +19,9 @@ src/CTestTestfile.cmake
 src/DartConfiguration.tcl
 src/cmake_install.cmake
 
+# Inputs generated from Python API
+examples/python/**/*.xml
+
 # emacs backups
 *~
 
@@ -56,3 +59,6 @@ data/tsl
 
 # Makefile
 src/Makefile
+
+.idea
+.idea/*

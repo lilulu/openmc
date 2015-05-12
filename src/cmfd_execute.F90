@@ -160,7 +160,11 @@ contains
     real(8) :: temp4   ! temporary counter 
     real(8) :: temp5   ! temporary counter
     real(8) :: temp6   ! temporary counter  
-    
+    real(8) :: siga1
+    real(8) :: siga2
+    real(8) :: nusigf1
+    real(8) :: nusigf2
+    real(8) :: sigs12
     ! Get maximum of spatial and group indices
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
@@ -267,6 +271,21 @@ contains
                ! average of 1.0
                temp1 = temp1 * np
                temp2 = temp2 * np
+
+#if 0
+               siga1 = cmfd % totalxs(1,i,j,k) - cmfd % scattxs(1,1,i,j,k) &
+                    & - cmfd % scattxs(1,2,i,j,k)
+               siga2 = cmfd % totalxs(2,i,j,k) - cmfd % scattxs(2,1,i,j,k) &
+                    & - cmfd % scattxs(2,2,i,j,k)
+               nusigf1 = cmfd % nfissxs(1,1,i,j,k)
+               nusigf2 = cmfd % nfissxs(2,1,i,j,k)
+               sigs12 = cmfd % scattxs(1,2,i,j,k)
+               ! D1, D2, S12, A1, A2, NuF1, NuF2, KINF
+               write(OUTPUT_UNIT, '(3I2, 10F8.5)') i, j, k, temp1, temp2, &
+                    & cmfd % diffcof(1, i, j, k), cmfd % diffcof(2, i, j, k), &
+                    & sigs12, siga1, siga2, nusigf1, nusigf2, &
+                    & (nusigf1 + nusigf2 * sigs12 / siga2) / (siga1 + sigs12)
+#endif
 #if 0
                write(OUTPUT_UNIT,FMT='("iter ", I0, ": (", I0, ", ", I0, ", ", &
                     & I0, ") ", "mc, cmfd: ", ES9.2, ", ", &

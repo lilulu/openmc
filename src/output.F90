@@ -6,7 +6,8 @@ module output
   use constants
   use endf,            only: reaction_name
   use error,           only: warning
-  use geometry_header, only: Cell, Universe, Surface, BASE_UNIVERSE
+  use geometry_header, only: Cell, Universe, Surface, Lattice, RectLattice, &
+                             &HexLattice, BASE_UNIVERSE
   use global
   use math,            only: t_percentile
   use mesh_header,     only: StructuredMesh
@@ -256,7 +257,7 @@ contains
     type(Cell),       pointer :: c => null()
     type(Surface),    pointer :: s => null()
     type(Universe),   pointer :: u => null()
-    type(Lattice),    pointer :: l => null()
+    class(Lattice),   pointer :: l => null()
     type(LocalCoord), pointer :: coord => null()
 
     ! display type of particle
@@ -292,7 +293,7 @@ contains
 
       ! Print information on lattice
       if (coord % lattice /= NONE) then
-        l => lattices(coord % lattice)
+        l => lattices(coord % lattice) % obj
         write(ou,*) '    Lattice          = ' // trim(to_str(l % id))
         write(ou,*) '    Lattice position = (' // trim(to_str(&
              p % coord % lattice_x)) // ',' // trim(to_str(&
@@ -355,7 +356,7 @@ contains
     integer :: unit_      ! unit to write to
     character(MAX_LINE_LEN) :: string
     type(Universe), pointer :: u => null()
-    type(Lattice),  pointer :: l => null()
+    class(Lattice), pointer :: l => null()
     type(Material), pointer :: m => null()
 
     ! Set unit to stdout if not already set
@@ -367,6 +368,9 @@ contains
 
     ! Write user-specified id for cell
     write(unit_,*) 'Cell ' // to_str(c % id)
+
+    ! Write user-specified name for cell
+    write(unit_,*) '    Name = ' // c % name
 
     ! Find index in cells array and write
     index_cell = cell_dict % get_key(c % id)
@@ -384,7 +388,7 @@ contains
       u => universes(c % fill)
       write(unit_,*) '    Fill = Universe ' // to_str(u % id)
     case (CELL_LATTICE)
-      l => lattices(c % fill)
+      l => lattices(c % fill) % obj
       write(unit_,*) '    Fill = Lattice ' // to_str(l % id)
     end select
 
@@ -471,13 +475,10 @@ contains
 
   subroutine print_lattice(lat, unit)
 
-    type(Lattice), pointer :: lat
-    integer,      optional :: unit
+    class(Lattice), pointer :: lat
+    integer,       optional :: unit
 
-    integer :: i     ! loop index
     integer :: unit_ ! unit to write to
-    character(MAX_LINE_LEN) :: string
-
 
     ! set default unit if not specified
     if (present(unit)) then
@@ -489,27 +490,67 @@ contains
     ! Write information about lattice
     write(unit_,*) 'Lattice ' // to_str(lat % id)
 
-    ! Write dimension of lattice
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % dimension(i))
-    end do
-    write(unit_,*) '    Dimension =' // string
+    ! Write user-specified name for lattice
+    write(unit_,*) '    Name = ' // lat % name
 
-    ! Write lower-left coordinates of lattice
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % lower_left(i))
-    end do
-    write(unit_,*) '    Lower-left =' // string
+    select type(lat)
+    type is (RectLattice)
+      ! Write dimension of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Dimension = ' // to_str(lat % n_cells(1)) &
+             &// ' ' // to_str(lat % n_cells(2)) // ' ' &
+             &// to_str(lat % n_cells(3))
+      else
+        write(unit_, *) '    Dimension = ' // to_str(lat % n_cells(1)) &
+             &// ' ' // to_str(lat % n_cells(2))
+      end if
 
-    ! Write width of each lattice cell
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % width(i))
-    end do
-    write(unit_,*) '    Width =' // string
-    write(unit_,*)
+      ! Write lower-left coordinates of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Lower-left = ' // to_str(lat % lower_left(1)) &
+             &// ' ' // to_str(lat % lower_left(2)) // ' ' &
+             &// to_str(lat % lower_left(3))
+      else
+        write(unit_, *) '    Lower-left = ' // to_str(lat % lower_left(1)) &
+             &// ' ' // to_str(lat % lower_left(2))
+      end if
+
+      ! Write lattice pitch along each axis.
+      if (lat % is_3d) then
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2)) // ' ' &
+             &// to_str(lat % pitch(3))
+      else
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2))
+      end if
+      write(unit_,*)
+
+    type is (HexLattice)
+      ! Write dimension of lattice.
+      write(unit_,*) '    N-rings = ' // to_str(lat % n_rings)
+      if (lat % is_3d) write(unit_,*) '    N-axial = ' // to_str(lat % n_axial)
+
+      ! Write center coordinates of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Center = ' // to_str(lat % center(1)) &
+             &// ' ' // to_str(lat % center(2)) // ' ' &
+             &// to_str(lat % center(3))
+      else
+        write(unit_, *) '    Center = ' // to_str(lat % center(1)) &
+             &// ' ' // to_str(lat % center(2))
+      end if
+
+      ! Write lattice pitch along each axis.
+      if (lat % is_3d) then
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2))
+      else
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1))
+      end if
+      write(unit_,*)
+    end select
+
 
   end subroutine print_lattice
 
@@ -536,6 +577,9 @@ contains
 
     ! Write user-specified id of surface
     write(unit_,*) 'Surface ' // to_str(surf % id)
+
+    ! Write user-specified name for surface
+    write(unit_,*) '    Name = ' // surf % name
 
     ! Write type of surface
     select case (surf % type)
@@ -632,6 +676,9 @@ contains
 
     ! Write identifier for material
     write(unit_,*) 'Material ' // to_str(mat % id)
+
+    ! Write user-specified name for material
+    write(unit_,*) '    Name = ' // mat % name
 
     ! Write total atom density in atom/b-cm
     write(unit_,*) '    Atom Density = ' // trim(to_str(mat % density)) &
@@ -919,7 +966,7 @@ contains
     type(Surface),     pointer :: s => null()
     type(Cell),        pointer :: c => null()
     type(Universe),    pointer :: u => null()
-    type(Lattice),     pointer :: l => null()
+    class(Lattice),    pointer :: l => null()
 
     ! print summary of surfaces
     call header("SURFACE SUMMARY", unit=UNIT_SUMMARY)
@@ -946,7 +993,7 @@ contains
     if (n_lattices > 0) then
       call header("LATTICE SUMMARY", unit=UNIT_SUMMARY)
       do i = 1, n_lattices
-        l => lattices(i)
+        l => lattices(i) % obj
         call print_lattice(l, unit=UNIT_SUMMARY)
       end do
     end if
@@ -1628,22 +1675,26 @@ contains
 
     ! write global tallies
     if (n_realizations > 1) then
-      write(ou,102) "k-effective (Collision)", global_tallies(K_COLLISION) &
-           % sum, global_tallies(K_COLLISION) % sum_sq
-      write(ou,102) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH) &
-           % sum, global_tallies(K_TRACKLENGTH) % sum_sq
-      write(ou,102) "k-effective (Absorption)", global_tallies(K_ABSORPTION) &
-           % sum, global_tallies(K_ABSORPTION) % sum_sq
-      if (n_realizations > 3) write(ou,102) "Combined k-effective", k_combined
+      if (run_mode == MODE_EIGENVALUE) then
+        write(ou,102) "k-effective (Collision)", global_tallies(K_COLLISION) &
+             % sum, global_tallies(K_COLLISION) % sum_sq
+        write(ou,102) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH) &
+             % sum, global_tallies(K_TRACKLENGTH) % sum_sq
+        write(ou,102) "k-effective (Absorption)", global_tallies(K_ABSORPTION) &
+             % sum, global_tallies(K_ABSORPTION) % sum_sq
+        if (n_realizations > 3) write(ou,102) "Combined k-effective", k_combined
+      end if
       write(ou,102) "Leakage Fraction", global_tallies(LEAKAGE) % sum, &
            global_tallies(LEAKAGE) % sum_sq
     else
       if (master) call warning("Could not compute uncertainties -- only one &
            &active batch simulated!")
 
-      write(ou,103) "k-effective (Collision)", global_tallies(K_COLLISION) % sum
-      write(ou,103) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH)  % sum
-      write(ou,103) "k-effective (Absorption)", global_tallies(K_ABSORPTION) % sum
+      if (run_mode == MODE_EIGENVALUE) then
+        write(ou,103) "k-effective (Collision)", global_tallies(K_COLLISION) % sum
+        write(ou,103) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH)  % sum
+        write(ou,103) "k-effective (Absorption)", global_tallies(K_ABSORPTION) % sum
+      end if
       write(ou,103) "Leakage Fraction", global_tallies(LEAKAGE) % sum
     end if
     write(ou,*)
@@ -1779,12 +1830,12 @@ contains
       end if
 
       ! Write header block
-      if (t % label == "") then
+      if (t % name == "") then
         call header("TALLY " // trim(to_str(t % id)), unit=UNIT_TALLY, &
              level=3)
       else
         call header("TALLY " // trim(to_str(t % id)) // ": " &
-             // trim(t % label), unit=UNIT_TALLY, level=3)
+             // trim(t % name), unit=UNIT_TALLY, level=3)
       endif
 
       ! Handle surface current tallies separately
