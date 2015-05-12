@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<cmfd>
+
+  <mesh>
+    <lower_left>-10.07872 -10.07872 -0.62992</lower_left>
+    <upper_right>10.07872  10.07872 0.62992</upper_right>
+    <dimension>2 2 1</dimension>
+    <energy> 0 0.625e-6 100  </energy>
+  </mesh>
+
+  <feedback> true </feedback>
+  <begin> 20 </begin>
+  <tally_reset> 2 11 100 150 </tally_reset>
+  <gauss_seidel_tolerance>1e-14 1e-10</gauss_seidel_tolerance>
+
+  <downscatter> false </downscatter>
+  <rebalance> false </rebalance>
+  <dhat_reset> false </dhat_reset>
+
+  <display> entropy </display>
+  <second_display> source </second_display>
+  <cmp_flat> true </cmp_flat>
+  <solver> power </solver>
+</cmfd>

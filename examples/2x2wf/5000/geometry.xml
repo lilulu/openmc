@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<geometry>
+
+  <!-- Definition of Cells -->
+  <cell id="1"                fill="5" surfaces="1 -2 3 -4 5 -6" />
+  <cell id="101" universe="1" material="1" surfaces="-11" />
+  <cell id="102" universe="1" material="2" surfaces="11 -12" />
+  <cell id="103" universe="1" material="3" surfaces="12 -13" />
+  <cell id="104" universe="1" material="4" surfaces="13" />
+
+  <lattice id="5">
+    <type>rectangular</type>
+    <dimension>16 16</dimension>
+    <lower_left>-10.07872 -10.07872</lower_left>
+    <width>1.25984 1.25984</width>
+    <universes>
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+    </universes>
+  </lattice>
+
+  <!-- Defition of Surfaces -->
+  <surface id="1" type="x-plane" coeffs="-10.07872" boundary="reflective"/>
+  <surface id="2" type="x-plane" coeffs="10.07872" boundary="reflective"/>
+  <surface id="3" type="y-plane" coeffs="-10.07872" boundary="reflective"/>
+  <surface id="4" type="y-plane" coeffs="10.07872" boundary="reflective"/>
+  <surface id="5" type="z-plane" coeffs="-0.62992" boundary="reflective"/>
+  <surface id="6" type="z-plane" coeffs="0.62992" boundary="reflective"/>  
+  <surface id="11" type="z-cylinder" coeffs="0 0 0.39218" />
+  <surface id="12" type="z-cylinder" coeffs="0 0 0.40005" />
+  <surface id="13" type="z-cylinder" coeffs="0 0 0.45720" />
+</geometry>
