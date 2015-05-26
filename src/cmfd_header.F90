@@ -134,7 +134,8 @@ contains
 
     ! Allocate surface currents
     if (.not. allocated(this % current))    allocate(this % current(12,ng,nx,ny,nz))
-    if (.not. allocated(this % quad_current))allocate(this % quad_current(24,ng,nx,ny,nz))
+    ! FIXME: 2D implementation only needs 16 surfaces. 3D needs 48. 
+    if (.not. allocated(this % quad_current))allocate(this % quad_current(16,ng,nx,ny,nz))
 
     ! Allocate source distributions
     if (.not. allocated(this % cmfd_src)) allocate(this % cmfd_src(ng,nx,ny,nz))
