@@ -12,7 +12,7 @@ module tracking
   use random_lcg,      only: prn
   use string,          only: to_str
   use tally,           only: score_analog_tally, score_tracklength_tally, &
-                             score_surface_current
+                             score_surface_current, score_surface_quad_current
   use track_output,    only: initialize_particle_track, write_particle_track, &
                              finalize_particle_track
 
@@ -147,7 +147,8 @@ contains
         ! since the direction of the particle will change and we need to use the
         ! pre-collision direction to figure out what mesh surfaces were crossed
 
-        if (active_current_tallies % size() > 0) call score_surface_current(p)
+        if (active_current_tallies % size() > 0) &
+             call score_surface_current(p)
 
         ! Clear surface component
         p % surface = NONE
