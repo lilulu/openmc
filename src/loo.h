@@ -35,20 +35,36 @@
 
 class meshElement {
 protected:
+    int _nx, _ny, _nz, _ng;
+    double *_value;
+
+public:
+    meshElement(int ng, int nx, int ny, int nz, void *p);
+    virtual ~meshElement();
+    double getValue(int g, int i, int j, int k);
+};
+
+class energyElement {
+protected:
+    int _nx, _ny, _nz, _ng;
+    double *_value;
+
+public:
+    energyElement(int ng, int nx, int ny, int nz, void *p);
+    virtual ~energyElement();
+    double getValue(int g1, int g2, int i, int j, int k);
+};
+
+
+class surfaceElement {
+protected:
     int _nx, _ny, _nz, _ng, _ns;
     double *_value;
 
 public:
-    meshElement(int nx, int ny, int nz, int ng, int ns, void *p);
-    virtual ~meshElement();
-    double getValue(int i, int j, int k, int g);
-    double getValue(int i, int j, int k, int g1, int g2);
-};
-
-class surfaceElement : public meshElement {
-public:
-    surfaceElement(int nx, int ny, int nz, int ng, int ns, void *p);
-    double getValue(int i, int j, int k, int g, int s);
+    surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p);
+    virtual ~surfaceElement();
+    double getValue(int s, int g, int i, int j, int k);
 };
 
 
@@ -58,7 +74,8 @@ private:
     int _ny;
     int _nz;
     int _ng;
-    int _ns;
+    int _ns_2d;
+    int _ns_3d;
     int _num_loop;
     int _num_track;
     int *_i_array;
@@ -66,23 +83,26 @@ private:
     int *_t_arrayb;
     meshElement _old_flux;
     meshElement _total_xs;
-    meshElement _nfiss_xs;
-    meshElement _scatt_xs;
+    energyElement _nfiss_xs;
+    energyElement _scatt_xs;
     surfaceElement _current;
-    
+    surfaceElement _quad_current;
+
 public:
-    Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs, void *pcur);
+    Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
+        void *pcur, void *pqcur);
     virtual ~Loo();
 
     void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
 
     // helper methods
-    void printMeshElement(meshElement element, std::string string);
+    void printElement(meshElement element, std::string string);
+    void printElement(surfaceElement element, std::string string);
 
 };
 
 extern "C" {
     Loo* new_loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
-        void *pcur);
+                 void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */

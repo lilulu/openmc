@@ -28,26 +28,17 @@
 #include "loo.h"
 
 Loo* new_loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
-             void *pcur)
+             void *pcur, void *pqcur)
 {
-    Loo* loo = new Loo(indices, pflx, ptxs, pfxs, psxs, pcur);
+    Loo* loo = new Loo(indices, pflx, ptxs, pfxs, psxs, pcur, pqcur);
     return loo;
 }
 
-meshElement::meshElement(int nx, int ny, int nz, int ng, int ns, void *p)
-    : _nx(nx),
-      _ny(ny),
-      _nz(nz),
-      _ng(ng),
-      _ns(ns),
-      _value((double*)p)
-{
-}
+meshElement::meshElement(int ng, int nx, int ny, int nz, void *p)
+    : _ng(ng), _nx(nx), _ny(ny), _nz(nz), _value((double*)p) { }
 
-meshElement::~meshElement(){
-}
+meshElement::~meshElement(){ }
 
-/* applies: _old_flux, _total_xs 
 double meshElement::getValue(int i, int j, int k, int g) {
     assert(i < _nx);
     assert(j < _ny);
@@ -57,8 +48,24 @@ double meshElement::getValue(int i, int j, int k, int g) {
     return _value[index_f];
 }
 
+void Loo::printElement(meshElement element, std::string string){
+    printf("%s ", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    printf("%f \n", element.getValue(g, i, j, k));
+                        }}}}
+
+}
+
 /* applies: scattering & fission cross-sections */
-double meshElement::getValue(int i, int j, int k, int g1, int g2) {
+energyElement::energyElement(int ng, int nx, int ny, int nz, void *p)
+    : _ng(ng), _nx(nx), _ny(ny), _nz(nz), _value((double*)p) { }
+
+energyElement::~energyElement(){ }
+
+double energyElement::getValue(int g2, int g1, int i, int j, int k) {
     assert(i < _nx);
     assert(j < _ny);
     assert(k < _nz);
@@ -69,10 +76,13 @@ double meshElement::getValue(int i, int j, int k, int g1, int g2) {
     return _value[index_f];
 }
 
-surfaceElement::surfaceElement(int nx, int ny, int nz, int ng, int ns, void *p)
-    : meshElement(nx, ny, nz, ng, ns, p) { }
+/* applies: currents & quad_currents */
+surfaceElement::surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p)
+    : _ns(ns), _ng(ng), _nx(nx), _ny(ny), _nz(nz), _value((double*)p) {}
 
-double surfaceElement::getValue(int i, int j, int k, int g, int s) {
+surfaceElement::~surfaceElement(){ }
+
+double surfaceElement::getValue(int s, int g, int i, int j, int k) {
     assert(i < _nx);
     assert(j < _ny);
     assert(k < _nz);
@@ -83,30 +93,55 @@ double surfaceElement::getValue(int i, int j, int k, int g, int s) {
     return _value[index_f];
 }
 
+void Loo::printElement(surfaceElement element, std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                // FIXME: temporary, should be _ng
+                for (int g = 0; g < 1; g++) {
+                    // FIXME: temporary, should be _ns
+                    for (int s = 0; s < 12; s++) {
+                        printf("(%d %d %d) g = %d, s = %d: %f \n",
+                               i, j, k, g, s, element.getValue(s, g, i, j, k));
+                    }}}}}
+}
+
 /**
  * Constructor
  * @param indices parameters that contain #cells x,y,z and #energy groups
  */
-Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs, void *pcur)
+Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
+         void *pcur, void *pqcur)
     : _nx(indices[0]),
       _ny(indices[1]),
       _nz(indices[2]),
       _ng(indices[3]),
-      _ns(12),
+      // FIXME: CMFD: ns = 12; LOO: ns = 16 in 2D, ns = 48 in 3D
+      _ns_2d(16),
+      _ns_3d(12),
       _num_loop(_nx),
       _num_track(4*_nx),
       _i_array(new int[_num_loop * _num_track]),
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
-      _old_flux(_nx, _ny, _nz, _ng, _ns, pflx),
-      _total_xs(_nx, _ny, _nz, _ng, _ns, ptxs),
-      _nfiss_xs(_nx, _ny, _nz, _ng, _ns, pfxs),
-      _scatt_xs(_nx, _ny, _nz, _ng, _ns, psxs),
-      _current(_nx, _ny, _nz, _ng, _ns, pcur)
+      _old_flux(_ng, _nx, _ny, _nz, pflx),
+      _total_xs(_ng, _nx, _ny, _nz, ptxs),
+      _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
+      _scatt_xs(_ng, _nx, _ny, _nz, psxs),
+      _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
+      _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur)
 {
     generate2dTrack(_i_array, _t_array, _t_arrayb);
-// variables untested:
-    //printMeshElement(_total_xs, "total xs");
+
+    printElement(_current, "current");
+    printElement(_quad_current, "quad_current");
+}
+
+/**
+ *  Destructor: clear memory
+ */
+Loo::~Loo(){
 }
 
 void Loo::generate2dTrack(int *i_array, int *t_array, int *t_arrayb)
@@ -121,7 +156,7 @@ void Loo::generate2dTrack(int *i_array, int *t_array, int *t_arrayb)
 
         for (nt = 0; nt < _num_track; nt++)
         {
-            i = nl * _num_track + nt; 
+            i = nl * _num_track + nt;
 
             /* First side: start with 0 index, goes like 0,5,0,5,... */
             if (nt < len1)
@@ -213,20 +248,3 @@ void Loo::generate2dTrack(int *i_array, int *t_array, int *t_arrayb)
     return;
 }
 
-void Loo::printMeshElement(meshElement element, std::string string){
-    printf("%s ", string.c_str());
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    printf("%f ", element.getValue(i,j,k,g,g));
-                        }}}}
-    printf("\n");
-}
-
-
-/** 
- *  Destructor: clear memory
- */
-Loo::~Loo(){
-}
