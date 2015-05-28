@@ -1221,6 +1221,7 @@ contains
     integer :: i
     integer :: i_tally
     integer :: j                    ! loop indices
+    integer :: jj(2)                ! loop indices
     integer :: k                    ! loop indices
     integer :: ijk0(3)              ! indices of starting coordinates
     integer :: ijk1(3)              ! indices of ending coordinates
@@ -1237,9 +1238,6 @@ contains
     real(8) :: distance             ! actual distance traveled
     logical :: start_in_mesh        ! particle's starting xyz in mesh?
     logical :: end_in_mesh          ! particle's ending xyz in mesh?
-    logical :: x_same               ! same starting/ending x index (i)
-    logical :: y_same               ! same starting/ending y index (j)
-    logical :: z_same               ! same starting/ending z index (k)
     type(TallyObject),    pointer :: t
     type(StructuredMesh), pointer :: m
 
@@ -1297,103 +1295,54 @@ contains
 
       ! =======================================================================
       ! SPECIAL CASES WHERE TWO INDICES ARE THE SAME
+      do j = 1, 3
+         if (j == 1) then
+            jj(1) = 2
+            jj(2) = 3
+         elseif (j == 2) then
+            jj(1) = 1
+            jj(2) = 3
+         else
+            jj(1) = 1
+            jj(2) = 2
+         end if
 
-      x_same = (ijk0(1) == ijk1(1))
-      y_same = (ijk0(2) == ijk1(2))
-      z_same = (ijk0(3) == ijk1(3))
-
-      if (x_same .and. y_same) then
-        ! Only z crossings
-        if (uvw(3) > 0) then
-          do j = ijk0(3), ijk1(3) - 1
-            ijk0(3) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_TOP
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
+         if ((ijk0(jj(1)) == ijk1(jj(1))) .and. (ijk0(jj(2)) == ijk1(jj(2)))) &
+              then
+            ! Only j direction crossings
+            if (uvw(j) > 0) then
+               do k = ijk0(j), ijk1(j) - 1
+                  ijk0(j) = k
+                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                     ! j=1: OUT_RIGHT (2), j=2: OUT_FRONT (4), j=3: OUT_TOP (6)
+                     matching_bins(i_filter_surf) = 2 * j
+                     matching_bins(i_filter_mesh) = &
+                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
+                     filter_index = sum((matching_bins(1:t%n_filters) - 1) &
+                          * t % stride) + 1
+                     t % results(1, filter_index) % value = &
+                          t % results(1, filter_index) % value + p % wgt
+                  end if
+               end do
+            else
+               do k = ijk0(j) - 1, ijk1(j), -1
+                  ijk0(j) = k
+                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                     ! j=1: IN_RIGHT (1), j=2: IN_FRONT (3), j=3: IN_TOP (5)
+                     matching_bins(i_filter_surf) = 2 * j - 1
+                     matching_bins(i_filter_mesh) = &
+                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
+                     filter_index = sum((matching_bins(1:t%n_filters) - 1) &
+                          * t % stride) + 1
+                     t % results(1, filter_index) % value = &
+                          t % results(1, filter_index) % value + p % wgt
+                  end if
+               end do
             end if
-          end do
-        else
-          do j = ijk0(3) - 1, ijk1(3), -1
-            ijk0(3) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_TOP
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      elseif (x_same .and. z_same) then
-        ! Only y crossings
-        if (uvw(2) > 0) then
-          do j = ijk0(2), ijk1(2) - 1
-            ijk0(2) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_FRONT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        else
-          do j = ijk0(2) - 1, ijk1(2), -1
-            ijk0(2) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_FRONT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      elseif (y_same .and. z_same) then
-        ! Only x crossings
-        if (uvw(1) > 0) then
-          do j = ijk0(1), ijk1(1) - 1
-            ijk0(1) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_RIGHT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        else
-          do j = ijk0(1) - 1, ijk1(1), -1
-            ijk0(1) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_RIGHT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      end if
-
+            cycle TALLY_LOOP
+         end if
+      end do
+      
       ! =======================================================================
       ! GENERIC CASE
 
@@ -1495,6 +1444,7 @@ contains
     integer :: i
     integer :: i_tally
     integer :: j                    ! loop indices
+    integer :: jj(2)                ! loop indices
     integer :: k                    ! loop indices
     integer :: ijk0(3)              ! indices of starting coordinates
     integer :: ijk1(3)              ! indices of ending coordinates
@@ -1511,9 +1461,6 @@ contains
     real(8) :: distance             ! actual distance traveled
     logical :: start_in_mesh        ! particle's starting xyz in mesh?
     logical :: end_in_mesh          ! particle's ending xyz in mesh?
-    logical :: x_same               ! same starting/ending x index (i)
-    logical :: y_same               ! same starting/ending y index (j)
-    logical :: z_same               ! same starting/ending z index (k)
     type(TallyObject),    pointer :: t
     type(StructuredMesh), pointer :: m
 
@@ -1571,102 +1518,58 @@ contains
 
       ! =======================================================================
       ! SPECIAL CASES WHERE TWO INDICES ARE THE SAME
+      do j = 1, 2
+         if (j == 1) then
+            jj(1) = 2
+            jj(2) = 3
+         elseif (j == 2) then
+            jj(1) = 1
+            jj(2) = 3
+         end if
 
-      x_same = (ijk0(1) == ijk1(1))
-      y_same = (ijk0(2) == ijk1(2))
-      z_same = (ijk0(3) == ijk1(3))
-
-      if (x_same .and. y_same) then
-        ! Only z crossings
-        if (uvw(3) > 0) then
-          do j = ijk0(3), ijk1(3) - 1
-            ijk0(3) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_TOP
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
+         if ((ijk0(jj(1)) == ijk1(jj(1))) .and. (ijk0(jj(2)) == ijk1(jj(2)))) &
+              then
+            ! Only j direction crossings
+            if (uvw(j) > 0) then
+               do k = ijk0(j), ijk1(j) - 1
+                  ijk0(j) = k
+                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                     ! out_right = 2, out_front = 4, out_top = 6
+                    if (uvw(jj(1)) > 0) then
+                       matching_bins(i_filter_surf) = 4 * j - 1
+                    else
+                       matching_bins(i_filter_surf) = 4 * j
+                    end if
+                     matching_bins(i_filter_mesh) = &
+                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
+                     filter_index = sum((matching_bins(1:t%n_filters) - 1) &
+                          * t % stride) + 1
+                     t % results(1, filter_index) % value = &
+                          t % results(1, filter_index) % value + p % wgt
+                  end if
+               end do
+            else
+               do k = ijk0(j) - 1, ijk1(j), -1
+                  ijk0(j) = k
+                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                     ! in_right = 1, in_front = 3, in_top = 5
+                    if (uvw(jj(1)) > 0) then
+                       matching_bins(i_filter_surf) = 4 * j - 3
+                    else
+                       matching_bins(i_filter_surf) = 4 * j - 2
+                    end if
+                     matching_bins(i_filter_mesh) = &
+                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
+                     filter_index = sum((matching_bins(1:t%n_filters) - 1) &
+                          * t % stride) + 1
+                     t % results(1, filter_index) % value = &
+                          t % results(1, filter_index) % value + p % wgt
+                  end if
+               end do
             end if
-          end do
-        else
-          do j = ijk0(3) - 1, ijk1(3), -1
-            ijk0(3) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_TOP
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      elseif (x_same .and. z_same) then
-        ! Only y crossings
-        if (uvw(2) > 0) then
-          do j = ijk0(2), ijk1(2) - 1
-            ijk0(2) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_FRONT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        else
-          do j = ijk0(2) - 1, ijk1(2), -1
-            ijk0(2) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_FRONT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      elseif (y_same .and. z_same) then
-        ! Only x crossings
-        if (uvw(1) > 0) then
-          do j = ijk0(1), ijk1(1) - 1
-            ijk0(1) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = OUT_RIGHT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        else
-          do j = ijk0(1) - 1, ijk1(1), -1
-            ijk0(1) = j
-            if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-              matching_bins(i_filter_surf) = IN_RIGHT
-              matching_bins(i_filter_mesh) = &
-                   mesh_indices_to_bin(m, ijk0 + 1, .true.)
-              filter_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1
-!$omp atomic
-              t % results(1, filter_index) % value = &
-                   t % results(1, filter_index) % value + p % wgt
-            end if
-          end do
-        end if
-        cycle
-      end if
+            cycle
+         end if
+      end do
 
       ! =======================================================================
       ! GENERIC CASE
