@@ -303,24 +303,26 @@ contains
                 end do
 
                 ! Bottom surface
-                !matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
-                !     (/ i, j, k-1 /) + 1, .true.)
-                !matching_bins(i_filter_surf) = IN_TOP
-                !score_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1 ! outgoing
-                !cmfd % current(9,h,i,j,k) = t % results(1,score_index) % sum
-                !matching_bins(i_filter_surf) = OUT_TOP
-                !score_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1 ! incoming
-                !cmfd % current(10,h,i,j,k) = t % results(1,score_index) % sum
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i, j, k-1 /) + 1, .true.)
+                do q = 2 * nq + 1, 3 * nq
+                   matching_bins(i_filter_surf) = q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % current(q+2*nq,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
 
                 ! Top surface
-                !matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
-                !     (/ i, j, k /) + 1, .true.)
-                !matching_bins(i_filter_surf) = IN_TOP
-                !score_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1 ! incoming
-                !cmfd % current(11,h,i,j,k) = t % results(1,score_index) % sum
-                !matching_bins(i_filter_surf) = OUT_TOP
-                !score_index = sum((matching_bins(1:t%n_filters) - 1) * t % stride) + 1 ! outgoing
-                !cmfd % current(12,h,i,j,k) = t % results(1,score_index) % sum
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i, j, k /) + 1, .true.)
+                do q = 2 * nq + 1, 3 * nq
+                   matching_bins(i_filter_surf) = q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % current(q+3*nq,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
 
               end if TALLY
 
