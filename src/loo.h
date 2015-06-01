@@ -32,6 +32,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 class meshElement {
 protected:
@@ -64,7 +65,9 @@ protected:
 public:
     surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p);
     virtual ~surfaceElement();
+    double getNs();
     double getValue(int s, int g, int i, int j, int k);
+    void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 };
 
 
@@ -98,6 +101,7 @@ public:
     // helper methods
     void printElement(meshElement element, std::string string);
     void printElement(surfaceElement element, std::string string);
+    void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 
 };
 

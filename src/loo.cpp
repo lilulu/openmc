@@ -82,6 +82,10 @@ surfaceElement::surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p)
 
 surfaceElement::~surfaceElement(){ }
 
+double surfaceElement::getNs(){
+    return _ns;
+}
+
 double surfaceElement::getValue(int s, int g, int i, int j, int k) {
     assert(i < _nx);
     assert(j < _ny);
@@ -101,10 +105,29 @@ void Loo::printElement(surfaceElement element, std::string string){
                 // FIXME: temporary, should be _ng
                 for (int g = 0; g < 1; g++) {
                     // FIXME: temporary, should be _ns
-                    for (int s = 0; s < 12; s++) {
+                    for (int s = 0; s < element.getNs(); s++) {
                         printf("(%d %d %d) g = %d, s = %d: %f \n",
                                i, j, k, g, s, element.getValue(s, g, i, j, k));
                     }}}}}
+}
+
+/* element1 = quad_current, element2 = current*/
+void Loo::verifyPartialCurrent(surfaceElement element1, surfaceElement element2){
+    double delta;
+    printf("delta \n");
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    // FIXME: temporary, should be _ns
+                    for (int s = 0; s < 12; s++) {
+                        delta = element1.getValue(s, g, i, j, k) -
+                            element2.getValue(s, g, i, j, k);
+                        //if (fabs(delta) > 0) {
+                            printf("(%d %d %d) g = %d, s = %d: %f \n",
+                                   i, j, k, g, s, delta);
+                            //}
+                        }}}}}
 }
 
 /**
@@ -136,6 +159,7 @@ Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
 
     printElement(_current, "current");
     printElement(_quad_current, "quad_current");
+    //verifyPartialCurrent(_quad_current, _current);
 }
 
 /**
