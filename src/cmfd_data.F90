@@ -257,8 +257,6 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current(q,h,i,j,k) = &
-                        t % results(1,score_index) % sum
                    cmfd % current(q,h,i,j,k) = &
                         t % results(1,score_index) % sum
                 end do
@@ -270,8 +268,6 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
                    cmfd % current(q+nq,h,i,j,k) = &
                         t % results(1,score_index) % sum
                 end do
@@ -283,8 +279,6 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
                    cmfd % current(q+nq,h,i,j,k) = &
                         t % results(1,score_index) % sum
                 end do
@@ -296,8 +290,6 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current(q+2*nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
                    cmfd % current(q+2*nq,h,i,j,k) = &
                         t % results(1,score_index) % sum
                 end do

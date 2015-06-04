@@ -37,7 +37,6 @@ contains
     real (c_double), allocatable, target:: nfissxs(:,:,:,:,:)
     real (c_double), allocatable, target:: scattxs(:,:,:,:,:)
     real (c_double), allocatable, target:: current(:,:,:,:,:)
-    real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
 
     indices = cmfd % indices
     flux = cmfd % flux
@@ -45,11 +44,10 @@ contains
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs
     current = cmfd % current
-    quad_current = cmfd % quad_current
     call new_loo(c_loc(indices), c_loc(flux(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), c_loc(nfissxs(1,1,1,1,1)), &
          c_loc(scattxs(1,1,1,1,1)), c_loc(current(1,1,1,1,1)), &
-         c_loc(quad_current(1,1,1,1,1)))
+         c_loc(current(13,1,1,1,1)))
 
   end subroutine pass_data_into_loo
 end module loo_pass_data
