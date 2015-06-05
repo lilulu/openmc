@@ -2797,16 +2797,17 @@ contains
             ! Add surface filter
             t % n_filters = t % n_filters + 1
             t % filters(t % n_filters) % type = FILTER_SURFACE
-            t % filters(t % n_filters) % n_bins = 2 * m % n_dimension
-            allocate(t % filters(t % n_filters) % int_bins(&
-                 2 * m % n_dimension))
-            if (m % n_dimension == 2) then
-              t % filters(t % n_filters) % int_bins = (/ IN_RIGHT, &
-                   OUT_RIGHT, IN_FRONT, OUT_FRONT /)
-            elseif (m % n_dimension == 3) then
-              t % filters(t % n_filters) % int_bins = (/ IN_RIGHT, &
-                   OUT_RIGHT, IN_FRONT, OUT_FRONT, IN_TOP, OUT_TOP /)
-            end if
+
+            ! CMFD itself requires 2 * m % n_dimension surface
+            ! filters. LOO adds 8 additional filters. FIXME: very
+            ! similar routine shows up in cmfd_input.F90's
+            ! create_cmfd_tally routine.
+            t % filters(t % n_filters) % n_bins = 14
+            allocate(t % filters(t % n_filters) % int_bins(14))
+
+            t % filters(t % n_filters) % int_bins = (/ 1, 2, 3, 4, 5, 6, &
+                 1, 1, 2, 2, 3, 3, 4, 4 /)
+
             t % find_filter(FILTER_SURFACE) = t % n_filters
 
           case ('events')

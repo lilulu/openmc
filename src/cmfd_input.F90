@@ -1,5 +1,7 @@
 module cmfd_input
 
+  use, intrinsic :: ISO_FORTRAN_ENV
+
   use global
 
 #ifdef PETSC
@@ -563,7 +565,7 @@ contains
       else if (i == 3) then
 
         ! Set name
-        t % name = "CMFD surface currents"
+        t % name = "Surface currents"
 
         ! Set tally estimator to analog
         t % estimator = ESTIMATOR_ANALOG
@@ -571,22 +573,27 @@ contains
         ! Add extra filter for surface
         n_filters = n_filters + 1
         filters(n_filters) % type = FILTER_SURFACE
-        filters(n_filters) % n_bins = 2 * m % n_dimension
-        allocate(filters(n_filters) % int_bins(2 * m % n_dimension))
-        if (m % n_dimension == 2) then
-          filters(n_filters) % int_bins = (/ IN_RIGHT, OUT_RIGHT, IN_FRONT, &
-               OUT_FRONT /)
-        elseif (m % n_dimension == 3) then
-          filters(n_filters) % int_bins = (/ IN_RIGHT, OUT_RIGHT, IN_FRONT, &
-               OUT_FRONT, IN_TOP, OUT_TOP /)
-        end if
+
+        ! CMFD itself requires 2 * m % n_dimension surface
+        ! filters. LOO adds 8 additional filters. FIXME:
+        ! input_xml.F90's read_tallies_xml() subroutine contains some
+        ! very fimilar routine. FIXME: 3D needs to increase # here.
+        filters(n_filters) % n_bins = 14
+        allocate(filters(n_filters) % int_bins(14))
+
+        ! Initialize contents of int_bins, which contains the surface
+        ! id numbers of the n_bins defined above.
+        filters(n_filters) % int_bins = (/ 1, 2, 3, 4, 5, 6, &
+             1, 1, 2, 2, 3, 3, 4, 4 /)
+
         t % find_filter(FILTER_SURFACE) = n_filters
 
         ! Allocate and set filters
         t % n_filters = n_filters
         allocate(t % filters(n_filters))
         t % filters = filters(1:n_filters)
-
+        
+        
         ! Deallocate filters bins array
         deallocate(filters(n_filters) % int_bins)
 
@@ -607,7 +614,6 @@ contains
         ! currents coming into and out of the boundary mesh cells.
         i_filter_mesh = t % find_filter(FILTER_MESH)
         t % filters(i_filter_mesh) % n_bins = product(m % dimension + 1)
-
       end if
 
       ! Deallocate filter bins
