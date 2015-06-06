@@ -1453,6 +1453,7 @@ contains
     integer :: filter_index         ! index of scoring bin
     integer :: i_filter_mesh        ! index of mesh filter in filters array
     integer :: i_filter_surf        ! index of surface filter in filters
+    integer :: i_filter_cmfd        ! index reserved for CMFD currents
     real(8) :: uvw(3)               ! cosine of angle of particle
     real(8) :: xyz0(3)              ! starting/intermediate coordinates
     real(8) :: xyz1(3)              ! ending coordinates of particle
@@ -1476,6 +1477,7 @@ contains
       ! Get index for mesh and surface filters
       i_filter_mesh = t % find_filter(FILTER_MESH)
       i_filter_surf = t % find_filter(FILTER_SURFACE)
+      i_filter_cmfd = 2 * m % n_dimension 
 
       ! Determine indices for starting and ending location
       m => meshes(t % filters(i_filter_mesh) % int_bins(1))
@@ -1536,9 +1538,9 @@ contains
                   if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                      ! out_right = 2, out_front = 4, out_top = 6
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = 4 * j - 1
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
                     else
-                       matching_bins(i_filter_surf) = 4 * j
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
                     end if
                      matching_bins(i_filter_mesh) = &
                           mesh_indices_to_bin(m, ijk0 + 1, .true.)
@@ -1554,9 +1556,9 @@ contains
                   if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                      ! in_right = 1, in_front = 3, in_top = 5
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = 4 * j - 3
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
                     else
-                       matching_bins(i_filter_surf) = 4 * j - 2
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
                     end if
                      matching_bins(i_filter_mesh) = &
                           mesh_indices_to_bin(m, ijk0 + 1, .true.)
@@ -1583,14 +1585,16 @@ contains
         end if
       end do
 
-      do k = 1, n_cross
+      ! Loop over every surface crossing between ijk0 and ijk1,
+      ! updating xyz0 to be the current neutron location, and
+      ! xyz_cross to be the current mesh surface
+      CROSS_LOOP: do k = 1, n_cross
         ! Reset scoring bin index
         matching_bins(i_filter_surf) = 0
 
         ! Calculate distance to each bounding surface. We need to treat
         ! special case where the cosine of the angle is zero since this would
         ! result in a divide-by-zero.
-
         do j = 1, 3
           if (uvw(j) == 0) then
             d(j) = INFINITY
@@ -1606,15 +1610,27 @@ contains
 
         ! Now use the minimum distance and diretion of the particle to
         ! determine which surface was crossed
+        !
+        ! FIXME: 2D only needs to go from j = 1, 2, and we only tally
+        ! 8 quad currents per mesh cell (ignoring the z-direction)
 
-        do j = 1, 3
+        do j = 1, 2
+           if (j == 1) then
+              jj(1) = 2
+           elseif (j == 2) then
+              jj(1) = 1
+           end if
            if (distance == d(j)) then
               if (uvw(j) > 0) then
                  ! Crossing into right/front/top mesh cell -- this is
                  ! treated as outgoing current from (i,j,k)
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! out_right = 2, out_front = 4, out_top = 6
-                    matching_bins(i_filter_surf) = 2 * j
+                    if (uvw(jj(1)) > 0) then
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
+                    end if
                     matching_bins(i_filter_mesh) = &
                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
                  end if
@@ -1627,8 +1643,12 @@ contains
                  ijk0(j) = ijk0(j) - 1
                  xyz_cross(j) = xyz_cross(j) - m % width(j)
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
-                    ! in_right = 1, in_front = 3, in_top = 5 
-                    matching_bins(i_filter_surf) = 2 * j - 1
+                    ! in_right = 1, in_front = 3, in_top = 5
+                    if (uvw(jj(1)) > 0) then
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
+                    end if
                     matching_bins(i_filter_mesh) = &
                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
                  end if
@@ -1652,9 +1672,9 @@ contains
                t % results(1, filter_index) % value + p % wgt
         end if
 
-        ! Calculate new coordinates
+        ! Calculate new coordinates for tallying on the next surface
         xyz0 = xyz0 + distance * uvw
-      end do
+     end do CROSS_LOOP
 
     end do TALLY_LOOP
 
