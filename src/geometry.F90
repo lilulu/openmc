@@ -9,7 +9,8 @@ module geometry
   use particle_header,        only: LocalCoord, deallocate_coord, Particle
   use particle_restart_write, only: write_particle_restart
   use string,                 only: to_str
-  use tally,                  only: score_surface_current
+  use tally,                  only: score_surface_current, &
+                                    score_surface_quad_current
 
   implicit none
 
@@ -316,6 +317,7 @@ contains
 
         p % coord0 % xyz = p % coord0 % xyz + TINY_BIT * p % coord0 % uvw
         call score_surface_current(p)
+        call score_surface_quad_current(p)
       end if
 
       ! Score to global leakage tally
@@ -350,6 +352,7 @@ contains
       if (active_current_tallies % size() > 0) then
         p % coord0 % xyz = p % coord0 % xyz - TINY_BIT * p % coord0 % uvw
         call score_surface_current(p)
+        call score_surface_quad_current(p)
         p % coord0 % xyz = p % coord0 % xyz + TINY_BIT * p % coord0 % uvw
       end if
 

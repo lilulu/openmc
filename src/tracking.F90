@@ -147,8 +147,10 @@ contains
         ! since the direction of the particle will change and we need to use the
         ! pre-collision direction to figure out what mesh surfaces were crossed
 
-        if (active_current_tallies % size() > 0) &
-             call score_surface_current(p)
+        if (active_current_tallies % size() > 0) then
+           call score_surface_current(p)
+           call score_surface_quad_current(p)
+        end if
 
         ! Clear surface component
         p % surface = NONE
