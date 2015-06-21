@@ -316,6 +316,60 @@ contains
                         t % results(1,score_index) % sum
                 end do
 
+                ! Set number of quadrature to be 4 for LOO quad currents
+                 nq = 4
+
+                ! Initialize and filter for energy
+                matching_bins(1:t%n_filters) = 1
+                if (i_filter_ein > 0) then
+                  matching_bins(i_filter_ein) = ng - h + 1
+                end if
+
+                ! Left surface: from left neighbor
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i-1, j, k /) + 1, .true.)
+                do q = 1, nq
+                   matching_bins(i_filter_surf) = 6 + q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % quad_current(q,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
+
+                ! Right surface
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i, j, k /) + 1, .true.)
+                do q = 1, nq
+                   matching_bins(i_filter_surf) = 6 + q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % quad_current(q+nq,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
+
+                ! Back surface
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i, j-1, k /) + 1, .true.)
+                do q = nq + 1, 2 * nq
+                   matching_bins(i_filter_surf) = 6 + q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % quad_current(q+nq,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
+
+                ! Front surface
+                matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
+                     (/ i, j, k /) + 1, .true.)
+                do q = nq + 1, 2 * nq
+                   matching_bins(i_filter_surf) = 6 + q
+                   score_index = sum((matching_bins(1:t%n_filters) - 1) &
+                        * t % stride) + 1
+                   cmfd % quad_current(q+2*nq,h,i,j,k) = &
+                        t % results(1,score_index) % sum
+                end do
+
+                ! FIXME: add top & bottom for 3D implementation
               end if TALLY
 
             end do OUTGROUP
@@ -766,7 +820,7 @@ contains
             ! Get cell data
             cell_dtilde = cmfd%dtilde(:,g,i,j,k)
             cell_flux = cmfd%flux(g,i,j,k)/product(cmfd%hxyz(:,i,j,k))
-            current = cmfd%current(:,g,i,j,k)
+            current = cmfd % current(:,g,i,j,k)
 
             ! Setup of vector to identify boundary conditions
             bound = (/i,i,j,j,k,k/)
@@ -874,7 +928,7 @@ contains
     real(8) :: albedo      ! the albedo
 
     ! Get partial currents from object
-    current = cmfd%current(:,g,i,j,k)
+    current = cmfd % current(:,g,i,j,k)
 
     ! Define xyz and +/- indices
     shift_idx = -2*mod(l,2) + 1          ! shift neig by -1 or +1

@@ -33,6 +33,7 @@ module cmfd_header
 
     ! Current
     real(8), allocatable :: current(:,:,:,:,:)
+    real(8), allocatable :: quad_current(:,:,:,:,:)
 
     ! Flux
     real(8), allocatable :: flux(:,:,:,:)
@@ -132,8 +133,9 @@ contains
     if (.not. allocated(this % hxyz))       allocate(this % hxyz(3,nx,ny,nz))
 
     ! Allocate surface currents
-    ! FIXME: for now 12 for CMFD, additional 16 for 2D LOO
-    if (.not. allocated(this % current))    allocate(this % current(28,ng,nx,ny,nz))
+    ! FIXME: for now 12 for CMFD, 16 for 2D LOO
+    if (.not. allocated(this % current))    allocate(this % current(12,ng,nx,ny,nz))
+    if (.not. allocated(this % quad_current)) allocate(this % quad_current(16,ng,nx,ny,nz))
 
     ! Allocate source distributions
     if (.not. allocated(this % cmfd_src)) allocate(this % cmfd_src(ng,nx,ny,nz))
@@ -163,6 +165,7 @@ contains
     this % dhat          = ZERO
     this % hxyz          = ZERO
     this % current       = ZERO
+    this % quad_current  = ZERO
     this % cmfd_src      = ZERO
     this % openmc_src    = ZERO
     this % sourcecounts  = ZERO
@@ -192,6 +195,7 @@ contains
     if (allocated(this % nfissxs))       deallocate(this % nfissxs)
     if (allocated(this % diffcof))       deallocate(this % diffcof)
     if (allocated(this % current))       deallocate(this % current)
+    if (allocated(this % quad_current))  deallocate(this % quad_current)
     if (allocated(this % flux))          deallocate(this % flux)
     if (allocated(this % dtilde))        deallocate(this % dtilde)
     if (allocated(this % dhat))          deallocate(this % dhat)

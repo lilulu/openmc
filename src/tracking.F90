@@ -143,9 +143,10 @@ contains
              global_tallies(K_COLLISION) % value + p % wgt * &
              material_xs % nu_fission / material_xs % total
 
-        ! score surface current tallies -- this has to be done before the collision
-        ! since the direction of the particle will change and we need to use the
-        ! pre-collision direction to figure out what mesh surfaces were crossed
+        ! score surface current tallies -- this has to be done before
+        ! the collision since the direction of the particle will
+        ! change and we need to use the pre-collision direction to
+        ! figure out what mesh surfaces were crossed
 
         if (active_current_tallies % size() > 0) then
            call score_surface_current(p)
@@ -155,6 +156,7 @@ contains
         ! Clear surface component
         p % surface = NONE
 
+        ! Sample a nuclide and reaction
         call collision(p)
 
         ! Score collision estimator tallies -- this is done after a collision

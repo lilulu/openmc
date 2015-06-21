@@ -1382,8 +1382,7 @@ contains
         do j = 1, 3
            if (distance == d(j)) then
               if (uvw(j) > 0) then
-                 ! Crossing into right/front/top mesh cell -- this is
-                 ! treated as outgoing current from (i,j,k)
+                 ! Crossing into right/front/top mesh cell
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! out_right = 2, out_front = 4, out_top = 6
                     matching_bins(i_filter_surf) = 2 * j
@@ -1393,9 +1392,7 @@ contains
                  ijk0(j) = ijk0(j) + 1
                  xyz_cross(j) = xyz_cross(j) + m % width(j)
               else
-                 ! Crossing into left/back/bottom mesh cell -- this is
-                 ! treated as incoming current in
-                 ! (i-1,j,k)/(i,j-1,k)/(i,j,k-1)
+                 ! Crossing into left/back/bottom mesh cell
                  ijk0(j) = ijk0(j) - 1
                  xyz_cross(j) = xyz_cross(j) - m % width(j)
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
@@ -1477,10 +1474,10 @@ contains
       ! Get index for mesh and surface filters
       i_filter_mesh = t % find_filter(FILTER_MESH)
       i_filter_surf = t % find_filter(FILTER_SURFACE)
-      i_filter_cmfd = 2 * m % n_dimension 
 
       ! Determine indices for starting and ending location
       m => meshes(t % filters(i_filter_mesh) % int_bins(1))
+      i_filter_cmfd = 2 * m % n_dimension
       call get_mesh_indices(m, xyz0, ijk0(:m % n_dimension), start_in_mesh)
       call get_mesh_indices(m, xyz1, ijk1(:m % n_dimension), end_in_mesh)
 
@@ -1538,9 +1535,9 @@ contains
                   if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                      ! out_right = 2, out_front = 4, out_top = 6
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
-                    else
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
                     end if
                      matching_bins(i_filter_mesh) = &
                           mesh_indices_to_bin(m, ijk0 + 1, .true.)
@@ -1556,9 +1553,9 @@ contains
                   if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                      ! in_right = 1, in_front = 3, in_top = 5
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
-                    else
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
                     end if
                      matching_bins(i_filter_mesh) = &
                           mesh_indices_to_bin(m, ijk0 + 1, .true.)
@@ -1569,7 +1566,7 @@ contains
                   end if
                end do
             end if
-            cycle
+            cycle TALLY_LOOP
          end if
       end do
 
@@ -1627,9 +1624,9 @@ contains
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! out_right = 2, out_front = 4, out_top = 6
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
-                    else
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 1
                     end if
                     matching_bins(i_filter_mesh) = &
                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
@@ -1645,9 +1642,9 @@ contains
                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! in_right = 1, in_front = 3, in_top = 5
                     if (uvw(jj(1)) > 0) then
-                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
-                    else
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
+                    else
+                       matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 3
                     end if
                     matching_bins(i_filter_mesh) = &
                          mesh_indices_to_bin(m, ijk0 + 1, .true.)
