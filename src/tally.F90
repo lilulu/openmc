@@ -1517,22 +1517,27 @@ contains
 
       ! =======================================================================
       ! SPECIAL CASES WHERE TWO INDICES ARE THE SAME
-      do j = 1, 2
+      do j = 1, 3
          if (j == 1) then
             jj(1) = 2
             jj(2) = 3
          elseif (j == 2) then
             jj(1) = 1
             jj(2) = 3
+         else
+            jj(1) = 1
+            jj(2) = 2
          end if
 
          if ((ijk0(jj(1)) == ijk1(jj(1))) .and. (ijk0(jj(2)) == ijk1(jj(2)))) &
               then
+            ! FIXME: for now do not tally for j=3 direction. 
             ! Only j direction crossings
             if (uvw(j) > 0) then
                do k = ijk0(j), ijk1(j) - 1
                   ijk0(j) = k
-                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                  if (j < 3 .and. all(ijk0 >= 0) .and. &
+                       all(ijk0 <= m % dimension)) then
                      ! out_right = 2, out_front = 4, out_top = 6
                     if (uvw(jj(1)) > 0) then
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
@@ -1550,7 +1555,8 @@ contains
             else
                do k = ijk0(j) - 1, ijk1(j), -1
                   ijk0(j) = k
-                  if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                  if (j < 3 .and. all(ijk0 >= 0) .and. &
+                       all(ijk0 <= m % dimension)) then
                      ! in_right = 1, in_front = 3, in_top = 5
                     if (uvw(jj(1)) > 0) then
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
@@ -1611,17 +1617,18 @@ contains
         ! FIXME: 2D only needs to go from j = 1, 2, and we only tally
         ! 8 quad currents per mesh cell (ignoring the z-direction)
 
-        do j = 1, 2
+        do j = 1, 3
            if (j == 1) then
               jj(1) = 2
            elseif (j == 2) then
               jj(1) = 1
            end if
+
+           ! FIXME: for now do not tally for j = 3. 
            if (distance == d(j)) then
+              ! Crossing into right/front/top mesh cell
               if (uvw(j) > 0) then
-                 ! Crossing into right/front/top mesh cell -- this is
-                 ! treated as outgoing current from (i,j,k)
-                 if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                 if (j < 3 .and. all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! out_right = 2, out_front = 4, out_top = 6
                     if (uvw(jj(1)) > 0) then
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j
@@ -1633,13 +1640,10 @@ contains
                  end if
                  ijk0(j) = ijk0(j) + 1
                  xyz_cross(j) = xyz_cross(j) + m % width(j)
-              else
-                 ! Crossing into left/back/bottom mesh cell -- this is
-                 ! treated as incoming current in
-                 ! (i-1,j,k)/(i,j-1,k)/(i,j,k-1)
+              else ! Crossing into left/back/bottom mesh cell
                  ijk0(j) = ijk0(j) - 1
                  xyz_cross(j) = xyz_cross(j) - m % width(j)
-                 if (all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
+                 if (j < 3 .and. all(ijk0 >= 0) .and. all(ijk0 <= m % dimension)) then
                     ! in_right = 1, in_front = 3, in_top = 5
                     if (uvw(jj(1)) > 0) then
                        matching_bins(i_filter_surf) = i_filter_cmfd + 4 * j - 2
