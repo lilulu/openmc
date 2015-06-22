@@ -345,15 +345,18 @@ contains
         return
       end if
 
-      ! Score surface currents since reflection causes the direction of the
-      ! particle to change -- artificially move the particle slightly back in
-      ! case the surface crossing in coincident with a mesh boundary
+      ! Score surface currents since reflection causes the direction
+      ! of the particle to change -- artificially move the particle
+      ! slightly forward in the case of surface crossing in coincident
+      ! with a mesh boundary so that this crossing would score as the
+      ! outgoing current on the reflective boundary condition, then
+      ! move it back to its original position. 
 
       if (active_current_tallies % size() > 0) then
-        p % coord0 % xyz = p % coord0 % xyz - TINY_BIT * p % coord0 % uvw
+        p % coord0 % xyz = p % coord0 % xyz + TINY_BIT * p % coord0 % uvw
         call score_surface_current(p)
         call score_surface_quad_current(p)
-        p % coord0 % xyz = p % coord0 % xyz + TINY_BIT * p % coord0 % uvw
+        p % coord0 % xyz = p % coord0 % xyz - TINY_BIT * p % coord0 % uvw
       end if
 
       ! Copy particle's direction cosines
@@ -500,8 +503,14 @@ contains
         end if
       end if
 
-      ! Set previous coordinate going slightly past surface crossing
-      p % last_xyz = p % coord0 % xyz + TINY_BIT * p % coord0 % uvw
+      ! Set previous coordinate backward slightly (so outside of the
+      ! reflective boundary) such that for the next event would create
+      ! an incoming current on the reflective boundary. This is to be
+      ! consistent with the earlier treatment of scoring the outgoing
+      ! current on reflective boundary, such that the two would cancel
+      ! out in calculating net current. 
+
+      p % last_xyz = p % coord0 % xyz - TINY_BIT * p % coord0 % uvw
 
       ! Diagnostic message
       if (verbosity >= 10 .or. trace) then
