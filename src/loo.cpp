@@ -139,15 +139,21 @@ void Loo::computeQuadFlux(){
                 for (int g = 0; g < _ng; g++) {
                     // FIXME: temporary, should be _ns
                     for (int s = 0; s < _quad_current.getNs(); s++) {
-                        // Compute _quad_flux based on _quad_current
+                        /* compute _quad_flux based on _quad_current */
                         _quad_flux.setValue(
                             s, g, i, j, k,
                             _quad_current.getValue(s, g, i, j, k) / P0 /
                             SIN_THETA_45);
+
+                        /* store _quad_flux into _old_quad_flux. This
+                         * is because we need a copy of the _quad_flux
+                         * generated from MC */
+                        _old_quad_flux.setValue(
+                            s, g, i, j, k,
+                            _quad_flux.getValue(s, g, i, j, k));
                     }}}}}
-    
-    printElement(_quad_current, "quad_current");
-    printElement(_quad_flux, "quad_flux");
+    //printElement(_quad_current, "quad_current");
+    //printElement(_quad_flux, "quad_flux");
 }
 
 /* element1 = quad_current, element2 = current*/
@@ -193,7 +199,8 @@ Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
       _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
-      _quad_flux(_ns_2d, _ng, _nx, _ny, _nz)
+      _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
+      _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz)
 {
     generate2dTrack(_i_array, _t_array, _t_arrayb);
 

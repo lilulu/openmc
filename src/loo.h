@@ -100,6 +100,7 @@ private:
     surfaceElement _current;
     surfaceElement _quad_current;
     surfaceElement _quad_flux;
+    surfaceElement _old_quad_flux;
 
 public:
     Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
@@ -108,6 +109,7 @@ public:
 
     // main methods
     void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
+    /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();
 
     // helper methods
