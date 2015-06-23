@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <math.h>
 
+/* P0 is sin theta from Tabuchi-Yamamoto set for 1 polar angle */
 #define P0 0.798184
 #define SIN_THETA_45 0.70710678118654746
 #define FOUR_PI 12.566370614359172
@@ -48,8 +49,10 @@ protected:
 
 public:
     meshElement(int ng, int nx, int ny, int nz, void *p);
+    meshElement(int ng, int nx, int ny, int nz);
     virtual ~meshElement();
     double getValue(int g, int i, int j, int k);
+    void setValue(int g, int i, int j, int k, double value);
 };
 
 class energyElement {
@@ -76,9 +79,7 @@ public:
     double getNs();
     double getValue(int s, int g, int i, int j, int k);
     void setValue(int s, int g, int i, int j, int k, double value);
-    void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 };
-
 
 class Loo {
 private:
@@ -86,6 +87,7 @@ private:
     int _ny;
     int _nz;
     int _ng;
+    int _nt;
     int _ns_2d;
     int _ns_3d;
     int _num_loop;
@@ -93,24 +95,40 @@ private:
     int *_i_array;
     int *_t_array;
     int *_t_arrayb;
+    meshElement _track_length;
     meshElement _old_flux;
     meshElement _total_xs;
+    meshElement _sum_quad_flux;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
+    surfaceElement _length;
     surfaceElement _current;
     surfaceElement _quad_current;
     surfaceElement _quad_flux;
     surfaceElement _old_quad_flux;
+    surfaceElement _quad_src;
 
 public:
-    Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
-        void *pcur, void *pqcur);
+    Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
+        void *pfxs, void *psxs, void *pcur, void *pqcur);
     virtual ~Loo();
 
     // main methods
+    /* computes _track_length for each mesh cell based on mesh cell
+     * length _length. Notice the generated length has already been
+     * projected into one polar angle (using TY 1 polar angle set). */
+    void computeTrackLength();
+
+    /* generate track laydown */
     void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
+
     /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();
+
+    /* computes source term for every track from neutron balance using
+     * quad fluxes and mesh-cell averaged cross-sections tallied
+     * during MC. */
+    void computeQuadSrc();
 
     // helper methods
     void printElement(meshElement element, std::string string);
@@ -120,7 +138,7 @@ public:
 };
 
 extern "C" {
-    Loo* new_loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
-                 void *pcur, void *pqcur);
+    Loo* new_loo(int *indices, void * phxyz, void *pflx, void *ptxs,
+                 void *pfxs, void *psxs, void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */

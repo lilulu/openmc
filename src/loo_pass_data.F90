@@ -10,10 +10,11 @@ module loo_pass_data
 
   ! C interface
   interface
-     subroutine new_loo(indices, flux, totalxs, nfissxs, scattxs, current, &
-          quad_current) bind (C, name='new_loo')
+     subroutine new_loo(indices, hxyz, flux, totalxs, nfissxs, scattxs, &
+          current, quad_current) bind (C, name='new_loo')
        use iso_c_binding
        type (c_ptr), value :: indices
+       type (c_ptr), value :: hxyz
        type (c_ptr), value :: flux
        type (c_ptr), value :: totalxs
        type (c_ptr), value :: nfissxs
@@ -32,6 +33,7 @@ contains
   subroutine pass_data_into_loo()
     ! fortran data type (c_wrapper_type), target :: internal values 
     integer (c_int), target :: indices(4)
+    real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
     real (c_double), allocatable, target:: totalxs(:,:,:,:)
     real (c_double), allocatable, target:: nfissxs(:,:,:,:,:)
@@ -40,16 +42,17 @@ contains
     real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
 
     indices = cmfd % indices
+    hxyz = cmfd % hxyz
     flux = cmfd % flux
     totalxs = cmfd % totalxs
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
-    call new_loo(c_loc(indices), c_loc(flux(1,1,1,1)), &
-         c_loc(totalxs(1,1,1,1)), c_loc(nfissxs(1,1,1,1,1)), &
-         c_loc(scattxs(1,1,1,1,1)), c_loc(current(1,1,1,1,1)), &
-         c_loc(quad_current(1,1,1,1,1)))
+    call new_loo(c_loc(indices), c_loc(hxyz), &
+         c_loc(flux(1,1,1,1)), c_loc(totalxs(1,1,1,1)), &
+         c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
+         c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)))
 
   end subroutine pass_data_into_loo
 end module loo_pass_data
