@@ -7,8 +7,7 @@ module cmfd_solver
   use cmfd_prod_operator, only: init_prod_matrix, build_prod_matrix
   use matrix_header,      only: Matrix
   use vector_header,      only: Vector
-  use loo_pass_data,      only: pass_data_into_loo
-  
+
   implicit none
   private
   public :: cmfd_solver_execute
@@ -138,9 +137,6 @@ contains
     k_ln = ONE/(ONE/k_n - ONE/k_s)
     k_lo = k_ln
 
-    ! FIXME: pass data for LOO and calls C++ codes
-    call pass_data_into_loo()
-    
     ! Fill in loss matrix
     call build_loss_matrix(loss, adjoint=adjoint)
 

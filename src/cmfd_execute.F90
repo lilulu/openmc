@@ -4,6 +4,7 @@ module cmfd_execute
 ! CMFD_EXECUTE -- This module is the highest level cmfd module that controls the
 ! cross section generation, diffusion calculation, and source re-weighting
 !==============================================================================
+  use loo_pass_data,      only: pass_data_into_loo
 
   use, intrinsic :: ISO_FORTRAN_ENV
   use global
@@ -35,6 +36,9 @@ contains
       ! Create cmfd data from OpenMC tallies 
       call set_up_cmfd()
 
+      ! FIXME: pass data for LOO and calls C++ codes
+      call pass_data_into_loo()
+      
       ! Process solver options
       call process_cmfd_options()
 
