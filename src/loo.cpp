@@ -30,7 +30,12 @@
 Loo* new_loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
              void *pcur, void *pqcur)
 {
+    /* set up loo object */
     Loo* loo = new Loo(indices, pflx, ptxs, pfxs, psxs, pcur, pqcur);
+
+    /* computes _quad_flux from _quad_current */
+    loo->computeQuadFlux();
+
     return loo;
 }
 
@@ -79,6 +84,9 @@ double energyElement::getValue(int g2, int g1, int i, int j, int k) {
 /* applies: currents & quad_currents */
 surfaceElement::surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p)
     : _ns(ns), _ng(ng), _nx(nx), _ny(ny), _nz(nz), _value((double*)p) {}
+surfaceElement::surfaceElement(int ns, int ng, int nx, int ny, int nz)
+    : _ns(ns), _ng(ng), _nx(nx), _ny(ny), _nz(nz) {
+    _value = new double[_ns * _ng * _nx * _ny * _nz];}
 
 surfaceElement::~surfaceElement(){ }
 
@@ -97,6 +105,19 @@ double surfaceElement::getValue(int s, int g, int i, int j, int k) {
     return _value[index_f];
 }
 
+void surfaceElement::setValue(int s, int g, int i, int j, int k, double value) {
+    assert(i < _nx);
+    assert(j < _ny);
+    assert(k < _nz);
+    assert(g < _ng);
+    assert(s < _ns);
+    int index_f = s + g * _ns + i * _ns * _ng + j * _ns *  _ng * _nx
+        + k * _ns * _ng * _nx * _ny;
+    _value[index_f] = value;
+    return;
+}
+
+
 void Loo::printElement(surfaceElement element, std::string string){
     printf("%s \n", string.c_str());
     for (int k = 0; k < _nz; k++) {
@@ -109,6 +130,24 @@ void Loo::printElement(surfaceElement element, std::string string){
                         printf("(%d %d %d) g = %d, s = %d: %f \n",
                                i, j, k, g, s, element.getValue(s, g, i, j, k));
                     }}}}}
+}
+
+void Loo::computeQuadFlux(){
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    // FIXME: temporary, should be _ns
+                    for (int s = 0; s < _quad_current.getNs(); s++) {
+                        // Compute _quad_flux based on _quad_current
+                        _quad_flux.setValue(
+                            s, g, i, j, k,
+                            _quad_current.getValue(s, g, i, j, k) / P0 /
+                            SIN_THETA_45);
+                    }}}}}
+    
+    printElement(_quad_current, "quad_current");
+    printElement(_quad_flux, "quad_flux");
 }
 
 /* element1 = quad_current, element2 = current*/
@@ -153,12 +192,13 @@ Loo::Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
-      _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur)
+      _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
+      _quad_flux(_ns_2d, _ng, _nx, _ny, _nz)
 {
     generate2dTrack(_i_array, _t_array, _t_arrayb);
 
-    printElement(_current, "current");
-    printElement(_quad_current, "quad_current");
+    //printElement(_current, "current");
+    //printElement(_quad_current, "quad_current");
     //verifyPartialCurrent(_quad_current, _current);
 }
 

@@ -34,9 +34,16 @@
 #include <assert.h>
 #include <math.h>
 
+#define P0 0.798184
+#define SIN_THETA_45 0.70710678118654746
+#define FOUR_PI 12.566370614359172
+#define TWO_PI 6.283185307179586
+#define ONE_OVER_FOUR_PI 0.07957747154594767
+#define PI 3.141592653589793
+
 class meshElement {
 protected:
-    int _nx, _ny, _nz, _ng;
+    int _ng, _nx, _ny, _nz;
     double *_value;
 
 public:
@@ -47,7 +54,7 @@ public:
 
 class energyElement {
 protected:
-    int _nx, _ny, _nz, _ng;
+    int _ng, _nx, _ny, _nz;
     double *_value;
 
 public:
@@ -59,14 +66,16 @@ public:
 
 class surfaceElement {
 protected:
-    int _nx, _ny, _nz, _ng, _ns;
+    int _ns, _ng, _nx, _ny, _nz;
     double *_value;
 
 public:
+    surfaceElement(int ns, int ng, int nx, int ny, int nz);
     surfaceElement(int ns, int ng, int nx, int ny, int nz, void *p);
     virtual ~surfaceElement();
     double getNs();
     double getValue(int s, int g, int i, int j, int k);
+    void setValue(int s, int g, int i, int j, int k, double value);
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 };
 
@@ -90,13 +99,16 @@ private:
     energyElement _scatt_xs;
     surfaceElement _current;
     surfaceElement _quad_current;
+    surfaceElement _quad_flux;
 
 public:
     Loo(int *indices, void *pflx, void *ptxs, void *pfxs, void *psxs,
         void *pcur, void *pqcur);
     virtual ~Loo();
 
+    // main methods
     void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
+    void computeQuadFlux();
 
     // helper methods
     void printElement(meshElement element, std::string string);
