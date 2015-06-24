@@ -69,16 +69,16 @@ void meshElement::setValue(int g, int i, int j, int k, double value){
     return;
 }
 
-void Loo::printElement(meshElement element, std::string string){
-    printf("%s ", string.c_str());
+void meshElement::zero(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    printf("%f \n", element.getValue(g, i, j, k));
-                        }}}}
-
+                    setValue(g, i, j, k, 0.0);
+                }}}}
 }
+
+
 
 /* applies: scattering & fission cross-sections */
 energyElement::energyElement(int ng, int nx, int ny, int nz, void *p)
@@ -131,6 +131,17 @@ void surfaceElement::setValue(int s, int g, int i, int j, int k, double value) {
     int index_f = s + g * _ns + i * _ns * _ng + j * _ns *  _ng * _nx
         + k * _ns * _ng * _nx * _ny;
     _value[index_f] = value;
+    return;
+}
+
+void surfaceElement::zero() {
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    for (int s = 0; s < _ns; s++) {
+                        setValue(s, g, i, j, k, 0.0);
+                    }}}}}
     return;
 }
 
@@ -390,3 +401,15 @@ void Loo::verifyPartialCurrent(surfaceElement element1,
                             //}
                         }}}}}
 }
+
+void Loo::printElement(meshElement element, std::string string){
+    printf("%s ", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    printf("%f \n", element.getValue(g, i, j, k));
+                        }}}}
+
+}
+

@@ -53,6 +53,7 @@ public:
     virtual ~meshElement();
     double getValue(int g, int i, int j, int k);
     void setValue(int g, int i, int j, int k, double value);
+    void zero();
 };
 
 class energyElement {
@@ -79,6 +80,7 @@ public:
     double getNs();
     double getValue(int s, int g, int i, int j, int k);
     void setValue(int s, int g, int i, int j, int k, double value);
+    void zero();
 };
 
 class Loo {
