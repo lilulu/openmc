@@ -95,6 +95,7 @@ private:
     int _num_loop;
     int _num_track;
     int *_i_array;
+    int *_j_array;
     int *_t_array;
     int *_t_arrayb;
     meshElement _track_length;
@@ -125,7 +126,7 @@ public:
     void computeTrackLengthVolume();
 
     /* generate track laydown */
-    void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
+    void generate2dTrack();
 
     /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();

@@ -165,6 +165,7 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
       _num_loop(_nx),
       _num_track(4*_nx),
       _i_array(new int[_num_loop * _num_track]),
+      _j_array(new int[_num_loop * _num_track]),
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
       _track_length(1, _nx, _ny, _nz),
@@ -184,7 +185,7 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
 {
     printElement(_length, "length");
     computeTrackLengthVolume();
-    generate2dTrack(_i_array, _t_array, _t_arrayb);
+    generate2dTrack();
 
     //printElement(_current, "current");
     //printElement(_quad_current, "quad_current");
@@ -214,106 +215,110 @@ void Loo::computeTrackLengthVolume() {
     return;
 }
 
-void Loo::generate2dTrack(int *i_array, int *t_array, int *t_arrayb) {
-    int nl, nt, i, i_start;
-    int nw = _nx;
+void Loo::generate2dTrack() {
+    /* nl = index of the loop (a loop is when tracks form a complete cycle) */
+    /* nt = local index of track within a loop. */
+    /* i = global index of track, taking into account nl and nt  */
+    /* i_index, j_index = x, y index of cell that the current track is in */
+    int nl, nt, i, i_index, j_index;
+
+    /* len1, len2 are the number of tracks along the sides of the
+     * current loop. len1 represents the tracks 45 degree from the
+     * x-axis, and len2 represents the tracks 135 degree from the
+     * x-axis. They are initialized below for the 1st loop, and will
+     * be updated accordinly.*/
     int len1 = _num_track / 2 - 1;
     int len2 = 1;
-    for (nl = 0; nl < _num_loop; nl++)
-    {
-        i_start = (_ny - 1) * _nx + nl;
 
-        for (nt = 0; nt < _num_track; nt++)
-        {
+    for (nl = 0; nl < _num_loop; nl++) {
+        /* when we start the nl-th loop, initialize the cell
+         * indexes. We assume that the loop starts from the bottom
+         * boundary in this plane. */
+        i_index = nl;
+        j_index = _ny - 1;
+
+        for (nt = 0; nt < _num_track; nt++) {
+            /* update global counter for track index */
             i = nl * _num_track + nt;
 
             /* First side: start with 0 index, goes like 0,5,0,5,... */
-            if (nt < len1)
-            {
+            if (nt < len1) {
                 if (nt % 2 == 1)
-                    i_start += 1;
+                    i_index += 1;
                 else if (nt != 0)
-                    i_start -= nw;
-                i_array[i] = i_start;
+                    j_index -= 1;
 
-
-                if (nt % 2 == 0)
-                {
-                    t_array[i] = 0;
-                    t_arrayb[i] = 1;
+                if (nt % 2 == 0) {
+                    _t_array[i] = 0;
+                    _t_arrayb[i] = 1;
                 }
-                else
-                {
-                    t_array[i] = 5;
-                    t_arrayb[i] = 4;
+                else {
+                    _t_array[i] = 5;
+                    _t_arrayb[i] = 4;
                 }
             }
             /* 2nd side: start with odd index, goes like 2,7,... */
-            else if (nt < len1 + len2)
-            {
+            else if (nt < len1 + len2) {
                 if (nt % 2 == 0)
-                    i_start -= nw;
+                    j_index -= 1;
                 else if (nt != len1)
-                    i_start -= 1;
-                i_array[i] = i_start;
+                    i_index -= 1;
 
-                if (nt % 2 == 1)
-                {
-                    t_array[i] = 2;
-                    t_arrayb[i] = 3;
+                if (nt % 2 == 1) {
+                    _t_array[i] = 2;
+                    _t_arrayb[i] = 3;
                 }
-                else
-                {
-                    t_array[i] = 7;
-                    t_arrayb[i] = 6;
+                else {
+                    _t_array[i] = 7;
+                    _t_arrayb[i] = 6;
                 }
             }
             /* 3rd side: start with even index, goes like 4,1,...*/
-            else if (nt < len1 + len2 + len1)
-            {
+            else if (nt < len1 + len2 + len1) {
                 if (nt % 2 == 1)
-                    i_start -= 1;
+                    i_index -= 1;
                 else if (nt != len1 + len2)
-                    i_start += nw;
-                i_array[i] = i_start;
+                    j_index += 1;
 
-                if (nt % 2 == 0)
-                {
-                    t_array[i] = 4;
-                    t_arrayb[i] = 5;
+                if (nt % 2 == 0) {
+                    _t_array[i] = 4;
+                    _t_arrayb[i] = 5;
                 }
-                else
-                {
-                    t_array[i] = 1;
-                    t_arrayb[i] = 0;
-                }
-            }	
-            /* last side */
-            else
-            {
-                if (nt % 2 == 0)
-                    i_start += nw;
-                else if (nt != len1 + len2 + len1)
-                    i_start += 1;
-                i_array[i] = i_start;
-
-
-                if (nt % 2 == 1)
-                {
-                    t_array[i] = 6;
-                    t_arrayb[i] = 7;
-                }
-                else
-                {
-                    t_array[i] = 3;
-                    t_arrayb[i] = 2;
+                else {
+                    _t_array[i] = 1;
+                    _t_arrayb[i] = 0;
                 }
             }
+            /* last side */
+            else {
+                if (nt % 2 == 0)
+                    j_index += 1;
+                else if (nt != len1 + len2 + len1)
+                    i_index += 1;
+
+                if (nt % 2 == 1) {
+                    _t_array[i] = 6;
+                    _t_arrayb[i] = 7;
+                }
+                else {
+                    _t_array[i] = 3;
+                    _t_arrayb[i] = 2;
+                }
+            }
+
+            /* store the x, y cell indexes into the corresponding arrays */
+            assert(i_index >= 0);
+            assert(i_index < _nx);
+            assert(j_index >= 0);
+            assert(j_index < _ny);
+            _i_array[i] = i_index;
+            _j_array[i] = j_index;
         }
+
+        /* update the side lengths for the next loop */
         len1 -= 2;
         len2 += 2;
     }
-
     return;
 }
 
