@@ -348,8 +348,8 @@ void Loo::computeQuadFlux(){
 void Loo::computeQuadSrc(){
     double xs, l, ex, src, sum_quad_flux, out, in;
 
-    int in_index[] = {13, 4, 10, 3, 2, 11, 5, 12};
-    int out_index[] = {6, 8, 1, 15, 9, 7, 14, 0};
+    int in_index[] = {13, 4, 10, 3, 12, 2, 11, 5};
+    int out_index[] = {6, 8, 1, 15, 0, 9, 7, 14};
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
