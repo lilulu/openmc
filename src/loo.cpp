@@ -435,6 +435,32 @@ void Loo::computeFissionSource() {
     return;
 }
 
+/* return the surface length that track t is crossing with its start
+ * point (e = 0) or end point (e = 1) in cell (i,j,k) */
+double Loo::returnSurfaceLength(int i, int j, int k, int t, int e) {
+    /* e represents start point (e = 0) or end point (e = 1) */
+    assert(e > -1);
+    assert(e < 2);
+
+    /* t represents track id in [0, 7] */
+    assert(t > -1);
+    assert(t < _nt);
+
+    /* index determines whether the cell side length in x, y or z
+     * direction will be used */
+    int index = 1;
+
+    /* track 0, 2, 4, 6's entering points and track 1, 3, 5, 7's
+     * exiting points are on surfaces along the x-direction */
+    if (((e == 0) && (t % 2 == 0)) || ((e == 1) && (t % 2 == 1)))
+        index = 0;
+
+    /* _length is a surfaceElement of dimension 3 x 1 x nx x ny x nz*/
+    return _length.getValue(index, 0, i, j, k);
+}
+
+
+
 void Loo::printElement(surfaceElement element, std::string string){
     printf("%s \n", string.c_str());
     for (int k = 0; k < _nz; k++) {

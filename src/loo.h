@@ -142,6 +142,10 @@ public:
     /* compute mesh cell energy-integrated fission source */
     void computeFissionSource();
 
+    /* return surface length that this track is crossing with its
+       start point (e = 0) or end point (e = 1) */
+    double returnSurfaceLength(int i, int j, int k, int t, int e);
+
     // helper methods
     void printElement(meshElement element, std::string string);
     void printElement(surfaceElement element, std::string string);
