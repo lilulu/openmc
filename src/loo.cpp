@@ -165,7 +165,8 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
       _track_length(1, _nx, _ny, _nz),
-      _old_flux(_ng, _nx, _ny, _nz, pflx),
+      _volume(1, _nx, _ny, _nz),
+      _scalar_flux(_ng, _nx, _ny, _nz, pflx),
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
@@ -178,7 +179,7 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
     printElement(_length, "length");
-    computeTrackLength();
+    computeTrackLengthVolume();
     generate2dTrack(_i_array, _t_array, _t_arrayb);
 
     //printElement(_current, "current");
@@ -192,8 +193,8 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
 Loo::~Loo(){
 }
 
-/* Computes _track_length based on _length */
-void Loo::computeTrackLength() {
+/* Computes _track_length and _volume based on _length */
+void Loo::computeTrackLengthVolume() {
     double x, y, l;
 
     for (int k = 0; k < _nz; k++) {
@@ -201,6 +202,7 @@ void Loo::computeTrackLength() {
             for (int i = 0; i < _nx; i++) {
                 x = _length.getValue(0, 0, i, j, k);
                 y = _length.getValue(1, 0, i, j, k);
+                _volume.setValue(0, i, j, k, x * y);
                 l = 0.5 * sqrt(x * x + y * y) / P0;
                 _track_length.setValue(0, i, j, k, l);
             }}}

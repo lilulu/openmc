@@ -98,7 +98,8 @@ private:
     int *_t_array;
     int *_t_arrayb;
     meshElement _track_length;
-    meshElement _old_flux;
+    meshElement _volume;
+    meshElement _scalar_flux;
     meshElement _total_xs;
     meshElement _sum_quad_flux;
     energyElement _nfiss_xs;
@@ -118,8 +119,9 @@ public:
     // main methods
     /* computes _track_length for each mesh cell based on mesh cell
      * length _length. Notice the generated length has already been
-     * projected into one polar angle (using TY 1 polar angle set). */
-    void computeTrackLength();
+     * projected into one polar angle (using TY 1 polar angle
+     * set). Also computes volume of each mesh cell. */
+    void computeTrackLengthVolume();
 
     /* generate track laydown */
     void generate2dTrack(int *i_array, int *t_array, int *t_arrayb);
