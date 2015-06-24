@@ -102,6 +102,7 @@ private:
     meshElement _scalar_flux;
     meshElement _total_xs;
     meshElement _sum_quad_flux;
+    meshElement _fission_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
@@ -133,6 +134,12 @@ public:
      * quad fluxes and mesh-cell averaged cross-sections tallied
      * during MC. */
     void computeQuadSrc();
+
+    /* iteratively solve the low-order problem using MOC (LOO) */
+    void executeLoo();
+
+    /* compute mesh cell energy-integrated fission source */
+    void computeFissionSource();
 
     // helper methods
     void printElement(meshElement element, std::string string);
