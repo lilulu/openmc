@@ -149,6 +149,7 @@ public:
 
     // helper methods
     void printElement(meshElement element, std::string string);
+    void printElement(energyElement element, std::string string);
     void printElement(surfaceElement element, std::string string);
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 

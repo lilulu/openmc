@@ -184,7 +184,7 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
       _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
-    printElement(_length, "length");
+    printElement(_nfiss_xs, "fission xs");
     computeTrackLengthVolume();
     generate2dTrack();
 
@@ -461,7 +461,33 @@ double Loo::returnSurfaceLength(int i, int j, int k, int t, int e) {
     return _length.getValue(index, 0, i, j, k);
 }
 
+void Loo::printElement(meshElement element, std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    printf("(%d %d %d) g = %d: %f \n",
+                           i, j, k, g, element.getValue(g, i, j, k));
+                        }}}}
+    return;
 
+}
+
+void Loo::printElement(energyElement element, std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g1 = 0; g1 < _ng; g1++) {
+                    for (int g2 = 0; g2 < _ng; g2++) {
+                        printf("(%d %d %d) g1 = %d -> g2 = %d: %f \n",
+                               i, j, k, g1, g2,
+                               element.getValue(g1, g2, i, j, k));
+                    }}}}}
+    return;
+
+}
 
 void Loo::printElement(surfaceElement element, std::string string){
     printf("%s \n", string.c_str());
@@ -474,6 +500,7 @@ void Loo::printElement(surfaceElement element, std::string string){
                         printf("(%d %d %d) g = %d, s = %d: %f \n",
                                i, j, k, g, s, element.getValue(s, g, i, j, k));
                     }}}}}
+    return;
 }
 
 /* element1 = quad_current, element2 = current*/
@@ -493,17 +520,6 @@ void Loo::verifyPartialCurrent(surfaceElement element1,
                             printf("(%d %d %d) g = %d, s = %d: %f \n",
                                    i, j, k, g, s, delta);
                             //}
-                        }}}}}
+                    }}}}}
+    return;
 }
-
-void Loo::printElement(meshElement element, std::string string){
-    printf("%s ", string.c_str());
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    printf("%f \n", element.getValue(g, i, j, k));
-                        }}}}
-
-}
-
