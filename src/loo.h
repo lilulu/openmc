@@ -143,6 +143,11 @@ public:
     /* compute mesh cell energy-integrated fission source */
     void computeFissionSource();
 
+    /* compute mesh cell energy-independent total source (fission +
+     * scattering) and update the source term passed in by
+     * reference */
+    void computeMeshSource(meshElement& source);
+
     /* return surface length that this track is crossing with its
        start point (e = 0) or end point (e = 1) */
     double returnSurfaceLength(int i, int j, int k, int t, int e);

@@ -184,14 +184,15 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
       _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
-    printElement(_nfiss_xs, "fission xs");
-    computeTrackLengthVolume();
-    generate2dTrack();
-
     printf("k=%f\n", _k);
     //printElement(_current, "current");
     //printElement(_quad_current, "quad_current");
     //verifyPartialCurrent(_quad_current, _current);
+    //printElement(_nfiss_xs, "nu-fission xs");
+    //printElement(_scatt_xs, "scattering xs");
+    //printElement(_scalar_flux, "scalar flux");
+    computeTrackLengthVolume();
+    generate2dTrack();
 }
 
 /**
@@ -405,11 +406,19 @@ void Loo::executeLoo(){
     computeFissionSource();
 
     /* iteratively solve the LOO problem */
-    for (loo_iter = 0; loo_iter < max_loo_iter; loo_iter ++) {
+    for (loo_iter = 0; loo_iter < max_loo_iter; loo_iter++) {
+        /* reset net current and summmation of quad fluxes */
+        net_current.zero();
+        sum_quad_flux.zero();
 
+        /* compute mesh_src: scattering and fission source for every
+         * mesh every energy group */
+        mesh_src.zero();
+        computeMeshSource(mesh_src);
+        printElement(mesh_src, "mesh src");
     }
 
-    /* may not need: cleans up memory */
+    /* cleans up memory */
     return;
 }
 
@@ -434,6 +443,30 @@ void Loo::computeFissionSource() {
                 /* setter */
                 _fission_source.setValue(0, i, j, k, fission_source);
             }}}
+    return;
+}
+
+/* compute mesh cell energy-independent total source (fission +
+ * scattering) and update the source term passed in by reference */
+void Loo::computeMeshSource(meshElement& source) {
+    double src;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+
+                for (int g1 = 0; g1 < _ng; g1++) {
+                    /* initialize source for this mesh this energy to be zero */
+                    src = 0;
+
+                    for (int g2 = 0; g2 < _ng; g2++) {
+                        src += (_scatt_xs.getValue(g2, g1, i, j, k)
+                                + _nfiss_xs.getValue(g2, g1, i, j, k) / _k)
+                            * _scalar_flux.getValue(g2, i, j, k);
+                    }
+                    src *= _volume.getValue(0, i, j, k);
+                    /* setter */
+                    source.setValue(0, i, j, k, src);
+                }}}}
     return;
 }
 
@@ -467,7 +500,7 @@ void Loo::printElement(meshElement element, std::string string){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    printf("(%d %d %d) g = %d: %f \n",
+                    printf("(%d %d %d) g = %d: %e \n",
                            i, j, k, g, element.getValue(g, i, j, k));
                         }}}}
     return;
