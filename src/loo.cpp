@@ -27,11 +27,11 @@
 */
 #include "loo.h"
 
-Loo* new_loo(int *indices, void *phxyz, void *pflx, void *ptxs,
+Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
              void *pfxs, void *psxs, void *pcur, void *pqcur)
 {
     /* set up loo object */
-    Loo* loo = new Loo(indices, phxyz, pflx, ptxs, pfxs, psxs, pcur, pqcur);
+    Loo* loo = new Loo(indices, k, phxyz, pflx, ptxs, pfxs, psxs, pcur, pqcur);
 
     /* computes _quad_flux from _quad_current */
     loo->computeQuadFlux();
@@ -152,7 +152,7 @@ void surfaceElement::zero() {
  * Constructor
  * @param indices parameters that contain #cells x,y,z and #energy groups
  */
-Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
+Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
          void *pfxs, void *psxs, void *pcur, void *pqcur)
     : _nx(indices[0]),
       _ny(indices[1]),
@@ -168,6 +168,7 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
       _j_array(new int[_num_loop * _num_track]),
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
+      _k(k[0]),
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
       _scalar_flux(_ng, _nx, _ny, _nz, pflx),
@@ -187,6 +188,7 @@ Loo::Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
     computeTrackLengthVolume();
     generate2dTrack();
 
+    printf("k=%f\n", _k);
     //printElement(_current, "current");
     //printElement(_quad_current, "quad_current");
     //verifyPartialCurrent(_quad_current, _current);

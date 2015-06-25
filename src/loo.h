@@ -98,6 +98,7 @@ private:
     int *_j_array;
     int *_t_array;
     int *_t_arrayb;
+    double _k;
     meshElement _track_length;
     meshElement _volume;
     meshElement _scalar_flux;
@@ -114,7 +115,7 @@ private:
     surfaceElement _quad_src;
 
 public:
-    Loo(int *indices, void *phxyz, void *pflx, void *ptxs,
+    Loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
         void *pfxs, void *psxs, void *pcur, void *pqcur);
     virtual ~Loo();
 
@@ -154,7 +155,7 @@ public:
 };
 
 extern "C" {
-    Loo* new_loo(int *indices, void * phxyz, void *pflx, void *ptxs,
+    Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
                  void *pfxs, void *psxs, void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */
