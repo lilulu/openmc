@@ -384,8 +384,7 @@ void Loo::executeLoo(){
     int loo_iter, min_loo_iter, max_loo_iter;
 
      /* memory allocation for data structure internal to this routine */
-    meshElement fission_source (_ng, _nx, _ny, _nz);
-    meshElement mesh_src (_ng, _nx, _ny, _nz);
+    meshElement total_source (_ng, _nx, _ny, _nz);
     meshElement net_current (_ng, _nx, _ny, _nz);
     meshElement sum_quad_flux (_ng, _nx, _ny, _nz);
     surfaceElement quad_src (_nt, _ng, _nx, _ny, _nz);
@@ -395,7 +394,7 @@ void Loo::executeLoo(){
     max_loo_iter = 1;
 
     /* initialization */
-    mesh_src.zero();
+    total_source.zero();
     net_current.zero();
     sum_quad_flux.zero();
     quad_src.zero();
@@ -409,12 +408,12 @@ void Loo::executeLoo(){
         net_current.zero();
         sum_quad_flux.zero();
 
-        /* compute mesh_src: scattering and fission source for every
-         * mesh every energy group */
-        mesh_src.zero();
-        computeMeshSource(mesh_src);
+        /* compute total_source: scattering and fission source for
+         * every mesh every energy group */
+        total_source.zero();
+        computeTotalSource(total_source);
 
-        
+        /* update quad_src using total_source and _old_total_source*/
     }
 
     /* cleans up memory */
@@ -447,7 +446,7 @@ void Loo::computeFissionSource() {
 
 /* compute mesh cell energy-independent total source (fission +
  * scattering) and update the source term passed in by reference */
-void Loo::computeMeshSource(meshElement& source) {
+void Loo::computeTotalSource(meshElement& source) {
     double src;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
