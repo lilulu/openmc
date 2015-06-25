@@ -105,6 +105,8 @@ private:
     meshElement _total_xs;
     meshElement _sum_quad_flux;
     meshElement _fission_source;
+    /* total source at the end of last batch of MC, corresponding to
+       the source before this batch of MC started) */
     meshElement _old_total_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
@@ -148,6 +150,10 @@ public:
      * scattering) and update the source term passed in by
      * reference */
     void computeTotalSource(meshElement& source);
+
+    /* compute quad_src using the current total_source and class member
+     * _old_total_source and _quad_src */
+    void computeQuadSource(surfaceElement& quad_src, meshElement& total_source);
 
     /* return surface length that this track is crossing with its
        start point (e = 0) or end point (e = 1) */

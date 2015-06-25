@@ -337,8 +337,7 @@ void Loo::computeQuadFlux(){
                          * is because we need a copy of the _quad_flux
                          * generated from MC */
                         _old_quad_flux.setValue(
-                            s, g, i, j, k,
-                            _quad_flux.getValue(s, g, i, j, k));
+                            s, g, i, j, k, _quad_flux.getValue(s, g, i, j, k));
                     }}}}}
     //printElement(_quad_current, "quad_current");
     //printElement(_quad_flux, "quad_flux");
@@ -413,7 +412,8 @@ void Loo::executeLoo(){
         total_source.zero();
         computeTotalSource(total_source);
 
-        /* update quad_src using total_source and _old_total_source*/
+        /* update quad_src using total_source, _old_total_source, _quad_src */
+        computeQuadSource(quad_src, total_source);
     }
 
     /* cleans up memory */
@@ -461,12 +461,36 @@ void Loo::computeTotalSource(meshElement& source) {
                                 + _nfiss_xs.getValue(g2, g1, i, j, k) / _k)
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
-                    src *= _volume.getValue(0, i, j, k);
+                    //src *= _volume.getValue(0, i, j, k);
                     /* setter */
                     source.setValue(0, i, j, k, src);
                 }}}}
     return;
 }
+
+/* update quad_src using the current total_source and class member
+ * _old_total_source and _quad_src */
+void Loo::computeQuadSource(surfaceElement& quad_src,
+                            meshElement& total_source) {
+    double src_ratio;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    /* computes the form factor applied to all the
+                     * tracks in this cell */
+                    src_ratio = total_source.getValue(g, i, j, k) /
+                        _old_total_source.getValue(g, i, j, k);
+
+                    /* loop through each track updating */
+                    for (int t = 0; t < _nt; t++) {
+                        quad_src.setValue(t, g, i, j, k,
+                                          _quad_src.getValue(t, g, i, j, k)
+                                          * src_ratio);
+                    }}}}}
+    return;
+}
+
 
 /* return the surface length that track t is crossing with its start
  * point (e = 0) or end point (e = 1) in cell (i,j,k) */
