@@ -105,6 +105,7 @@ private:
     meshElement _total_xs;
     meshElement _sum_quad_flux;
     meshElement _fission_source;
+    meshElement _old_total_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
@@ -115,8 +116,8 @@ private:
     surfaceElement _quad_src;
 
 public:
-    Loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
-        void *pfxs, void *psxs, void *pcur, void *pqcur);
+    Loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+        void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
     virtual ~Loo();
 
     // main methods
@@ -161,7 +162,7 @@ public:
 };
 
 extern "C" {
-    Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
-                 void *pfxs, void *psxs, void *pcur, void *pqcur);
+    Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+                 void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */

@@ -86,7 +86,7 @@ contains
     inquire(FILE=filename, EXIST=file_exists)
     if (.not. file_exists) then
       ! CMFD is optional unless it is in on from settings
-      if (cmfd_on) then
+      if (loo_tally) then
         call fatal_error("No CMFD XML file, '" // trim(filename) // "' does not&
              & exist!")
       end if

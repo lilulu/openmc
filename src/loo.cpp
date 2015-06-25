@@ -27,11 +27,12 @@
 */
 #include "loo.h"
 
-Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptxs,
-             void *pfxs, void *psxs, void *pcur, void *pqcur)
+Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+             void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
 {
     /* set up loo object */
-    Loo* loo = new Loo(indices, k, phxyz, pflx, ptxs, pfxs, psxs, pcur, pqcur);
+    Loo* loo = new Loo(indices, k, phxyz, pflx, ptso,
+                       ptxs, pfxs, psxs, pcur, pqcur);
 
     /* computes _quad_flux from _quad_current */
     loo->computeQuadFlux();
@@ -152,8 +153,8 @@ void surfaceElement::zero() {
  * Constructor
  * @param indices parameters that contain #cells x,y,z and #energy groups
  */
-Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
-         void *pfxs, void *psxs, void *pcur, void *pqcur)
+Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
+         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
     : _nx(indices[0]),
       _ny(indices[1]),
       _nz(indices[2]),
@@ -175,6 +176,7 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _fission_source(1, _nx, _ny, _nz),
+      _old_total_source(_ng, _nx, _ny, _nz, ptso),
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       _length(3, 1, _nx, _ny, _nz, phxyz),
@@ -185,12 +187,6 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptxs,
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
     printf("k=%f\n", _k);
-    //printElement(_current, "current");
-    //printElement(_quad_current, "quad_current");
-    //verifyPartialCurrent(_quad_current, _current);
-    //printElement(_nfiss_xs, "nu-fission xs");
-    //printElement(_scatt_xs, "scattering xs");
-    //printElement(_scalar_flux, "scalar flux");
     computeTrackLengthVolume();
     generate2dTrack();
 }
@@ -394,9 +390,11 @@ void Loo::executeLoo(){
     meshElement sum_quad_flux (_ng, _nx, _ny, _nz);
     surfaceElement quad_src (_nt, _ng, _nx, _ny, _nz);
 
-    /* initialization */
+    /* loop control variables: min, max number of loo sweeps to be performed */
     min_loo_iter = 100;
-    max_loo_iter = 1000;
+    max_loo_iter = 1;
+
+    /* initialization */
     mesh_src.zero();
     net_current.zero();
     sum_quad_flux.zero();
@@ -415,7 +413,8 @@ void Loo::executeLoo(){
          * mesh every energy group */
         mesh_src.zero();
         computeMeshSource(mesh_src);
-        printElement(mesh_src, "mesh src");
+
+        
     }
 
     /* cleans up memory */

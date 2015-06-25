@@ -113,6 +113,20 @@ contains
 
     cmfd % keff_bal = ZERO
 
+    ! Save a copy of the total source from the previous batch,
+    ! because LOO needs a copy of the total source before this batch
+    ! of MC is performed.
+    do k = 1, nz
+       do j = 1, ny
+          do i = 1, nx
+             do h = 1, ng
+                cmfd % openmc_total_src_old(h, i, j, k) = &
+                     cmfd % openmc_total_src(h, i, j, k)
+             end do
+          end do
+       end do
+    end do
+
    ! Begin loop around tallies
    TAL: do ital = 1, n_cmfd_tallies
 
@@ -132,7 +146,7 @@ contains
        YLOOP: do j = 1,ny
 
           XLOOP: do i = 1,nx
- 
+
             ! Check for active mesh cell
             if (allocated(cmfd%coremap)) then
               if (cmfd%coremap(i,j,k) == CMFD_NOACCEL) then
@@ -201,7 +215,6 @@ contains
 
                 ! Begin loop to get energy out tallies
                 INGROUP: do g = 1, ng
-
                   ! Reset all bins to 1
                   matching_bins(1:t%n_filters) = 1
 
@@ -230,13 +243,23 @@ contains
                   cmfd % nfissxs(h,g,i,j,k) = t % results(2,score_index) % sum /&
                        cmfd % flux(h,i,j,k)
 
-                  ! Bank source
+                  ! Bank fission source: any fission event from group
+                  ! h (outgroup) to g (ingroup) is added to group g's
+                  ! fission source counter openmc_src
                   cmfd % openmc_src(g,i,j,k) = cmfd % openmc_src(g,i,j,k) + &
                        t % results(2,score_index) % sum
                   cmfd % keff_bal = cmfd % keff_bal + &
                        t % results(2,score_index) % sum / &
                        dble(t % n_realizations)
 
+                  ! Bank total source (fission + scattering) for LOO:
+                  ! any scattering event (1) or fission event (2) from
+                  ! group h (outgroup) to g (ingroup) is added to
+                  ! group g's total source counter openmc_total_src
+                  cmfd % openmc_total_src(g,i,j,k) = &
+                       cmfd % openmc_total_src(g,i,j,k) + &
+                       t % results(1,score_index) % sum + &
+                       t % results(2,score_index) % sum
                 end do INGROUP
 
              else if (ital == 3) then
@@ -385,7 +408,7 @@ contains
     ! Normalize openmc source distribution to the sum being 1.0
     cmfd % openmc_src = cmfd % openmc_src/sum(cmfd % openmc_src) * cmfd % norm
     ! write(OUTPUT_UNIT,'(1X,A,F8.4)') '    cmfd norm = ', cmfd % norm
-    
+
     ! Nullify all pointers
     if (associated(t)) nullify(t)
     if (associated(m)) nullify(m)

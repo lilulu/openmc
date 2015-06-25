@@ -36,44 +36,48 @@ contains
       ! Create cmfd data from OpenMC tallies 
       call set_up_cmfd()
 
-      ! FIXME: pass data for LOO and calls C++ codes
-      call pass_data_into_loo()
-      
-      ! Process solver options
-      call process_cmfd_options()
+      ! Enter the CMFD kernel only if we actually want a copy of CMFD.
+      if (cmfd_on) then
+        ! FIXME: pass data for LOO and calls C++ codes
+        call pass_data_into_loo()
 
-      ! Call solver
+        ! Process solver options
+        call process_cmfd_options()
+
+        ! Call solver
 #ifdef PETSC
-      if (trim(cmfd_solver_type) == 'power') then
-        call cmfd_power_execute()
-      elseif (trim(cmfd_solver_type) == 'jfnk') then
-        call cmfd_jfnk_execute()
-      else
-        call fatal_error('solver type became invalid after input processing') 
-      end if
+        if (trim(cmfd_solver_type) == 'power') then
+           call cmfd_power_execute()
+        elseif (trim(cmfd_solver_type) == 'jfnk') then
+           call cmfd_jfnk_execute()
+        else
+           call fatal_error('solver type became invalid after input processing')
+        end if
 #else
-      call cmfd_solver_execute()
+        call cmfd_solver_execute()
 #endif
 
-      ! Save k-effective
-      cmfd % k_cmfd(current_batch) = cmfd % keff
+        ! Save k-effective
+        cmfd % k_cmfd(current_batch) = cmfd % keff
 
-      ! check to perform adjoint on last batch
-      if (current_batch == n_batches .and. cmfd_run_adjoint) then
-        if (trim(cmfd_solver_type) == 'power') then
-          call cmfd_power_execute(adjoint = .true.)
-        elseif (trim(cmfd_solver_type) == 'jfnk') then
-          call cmfd_jfnk_execute(adjoint = .true.)
+        ! check to perform adjoint on last batch
+        if (current_batch == n_batches .and. cmfd_run_adjoint) then
+           if (trim(cmfd_solver_type) == 'power') then
+              call cmfd_power_execute(adjoint = .true.)
+           elseif (trim(cmfd_solver_type) == 'jfnk') then
+              call cmfd_jfnk_execute(adjoint = .true.)
+           end if
         end if
+
+        ! calculate fission source
+        call calc_fission_source()
+
+        ! calculate weight factors
+        call cmfd_reweight(.true.)
+
       end if
 
     end if
-
-    ! calculate fission source
-    call calc_fission_source()
-
-    ! calculate weight factors
-    call cmfd_reweight(.true.)
 
     ! stop cmfd timer
     if (master) call time_cmfd % stop()
@@ -86,13 +90,25 @@ contains
 
   subroutine cmfd_init_batch()
 
-    use global,            only: cmfd_begin, cmfd_on, &
-                                 cmfd_reset, cmfd_run,               &
+    use global,            only: cmfd_begin, loo_tally, cmfd_on, &
+                                 cmfd_reset, cmfd_run,            &
                                  current_batch
 
-    ! Check to activate CMFD diffusion and possible feedback
-    ! this guarantees that when cmfd begins at least one batch of tallies are
-    ! accumulated
+    ! Check to activate CMFD diffusion and possible feedback this
+    ! guarantees that when cmfd begins at least one batch of tallies
+    ! are accumulated
+    !
+    ! The flag loo_tally is turned on one iteration becfore
+    ! acceleration starts to. It would not trigger the actual CMFD
+    ! kernel. Instead it would parse the MC data and stores some
+    ! values.
+    !
+    ! FIXME: after loo flag is implemented, the following cmfd_run
+    ! should be replaced by loo_run because we only care about storing
+    ! an old copy of the tallies for LOO.
+    if (cmfd_run .and. cmfd_begin == current_batch + 1) then
+      loo_tally = .true.
+    end if
     if (cmfd_run .and. cmfd_begin == current_batch) then
       cmfd_on = .true.
     end if
@@ -162,8 +178,6 @@ contains
     real(8) :: temp2   ! temporary counter
     real(8) :: temp3   ! temporary counter
     real(8) :: temp4   ! temporary counter 
-    real(8) :: temp5   ! temporary counter
-    real(8) :: temp6   ! temporary counter  
     real(8) :: siga1
     real(8) :: siga2
     real(8) :: nusigf1

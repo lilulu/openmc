@@ -211,8 +211,10 @@ contains
       n_realizations = 0
     end if
 
-    ! Perform CMFD calculation if on
-    if (cmfd_on) call execute_cmfd()
+    ! Enter the cmfd routine either because we just want to store a
+    ! copy of the data (one iteration before first CMFD is performed)
+    ! or that we are serious about doing CMFD (cmfd_on) 
+    if (loo_tally) call execute_cmfd()
 
     ! Display output
     if (master) call print_batch_keff()

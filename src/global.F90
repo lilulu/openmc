@@ -359,8 +359,11 @@ module global
   ! Run an adjoint calculation (last batch only)
   logical :: cmfd_run_adjoint = .false.
 
-  ! CMFD run logicals
-  logical :: cmfd_on             = .false.
+  ! CMFD run logicals: loo_tally is on one iteration before CMFD is
+  ! requested so that we have data regarding the data that goes into
+  ! the MC that would generate the first CMFD low-order system
+  logical :: loo_tally          = .false.
+  logical :: cmfd_on            = .false.
 
   ! CMFD display info
   character(len=25) :: cmfd_display = 'balance'

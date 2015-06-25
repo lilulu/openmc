@@ -10,13 +10,15 @@ module loo_pass_data
 
   ! C interface
   interface
-     subroutine new_loo(indices, keff, hxyz, flux, totalxs, nfissxs, scattxs, &
+     subroutine new_loo(indices, keff, hxyz, flux, total_src_old, &
+          totalxs, nfissxs, scattxs, &
           current, quad_current) bind (C, name='new_loo')
        use iso_c_binding
        type (c_ptr), value :: indices
        type (c_ptr), value :: keff
        type (c_ptr), value :: hxyz
        type (c_ptr), value :: flux
+       type (c_ptr), value :: total_src_old
        type (c_ptr), value :: totalxs
        type (c_ptr), value :: nfissxs
        type (c_ptr), value :: scattxs
@@ -32,11 +34,12 @@ contains
 !===============================================================================
 
   subroutine pass_data_into_loo()
-    ! fortran data type (c_wrapper_type), target :: internal values 
+    ! fortran data type (c_wrapper_type), target :: internal values
     integer (c_int), target :: indices(4)
     real (c_double), target :: keff
     real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
+    real (c_double), allocatable, target:: total_src_old(:,:,:,:)
     real (c_double), allocatable, target:: totalxs(:,:,:,:)
     real (c_double), allocatable, target:: nfissxs(:,:,:,:,:)
     real (c_double), allocatable, target:: scattxs(:,:,:,:,:)
@@ -47,13 +50,15 @@ contains
     keff = cmfd % keff_bal
     hxyz = cmfd % hxyz
     flux = cmfd % flux
+    total_src_old = cmfd % openmc_total_src_old
     totalxs = cmfd % totalxs
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
     call new_loo(c_loc(indices), c_loc(keff), c_loc(hxyz), &
-         c_loc(flux(1,1,1,1)), c_loc(totalxs(1,1,1,1)), &
+         c_loc(flux(1,1,1,1)), c_loc(total_src_old(1,1,1,1)), &
+         c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
          c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)))
 

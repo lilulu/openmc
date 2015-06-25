@@ -45,9 +45,13 @@ module cmfd_header
     ! Dimensions of mesh cells ([hu,hv,hw],xloc,yloc,zloc)
     real(8), allocatable :: hxyz(:,:,:,:)
 
-    ! Source distributions
+    ! Fission source distributions
     real(8), allocatable :: cmfd_src(:,:,:,:)
     real(8), allocatable :: openmc_src(:,:,:,:)
+
+    ! Total source distributions (fission + scattering)
+    real(8), allocatable :: openmc_total_src(:,:,:,:)
+    real(8), allocatable :: openmc_total_src_old(:,:,:,:)
 
     ! Source sites in each mesh box
     real(8), allocatable :: sourcecounts(:,:,:,:)
@@ -138,8 +142,14 @@ contains
     if (.not. allocated(this % quad_current)) allocate(this % quad_current(16,ng,nx,ny,nz))
 
     ! Allocate source distributions
-    if (.not. allocated(this % cmfd_src)) allocate(this % cmfd_src(ng,nx,ny,nz))
-    if (.not. allocated(this % openmc_src)) allocate(this % openmc_src(ng,nx,ny,nz))
+    if (.not. allocated(this % cmfd_src)) &
+         allocate(this % cmfd_src(ng,nx,ny,nz))
+    if (.not. allocated(this % openmc_src)) &
+         allocate(this % openmc_src(ng,nx,ny,nz))
+    if (.not. allocated(this % openmc_total_src)) &
+         allocate(this % openmc_total_src(ng,nx,ny,nz))
+    if (.not. allocated(this % openmc_total_src_old)) &
+         allocate(this % openmc_total_src_old(ng,nx,ny,nz))
 
     ! Allocate source weight modification vars
     if (.not. allocated(this % sourcecounts)) allocate(this % sourcecounts(ng,nx,ny,nz))
@@ -168,6 +178,10 @@ contains
     this % quad_current  = ZERO
     this % cmfd_src      = ZERO
     this % openmc_src    = ZERO
+    this % openmc_total_src &
+                         = ZERO
+    this % openmc_total_src_old &
+                         = ZERO
     this % sourcecounts  = ZERO
     this % weightfactors = ONE
     this % balance       = ZERO
@@ -207,6 +221,10 @@ contains
     if (allocated(this % weightfactors)) deallocate(this % weightfactors)
     if (allocated(this % cmfd_src))      deallocate(this % cmfd_src)
     if (allocated(this % openmc_src))    deallocate(this % openmc_src)
+    if (allocated(this % openmc_total_src)) &
+                                         deallocate(this % openmc_total_src)
+    if (allocated(this % openmc_total_src_old)) &
+                                         deallocate(this % openmc_total_src_old)
     if (allocated(this % balance))       deallocate(this % balance)
     if (allocated(this % src_cmp))       deallocate(this % src_cmp)
     if (allocated(this % src_cmp_openmc))deallocate(this % src_cmp_openmc)
