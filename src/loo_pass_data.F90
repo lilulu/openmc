@@ -10,12 +10,13 @@ module loo_pass_data
 
   ! C interface
   interface
-     subroutine new_loo(indices, keff, hxyz, flux, total_src_old, &
+     subroutine new_loo(indices, keff, albedo, hxyz, flux, total_src_old, &
           totalxs, nfissxs, scattxs, &
           current, quad_current) bind (C, name='new_loo')
        use iso_c_binding
        type (c_ptr), value :: indices
        type (c_ptr), value :: keff
+       type (c_ptr), value :: albedo
        type (c_ptr), value :: hxyz
        type (c_ptr), value :: flux
        type (c_ptr), value :: total_src_old
@@ -37,6 +38,7 @@ contains
     ! fortran data type (c_wrapper_type), target :: internal values
     integer (c_int), target :: indices(4)
     real (c_double), target :: k
+    real (c_double), target:: albedo(6)
     real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
     real (c_double), allocatable, target:: total_src_old(:,:,:,:)
@@ -48,6 +50,7 @@ contains
 
     indices = cmfd % indices
     k = keff
+    albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
     total_src_old = cmfd % openmc_total_src_old
@@ -56,7 +59,7 @@ contains
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
-    call new_loo(c_loc(indices), c_loc(k), c_loc(hxyz), &
+    call new_loo(c_loc(indices), c_loc(k), c_loc(albedo), c_loc(hxyz), &
          c_loc(flux(1,1,1,1)), c_loc(total_src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &

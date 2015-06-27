@@ -99,6 +99,8 @@ private:
     int *_t_array;
     int *_t_arrayb;
     double _k;
+    double _leakage;
+    double *_albedo;
 
     /* track lengthes in LOO: first calculated in 2D then projected
      * into 3D using 1 polar angle*/
@@ -124,7 +126,8 @@ private:
     surfaceElement _quad_src;
 
 public:
-    Loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+    Loo(int *indices, double *k, double *albedo,
+        void *phxyz, void *pflx, void *ptso,
         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
     virtual ~Loo();
 
@@ -182,7 +185,8 @@ public:
 };
 
 extern "C" {
-    Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+    Loo* new_loo(int *indices, double *k, double *albedo,
+                 void *phxyz, void *pflx, void *ptso,
                  void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */

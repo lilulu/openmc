@@ -27,11 +27,12 @@
 */
 #include "loo.h"
 
-Loo* new_loo(int *indices, double *k, void *phxyz, void *pflx, void *ptso,
+Loo* new_loo(int *indices, double *k, double *albedo,
+             void *phxyz, void *pflx, void *ptso,
              void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
 {
     /* set up loo object */
-    Loo* loo = new Loo(indices, k, phxyz, pflx, ptso,
+    Loo* loo = new Loo(indices, k, albedo, phxyz, pflx, ptso,
                        ptxs, pfxs, psxs, pcur, pqcur);
 
     /* computes _quad_flux from _quad_current */
@@ -153,7 +154,8 @@ void surfaceElement::zero() {
  * Constructor
  * @param indices parameters that contain #cells x,y,z and #energy groups
  */
-Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
+Loo::Loo(int *indices, double* k, double* albedo,
+         void *phxyz, void *pflx, void *ptso,
          void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
     : _nx(indices[0]),
       _ny(indices[1]),
@@ -170,6 +172,8 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
       _k(k[0]),
+      _leakage(0.0),
+      _albedo(albedo),
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
       _scalar_flux(_ng, _nx, _ny, _nz, pflx),
@@ -460,9 +464,10 @@ void Loo::executeLoo(){
 
     /* iteratively solve the LOO problem */
     for (loo_iter = 0; loo_iter < max_loo_iter; loo_iter++) {
-        /* reset net current and summmation of quad fluxes */
+        /* reset net current, summmation of quad fluxes, leakage */
         net_current.zero();
         sum_quad_flux.zero();
+        _leakage = 0;
 
         /* compute total_source: scattering and fission source for
          * every mesh every energy group */
