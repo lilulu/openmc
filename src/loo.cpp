@@ -180,6 +180,7 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       _length(3, 1, _nx, _ny, _nz, phxyz),
+      _area(3, 1, _nx, _ny, _nz),
       _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
       _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
       _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
@@ -187,8 +188,10 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
     printf("k=%f\n", _k);
-    computeTrackLengthVolume();
+    computeAreaVolume();
+    computeTrackLength();
     generate2dTrack();
+    processFluxCurrent();
 }
 
 /**
@@ -197,16 +200,36 @@ Loo::Loo(int *indices, double* k, void *phxyz, void *pflx, void *ptso,
 Loo::~Loo(){
 }
 
-/* Computes _track_length and _volume based on _length */
-void Loo::computeTrackLengthVolume() {
-    double x, y, l;
+/* compute _area and _volume using _length */
+void Loo::computeAreaVolume() {
+    double volume;
+
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                volume = _length.getValue(0, 0, i, j, k)
+                * _length.getValue(1, 0, i, j, k)
+                * _length.getValue(2, 0, i, j, k);
+                _volume.setValue(0, i, j, k, volume);
+
+                for (int s = 0; s < 3; s++) {
+                    _area.setValue(s, 0, i, j, k,
+                                   volume / _length.getValue(s, 0, i, j, k));
+                }}}}
+    return;
+}
+
+/* Computes _track_length and _volume using _length */
+void Loo::computeTrackLength() {
+    double x, y, z, l;
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 x = _length.getValue(0, 0, i, j, k);
                 y = _length.getValue(1, 0, i, j, k);
-                _volume.setValue(0, i, j, k, x * y);
+                z = _length.getValue(2, 0, i, j, k);
+                _volume.setValue(0, i, j, k, x * y * z);
                 l = 0.5 * sqrt(x * x + y * y) / P0;
                 _track_length.setValue(0, i, j, k, l);
             }}}
@@ -318,6 +341,40 @@ void Loo::generate2dTrack() {
         len1 -= 2;
         len2 += 2;
     }
+    return;
+}
+
+/* process _scalar_flux and _current: the openmc generated
+ * _scalar_flux and c_current are volume-integrated and
+ * area-integrated respectively */
+void Loo::processFluxCurrent() {
+    double scalar_flux, quad_current, volume, area;
+
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                volume = _volume.getValue(0, i, j, k);
+                for (int g = 0; g < _ng; g++) {
+
+                    /* the scalar flux passed in from openmc has
+                       volume in it. This step divides it by volume so
+                       _scalar_flux is the real scalar flux.  */
+                    scalar_flux = _scalar_flux.getValue(g, i, j, k) / volume;
+                    _scalar_flux.setValue(g, i, j, k, scalar_flux);
+
+                    /* similarly, we need to divide the current by
+                     * surface area. */
+                    for (int s = 0; s < _quad_current.getNs(); s++) {
+                        quad_current = _quad_current.getValue(s, g, i, j, k);
+
+                        /* there are 8 quad current associated with
+                         * each direction, hence we find the
+                         * corresponding area by s / 8 */
+                        area = _area.getValue(s / 8, 0, i, j, k);
+
+                        _quad_current.setValue(s, g, i, j, k, quad_current
+                                               / area);
+                    }}}}}
     return;
 }
 
@@ -461,7 +518,7 @@ void Loo::computeTotalSource(meshElement& source) {
                                 + _nfiss_xs.getValue(g2, g1, i, j, k) / _k)
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
-                    //src *= _volume.getValue(0, i, j, k);
+                    src *= _volume.getValue(0, i, j, k);
                     /* setter */
                     source.setValue(0, i, j, k, src);
                 }}}}

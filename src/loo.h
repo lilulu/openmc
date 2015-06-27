@@ -99,7 +99,12 @@ private:
     int *_t_array;
     int *_t_arrayb;
     double _k;
+
+    /* track lengthes in LOO: first calculated in 2D then projected
+     * into 3D using 1 polar angle*/
     meshElement _track_length;
+
+    /* 3D volume of mesh cells */
     meshElement _volume;
     meshElement _scalar_flux;
     meshElement _total_xs;
@@ -111,6 +116,7 @@ private:
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
+    surfaceElement _area;
     surfaceElement _current;
     surfaceElement _quad_current;
     surfaceElement _quad_flux;
@@ -123,14 +129,22 @@ public:
     virtual ~Loo();
 
     // main methods
+    /* compute the surface areas and volume for each mesh cell */
+    void computeAreaVolume();
+
     /* computes _track_length for each mesh cell based on mesh cell
      * length _length. Notice the generated length has already been
      * projected into one polar angle (using TY 1 polar angle
-     * set). Also computes volume of each mesh cell. */
-    void computeTrackLengthVolume();
+     * set). */
+    void computeTrackLength();
 
     /* generate track laydown */
     void generate2dTrack();
+
+    /* process _scalar_flux and _current: the openmc generated
+     * _scalar_flux and c_current are volume-integrated and
+     * area-integrated respectively */
+    void processFluxCurrent();
 
     /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();
