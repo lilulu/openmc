@@ -1,7 +1,7 @@
 module loo_pass_data
 
   use constants,      only: CMFD_NOACCEL, ZERO
-  use global,         only: cmfd, cmfd_coremap
+  use global,         only: cmfd, cmfd_coremap, keff
   use iso_c_binding,  only: c_int, c_double, c_loc
 
   implicit none
@@ -36,7 +36,7 @@ contains
   subroutine pass_data_into_loo()
     ! fortran data type (c_wrapper_type), target :: internal values
     integer (c_int), target :: indices(4)
-    real (c_double), target :: keff
+    real (c_double), target :: k
     real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
     real (c_double), allocatable, target:: total_src_old(:,:,:,:)
@@ -47,7 +47,7 @@ contains
     real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
 
     indices = cmfd % indices
-    keff = cmfd % keff_bal
+    k = keff
     hxyz = cmfd % hxyz
     flux = cmfd % flux
     total_src_old = cmfd % openmc_total_src_old
@@ -56,7 +56,7 @@ contains
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
-    call new_loo(c_loc(indices), c_loc(keff), c_loc(hxyz), &
+    call new_loo(c_loc(indices), c_loc(k), c_loc(hxyz), &
          c_loc(flux(1,1,1,1)), c_loc(total_src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
