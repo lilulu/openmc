@@ -106,7 +106,6 @@ double meshElement::sum() {
 }
 
 void meshElement::normalize(double ratio) {
-    double sum = 0;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
@@ -224,6 +223,7 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _old_scalar_flux(_ng, _nx, _ny, _nz, pflx),
       _scalar_flux(_ng, _nx, _ny, _nz),
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
+      _abs_xs(_ng, _nx, _ny, _nz),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _fission_source(1, _nx, _ny, _nz),
       _old_total_source(_ng, _nx, _ny, _nz, ptso),
@@ -241,6 +241,7 @@ Loo::Loo(int *indices, double* k, double* albedo,
     computeTrackLength();
     generate2dTrack();
     processFluxCurrent();
+    processXs();
 }
 
 /**
@@ -442,6 +443,23 @@ void Loo::processFluxCurrent() {
     return;
 }
 
+/* compute absorption xs */
+void Loo::processXs() {
+    double abs_xs, scatt_xs;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g1 = 0; g1 < _ng; g1++) {
+                    scatt_xs = 0;
+                    for (int g2 = 0; g2 < _ng; g2++) {
+                        scatt_xs += _scatt_xs.getValue(g1, g2, i, j, k);
+                    }
+                    abs_xs = _total_xs.getValue(g1, i, j, k) - scatt_xs;
+                    _abs_xs.setValue(g1, i, j, k, abs_xs);
+                }}}}
+    return;
+}
+
 void Loo::computeQuadFlux(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -547,6 +565,8 @@ void Loo::executeLoo(){
 
         /* normalize scalar fluxes, quad fluxes, and leakage */
         normalization();
+
+        computeK();
     }
 
     /* cleans up memory */
@@ -826,6 +846,25 @@ void Loo::printElement(meshElement element, std::string string){
                         }}}}
     return;
 
+}
+
+void Loo::computeK(){
+    double fission_total, absorption_total;
+
+    fission_total = _fission_source.sum();
+    absorption_total = 0;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                        absorption_total += _abs_xs.getValue(g, i, j, k)
+                            * _scalar_flux.getValue(g, i, j, k)
+                            * _volume.getValue(0, i, j, k);
+                }}}}
+
+    _k = fission_total / (absorption_total + _leakage);
+
+    return;
 }
 
 void Loo::printElement(energyElement element, std::string string){

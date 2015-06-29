@@ -116,6 +116,7 @@ private:
     meshElement _old_scalar_flux;
     meshElement _scalar_flux;
     meshElement _total_xs;
+    meshElement _abs_xs;
     meshElement _sum_quad_flux;
     meshElement _fission_source;
     /* total source at the end of last batch of MC, corresponding to
@@ -154,6 +155,9 @@ public:
      * _scalar_flux and c_current are volume-integrated and
      * area-integrated respectively */
     void processFluxCurrent();
+
+    /* compute absorption xs */
+    void processXs();
 
     /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();
@@ -206,6 +210,8 @@ public:
 
     /* normalize scalar flux, quad flux and leakage */
     void normalization();
+
+    void computeK();
 
     // helper methods
     void printElement(meshElement element, std::string string);
