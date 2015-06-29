@@ -53,6 +53,7 @@ public:
     virtual ~meshElement();
     double getValue(int g, int i, int j, int k);
     void setValue(int g, int i, int j, int k, double value);
+    void incrementValue(int g, int i, int j, int k, double value);
     void zero();
 };
 
@@ -90,6 +91,7 @@ private:
     int _nz;
     int _ng;
     int _nt;
+    int _num_dimension;
     int _ns_2d;
     int _ns_3d;
     int _num_loop;
@@ -171,6 +173,25 @@ public:
     /* compute quad_src using the current total_source and class member
      * _old_total_source and _quad_src */
     void computeQuadSource(surfaceElement& quad_src, meshElement& total_source);
+
+    /* the main sweeping routine, updating _quad_flux, sum_quad_flux,
+     * net_current */
+    void sweep(meshElement& sum_quad_flux, meshElement& net_current);
+
+    /* the sweeping routine for sweeping through one track (nt) in one
+     * direction (0 is forward, 1 is backward) for one energy group (g),
+     * updating _quad_flux, sum_quad_flux, net_current, return updated
+     * psi */
+    double sweepOneTrack(meshElement& sum_quad_flux, meshElement& net_current,
+                         double psi, int g, int nt, int direction);
+
+    /* return bool representing whether a track starts from the mesh
+     * geometry's specific surface, in the direction specified */
+    bool startFromBoundary(int t, int i, int j, int k, int s, int dir);
+
+    /* return bool representing whether a track starts from a vacuum
+     * geometry boundary, in the direction specified */
+    bool startFromAnyVacuumBoundary(int t, int i, int j, int k, int dir);
 
     /* return area of the surface that a track t crosses with its
        start point (e = 0) or end point (e = 1) */

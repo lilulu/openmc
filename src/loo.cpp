@@ -74,6 +74,16 @@ void meshElement::setValue(int g, int i, int j, int k, double value){
     return;
 }
 
+void meshElement::incrementValue(int g, int i, int j, int k, double value){
+    assert(i < _nx);
+    assert(j < _ny);
+    assert(k < _nz);
+    assert(g < _ng);
+    int index_f = g + i * _ng + j * _ng * _nx + k * _ng * _nx * _ny;
+    _value[index_f] += value;
+    return;
+}
+
 void meshElement::zero(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -161,8 +171,10 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _ny(indices[1]),
       _nz(indices[2]),
       _ng(indices[3]),
-      // FIXME: CMFD: ns = 12; LOO: ns = 16 in 2D, ns = 48 in 3D
       _nt(8),
+      // FIXME: CMFD: ns = 12; LOO: ns = 16 in 2D
+      // FIEMX: for 3D, _num_dimension 2-> 3, _ns 16-> 48
+      _num_dimension(2),
       _ns_2d(16),
       _ns_3d(12),
       _num_loop(_nx),
@@ -191,7 +203,6 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _quad_src(_nt, _ng, _nx, _ny, _nz)
 {
-    printf("k=%f\n", _k);
     computeAreaVolume();
     computeTrackLength();
     generate2dTrack();
@@ -456,6 +467,7 @@ void Loo::computeQuadSrc(){
 
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
+    /* loo iteration control */
     int loo_iter, min_loo_iter, max_loo_iter;
 
      /* memory allocation for data structure internal to this routine */
@@ -491,6 +503,12 @@ void Loo::executeLoo(){
 
         /* update quad_src using total_source, _old_total_source, _quad_src */
         computeQuadSource(quad_src, total_source);
+
+        /* sweep through geometry, updating sum_quad_flux,
+         * net_current, and _leakage */
+        sweep(sum_quad_flux, net_current);
+
+        /* compute new mesh-cell averaged scalar flux */
     }
 
     /* cleans up memory */
@@ -568,6 +586,135 @@ void Loo::computeQuadSource(surfaceElement& quad_src,
     return;
 }
 
+/* the main sweeping routine, updating _quad_flux, sum_quad_flux,
+ * net_current */
+void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
+    /* current angular flux */
+    double psi;
+
+    for (int g = 0; g < _ng; g++) {
+
+        /* forward */
+        for (int nl = 0; nl < _num_loop; nl++) {
+            /* get initial psi for this loop of tracks. We always
+             * start our track from the bottom boundary. That is, the
+             * first track is mesh cell (nl, _ny - 1, 0)'s quad flux
+             * 13 */
+            psi = _quad_flux.getValue(13, g, nl, _ny - 1, 0) * _albedo[3];
+
+            /* sweeping through tracks in the forward order */
+            for (int nt = _num_track * nl; nt < _num_track * (nl + 1); nt++) {
+                psi = sweepOneTrack(sum_quad_flux, net_current, psi, g, nt, 0);
+            }
+
+            /* handle exiting psi: store psi (if reflective) or tally
+             * leakage (if vacuum)*/
+            _quad_flux.setValue(13, g, nl, _ny - 1, 0, psi * _albedo[3]);
+            _leakage += psi * getSurfaceArea(0, nl, _ny - 1, 0, 0)
+                * (1 - _albedo[3]);
+        }
+
+        /* backward */
+        for (int nl = 0; nl < _num_loop; nl++) {
+            /* similar to forward loop, except track 12 instead of 13 */
+            psi = _quad_flux.getValue(12, g, nl, _ny - 1, 0) * _albedo[3];
+
+            /* sweeping through tracks in the forward order */
+            for (int nt = _num_track * (nl + 1) - 1;
+                 nt > _num_track * nl - 1; nt--) {
+                psi = sweepOneTrack(sum_quad_flux,net_current, psi, g, nt, 1);
+            }
+
+            /* handle exiting psi: store psi (if reflective) or tally
+             * leakage (if vacuum)*/
+            _quad_flux.setValue(12, g, nl, _ny - 1, 0, psi * _albedo[3]);
+            _leakage += psi * getSurfaceArea(7, nl, _ny - 1, 0, 0)
+                * (1 - _albedo[3]);
+        }
+    }
+
+    return;
+}
+
+/* the sweeping routine for sweeping through one track (nt) in one
+ * direction (0 is forward, 1 is backward) for one energy group (g),
+ * updating _quad_flux, sum_quad_flux, net_current, return updated
+ * psi */
+double Loo::sweepOneTrack(meshElement& sum_quad_flux, meshElement& net_current,
+                          double psi, int g, int nt, int direction) {
+    int i, j, k, t;
+    double delta, xs, l, src;
+
+    i = _i_array[nt];
+    j = _j_array[nt];
+
+    /* for 2D problem, we only have k = 0 */
+    k = 0;
+
+    if (direction == 0)
+        t = _t_array[nt];
+    else
+        t = _t_arrayb[nt];
+
+    /* if we are on a vaccuum boundary, tally leakage and reset psi */
+    if (startFromAnyVacuumBoundary(t, i, j, k, direction)) {
+        _leakage += psi * getSurfaceArea(t, i, j, k, 0);
+        psi = 0;
+    }
+
+    /* compute delta */
+    xs = _total_xs.getValue(g, i, j, k);
+    l = _track_length.getValue(0, i, j, k);
+    src = _quad_src.getValue(t, g, i, j, k);
+    delta = (psi - src / xs) * (1.0 - exp(-xs * l));
+
+    /* update sum_quad_flux */
+    sum_quad_flux.incrementValue(g, i, j, k, delta / (xs * l) + src / xs);
+
+    /* update flux and net current */
+    net_current.incrementValue(g, i, j, k,-psi * getSurfaceArea(t, i, j, k, 0));
+    psi -= delta;
+    net_current.incrementValue(g, i, j, k, psi * getSurfaceArea(t, i, j, k, 1));
+
+    return psi;
+}
+
+/* return bool representing whether a track starts from the mesh
+ * geometry's specific surface, in the direction specified */
+bool Loo::startFromBoundary(int t, int i, int j, int k, int s, int dir) {
+
+    /* dir = 0 means forward:  t = 6, 2, 4, 0;
+     * dir = 1 means backward: t = 5, 1, 3, 7 */
+
+    /* left geometry boundary in 2D */
+    if ((s == 0) && (t == 6 - dir) && (j == 0))
+        return true;
+
+    /* right geometry boundary in 2D */
+    if ((s == 1) && (t == 2 - dir) && (i == _nx - 1))
+        return true;
+
+    /* top surface in 2D */
+    if ((s == 2) && (t == 4 - dir) && (i == 0))
+        return true;
+
+    /* bottom surface in 2D */
+    if ((s == 3) && (t == dir * 7) && (j == _ny - 1))
+        return true;
+
+    return false;
+}
+
+/* return bool representing whether a track starts from a vacuum
+ * geometry boundary, in the direction specified */
+bool Loo::startFromAnyVacuumBoundary(int t, int i, int j, int k, int dir) {
+    /* loop over the 2 * _num_dimension geometry boundary */
+    for (int s = 0; s < 2 * _num_dimension; s++) {
+        if ((_albedo[s] < 1e-10) && (startFromBoundary(t, i, j, k, s, dir)))
+            return true;
+    }
+    return false;
+}
 
 /* return area of the surface that a track t crosses with its
    start point (e = 0) or end point (e = 1) */
