@@ -241,6 +241,19 @@ void Loo::computeTrackLength() {
     return;
 }
 
+
+/* Track generation in 2D. In generating tracks, we use the following convention
+ * for numbering the 8 tracks inside of each mesh cell.
+ *           _
+ *    //\   \\
+ *  4//5    3\\2
+ * \//       _\\
+ *   _
+ *  \\        //\
+ *  6\\7    1//0
+ *   _\\   \//
+ *
+ */
 void Loo::generate2dTrack() {
     /* nl = index of the loop (a loop is when tracks form a complete cycle) */
     /* nt = local index of track within a loop. */
@@ -404,11 +417,13 @@ void Loo::computeQuadFlux(){
     //printElement(_quad_flux, "quad_flux");
 }
 
+/* compute the quadrature source associated with each track and the
+ * sum of the eight quadrature fluxes in each mesh cell */
 void Loo::computeQuadSrc(){
     double xs, l, ex, src, sum_quad_flux, out, in;
 
-    int in_index[] = {13, 4, 10, 3, 12, 2, 11, 5};
-    int out_index[] = {6, 8, 1, 15, 0, 9, 7, 14};
+    int in_index[] = {13, 5, 4, 11, 10, 2, 3, 12};
+    int out_index[] = {6, 14, 8, 7, 1, 9, 15, 0};
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -554,10 +569,11 @@ void Loo::computeQuadSource(surfaceElement& quad_src,
 }
 
 
-/* return the surface length that track t is crossing with its start
- * point (e = 0) or end point (e = 1) in cell (i,j,k) */
-double Loo::returnSurfaceLength(int i, int j, int k, int t, int e) {
-    /* e represents start point (e = 0) or end point (e = 1) */
+/* return area of the surface that a track t crosses with its
+   start point (e = 0) or end point (e = 1) */
+double Loo::getSurfaceArea(int t, int i, int j, int k, int e) {
+    /* e represents whether we are talking about track t's start point
+     * (e = 0) or end point (e = 1) */
     assert(e > -1);
     assert(e < 2);
 
@@ -569,13 +585,17 @@ double Loo::returnSurfaceLength(int i, int j, int k, int t, int e) {
      * direction will be used */
     int index = 1;
 
-    /* track 0, 2, 4, 6's entering points and track 1, 3, 5, 7's
-     * exiting points are on surfaces along the x-direction */
-    if (((e == 0) && (t % 2 == 0)) || ((e == 1) && (t % 2 == 1)))
-        index = 0;
+    /* track 1, 2, 5, 6's start points and track 0, 3, 4, 7's
+     * ending points are on surfaces perpendicular to the x-axis */
+    if ((t == 1) || (t == 2) || (t == 5) || (t == 6)) {
+        if (e == 0) index = 0;
+    }
+    else {
+        if (e == 1) index = 0;
+    }
 
-    /* _length is a surfaceElement of dimension 3 x 1 x nx x ny x nz*/
-    return _length.getValue(index, 0, i, j, k);
+    /* _area is a surfaceElement of dimension 3 x 1 x nx x ny x nz */
+    return _area.getValue(index, 0, i, j, k);
 }
 
 void Loo::printElement(meshElement element, std::string string){

@@ -172,9 +172,9 @@ public:
      * _old_total_source and _quad_src */
     void computeQuadSource(surfaceElement& quad_src, meshElement& total_source);
 
-    /* return surface length that this track is crossing with its
+    /* return area of the surface that a track t crosses with its
        start point (e = 0) or end point (e = 1) */
-    double returnSurfaceLength(int i, int j, int k, int t, int e);
+    double getSurfaceArea(int t, int i, int j, int k, int e);
 
     // helper methods
     void printElement(meshElement element, std::string string);
