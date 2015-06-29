@@ -110,6 +110,7 @@ private:
 
     /* 3D volume of mesh cells */
     meshElement _volume;
+    meshElement _old_scalar_flux;
     meshElement _scalar_flux;
     meshElement _total_xs;
     meshElement _sum_quad_flux;
@@ -196,6 +197,9 @@ public:
     /* return area of the surface that a track t crosses with its
        start point (e = 0) or end point (e = 1) */
     double getSurfaceArea(int t, int i, int j, int k, int e);
+
+    /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
+    void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
 
     // helper methods
     void printElement(meshElement element, std::string string);

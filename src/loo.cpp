@@ -188,7 +188,8 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _albedo(albedo),
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
-      _scalar_flux(_ng, _nx, _ny, _nz, pflx),
+      _old_scalar_flux(_ng, _nx, _ny, _nz, pflx),
+      _scalar_flux(_ng, _nx, _ny, _nz),
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _fission_source(1, _nx, _ny, _nz),
@@ -387,7 +388,9 @@ void Loo::processFluxCurrent() {
                     /* the scalar flux passed in from openmc has
                        volume in it. This step divides it by volume so
                        _scalar_flux is the real scalar flux.  */
-                    scalar_flux = _scalar_flux.getValue(g, i, j, k) / volume;
+                    scalar_flux = _old_scalar_flux.getValue(g, i, j, k)
+                        / volume;
+                    _old_scalar_flux.setValue(g, i, j, k, scalar_flux);
                     _scalar_flux.setValue(g, i, j, k, scalar_flux);
 
                     /* similarly, we need to divide the current by
@@ -508,7 +511,8 @@ void Loo::executeLoo(){
          * net_current, and _leakage */
         sweep(sum_quad_flux, net_current);
 
-        /* compute new mesh-cell averaged scalar flux */
+        /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
+        computeScalarFlux(sum_quad_flux, net_current);
     }
 
     /* cleans up memory */
@@ -744,6 +748,25 @@ double Loo::getSurfaceArea(int t, int i, int j, int k, int e) {
     /* _area is a surfaceElement of dimension 3 x 1 x nx x ny x nz */
     return _area.getValue(index, 0, i, j, k);
 }
+
+/* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
+void Loo::computeScalarFlux(meshElement sum_quad_flux, meshElement net_current){
+    double phi_ratio, phi;
+
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
+                        _sum_quad_flux.getValue(g, i, j, k);
+
+                    phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
+                    _scalar_flux.setValue(g, i, j, k, phi);
+                }}}}
+
+    return;
+}
+
 
 void Loo::printElement(meshElement element, std::string string){
     printf("%s \n", string.c_str());
