@@ -54,7 +54,9 @@ public:
     double getValue(int g, int i, int j, int k);
     void setValue(int g, int i, int j, int k, double value);
     void incrementValue(int g, int i, int j, int k, double value);
+    void normalize(double ratio);
     void zero();
+    double sum();
 };
 
 class energyElement {
@@ -81,6 +83,7 @@ public:
     double getNs();
     double getValue(int s, int g, int i, int j, int k);
     void setValue(int s, int g, int i, int j, int k, double value);
+    void normalize(double value);
     void zero();
 };
 
@@ -200,6 +203,9 @@ public:
 
     /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
     void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
+
+    /* normalize scalar flux, quad flux and leakage */
+    void normalization();
 
     // helper methods
     void printElement(meshElement element, std::string string);
