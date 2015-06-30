@@ -5,8 +5,9 @@ module output
   use ace_header,      only: Nuclide, Reaction, UrrData
   use constants
   use endf,            only: reaction_name
-  use error,           only: warning
-  use geometry_header, only: Cell, Universe, Surface, BASE_UNIVERSE
+  use error,           only: fatal_error, warning
+  use geometry_header, only: Cell, Universe, Surface, Lattice, RectLattice, &
+                             &HexLattice, BASE_UNIVERSE
   use global
   use math,            only: t_percentile
   use mesh_header,     only: StructuredMesh
@@ -256,7 +257,7 @@ contains
     type(Cell),       pointer :: c => null()
     type(Surface),    pointer :: s => null()
     type(Universe),   pointer :: u => null()
-    type(Lattice),    pointer :: l => null()
+    class(Lattice),   pointer :: l => null()
     type(LocalCoord), pointer :: coord => null()
 
     ! display type of particle
@@ -292,7 +293,7 @@ contains
 
       ! Print information on lattice
       if (coord % lattice /= NONE) then
-        l => lattices(coord % lattice)
+        l => lattices(coord % lattice) % obj
         write(ou,*) '    Lattice          = ' // trim(to_str(l % id))
         write(ou,*) '    Lattice position = (' // trim(to_str(&
              p % coord % lattice_x)) // ',' // trim(to_str(&
@@ -355,7 +356,7 @@ contains
     integer :: unit_      ! unit to write to
     character(MAX_LINE_LEN) :: string
     type(Universe), pointer :: u => null()
-    type(Lattice),  pointer :: l => null()
+    class(Lattice), pointer :: l => null()
     type(Material), pointer :: m => null()
 
     ! Set unit to stdout if not already set
@@ -367,6 +368,9 @@ contains
 
     ! Write user-specified id for cell
     write(unit_,*) 'Cell ' // to_str(c % id)
+
+    ! Write user-specified name for cell
+    write(unit_,*) '    Name = ' // c % name
 
     ! Find index in cells array and write
     index_cell = cell_dict % get_key(c % id)
@@ -384,7 +388,7 @@ contains
       u => universes(c % fill)
       write(unit_,*) '    Fill = Universe ' // to_str(u % id)
     case (CELL_LATTICE)
-      l => lattices(c % fill)
+      l => lattices(c % fill) % obj
       write(unit_,*) '    Fill = Lattice ' // to_str(l % id)
     end select
 
@@ -471,13 +475,10 @@ contains
 
   subroutine print_lattice(lat, unit)
 
-    type(Lattice), pointer :: lat
-    integer,      optional :: unit
+    class(Lattice), pointer :: lat
+    integer,       optional :: unit
 
-    integer :: i     ! loop index
     integer :: unit_ ! unit to write to
-    character(MAX_LINE_LEN) :: string
-
 
     ! set default unit if not specified
     if (present(unit)) then
@@ -489,27 +490,67 @@ contains
     ! Write information about lattice
     write(unit_,*) 'Lattice ' // to_str(lat % id)
 
-    ! Write dimension of lattice
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % dimension(i))
-    end do
-    write(unit_,*) '    Dimension =' // string
+    ! Write user-specified name for lattice
+    write(unit_,*) '    Name = ' // lat % name
 
-    ! Write lower-left coordinates of lattice
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % lower_left(i))
-    end do
-    write(unit_,*) '    Lower-left =' // string
+    select type(lat)
+    type is (RectLattice)
+      ! Write dimension of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Dimension = ' // to_str(lat % n_cells(1)) &
+             &// ' ' // to_str(lat % n_cells(2)) // ' ' &
+             &// to_str(lat % n_cells(3))
+      else
+        write(unit_, *) '    Dimension = ' // to_str(lat % n_cells(1)) &
+             &// ' ' // to_str(lat % n_cells(2))
+      end if
 
-    ! Write width of each lattice cell
-    string = ""
-    do i = 1, lat % n_dimension
-      string = trim(string) // ' ' // to_str(lat % width(i))
-    end do
-    write(unit_,*) '    Width =' // string
-    write(unit_,*)
+      ! Write lower-left coordinates of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Lower-left = ' // to_str(lat % lower_left(1)) &
+             &// ' ' // to_str(lat % lower_left(2)) // ' ' &
+             &// to_str(lat % lower_left(3))
+      else
+        write(unit_, *) '    Lower-left = ' // to_str(lat % lower_left(1)) &
+             &// ' ' // to_str(lat % lower_left(2))
+      end if
+
+      ! Write lattice pitch along each axis.
+      if (lat % is_3d) then
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2)) // ' ' &
+             &// to_str(lat % pitch(3))
+      else
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2))
+      end if
+      write(unit_,*)
+
+    type is (HexLattice)
+      ! Write dimension of lattice.
+      write(unit_,*) '    N-rings = ' // to_str(lat % n_rings)
+      if (lat % is_3d) write(unit_,*) '    N-axial = ' // to_str(lat % n_axial)
+
+      ! Write center coordinates of lattice.
+      if (lat % is_3d) then
+        write(unit_, *) '    Center = ' // to_str(lat % center(1)) &
+             &// ' ' // to_str(lat % center(2)) // ' ' &
+             &// to_str(lat % center(3))
+      else
+        write(unit_, *) '    Center = ' // to_str(lat % center(1)) &
+             &// ' ' // to_str(lat % center(2))
+      end if
+
+      ! Write lattice pitch along each axis.
+      if (lat % is_3d) then
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1)) &
+             &// ' ' // to_str(lat % pitch(2))
+      else
+        write(unit_, *) '    Pitch = ' // to_str(lat % pitch(1))
+      end if
+      write(unit_,*)
+    end select
+
 
   end subroutine print_lattice
 
@@ -536,6 +577,9 @@ contains
 
     ! Write user-specified id of surface
     write(unit_,*) 'Surface ' // to_str(surf % id)
+
+    ! Write user-specified name for surface
+    write(unit_,*) '    Name = ' // surf % name
 
     ! Write type of surface
     select case (surf % type)
@@ -633,6 +677,9 @@ contains
     ! Write identifier for material
     write(unit_,*) 'Material ' // to_str(mat % id)
 
+    ! Write user-specified name for material
+    write(unit_,*) '    Name = ' // mat % name
+
     ! Write total atom density in atom/b-cm
     write(unit_,*) '    Atom Density = ' // trim(to_str(mat % density)) &
          // ' atom/b-cm'
@@ -706,6 +753,16 @@ contains
     case(ESTIMATOR_TRACKLENGTH)
       write(unit_,*) '    Estimator: Track-length'
     end select
+
+    ! Write any cells bins if present
+    j = t % find_filter(FILTER_DISTRIBCELL)
+    if (j > 0) then
+      string = ""
+      id = t % filters(j) % int_bins(1)
+      c => cells(id)
+      string = trim(string) // ' ' // trim(to_str(c % id))
+      write(unit_, *) '    Distribcell Bins:' // trim(string)
+    end if
 
     ! Write any cells bins if present
     j = t % find_filter(FILTER_CELL)
@@ -816,7 +873,6 @@ contains
     end do
     write(unit_,*)
 
-
     ! Write score bins
     string   = ""
     j = 0
@@ -919,7 +975,7 @@ contains
     type(Surface),     pointer :: s => null()
     type(Cell),        pointer :: c => null()
     type(Universe),    pointer :: u => null()
-    type(Lattice),     pointer :: l => null()
+    class(Lattice),    pointer :: l => null()
 
     ! print summary of surfaces
     call header("SURFACE SUMMARY", unit=UNIT_SUMMARY)
@@ -946,7 +1002,7 @@ contains
     if (n_lattices > 0) then
       call header("LATTICE SUMMARY", unit=UNIT_SUMMARY)
       do i = 1, n_lattices
-        l => lattices(i)
+        l => lattices(i) % obj
         call print_lattice(l, unit=UNIT_SUMMARY)
       end do
     end if
@@ -1577,22 +1633,26 @@ contains
 
     ! write global tallies
     if (n_realizations > 1) then
-      write(ou,102) "k-effective (Collision)", global_tallies(K_COLLISION) &
-           % sum, global_tallies(K_COLLISION) % sum_sq
-      write(ou,102) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH) &
-           % sum, global_tallies(K_TRACKLENGTH) % sum_sq
-      write(ou,102) "k-effective (Absorption)", global_tallies(K_ABSORPTION) &
-           % sum, global_tallies(K_ABSORPTION) % sum_sq
-      if (n_realizations > 3) write(ou,102) "Combined k-effective", k_combined
+      if (run_mode == MODE_EIGENVALUE) then
+        write(ou,102) "k-effective (Collision)", global_tallies(K_COLLISION) &
+             % sum, global_tallies(K_COLLISION) % sum_sq
+        write(ou,102) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH) &
+             % sum, global_tallies(K_TRACKLENGTH) % sum_sq
+        write(ou,102) "k-effective (Absorption)", global_tallies(K_ABSORPTION) &
+             % sum, global_tallies(K_ABSORPTION) % sum_sq
+        if (n_realizations > 3) write(ou,102) "Combined k-effective", k_combined
+      end if
       write(ou,102) "Leakage Fraction", global_tallies(LEAKAGE) % sum, &
            global_tallies(LEAKAGE) % sum_sq
     else
       if (master) call warning("Could not compute uncertainties -- only one &
            &active batch simulated!")
 
-      write(ou,103) "k-effective (Collision)", global_tallies(K_COLLISION) % sum
-      write(ou,103) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH)  % sum
-      write(ou,103) "k-effective (Absorption)", global_tallies(K_ABSORPTION) % sum
+      if (run_mode == MODE_EIGENVALUE) then
+        write(ou,103) "k-effective (Collision)", global_tallies(K_COLLISION) % sum
+        write(ou,103) "k-effective (Track-length)", global_tallies(K_TRACKLENGTH)  % sum
+        write(ou,103) "k-effective (Absorption)", global_tallies(K_ABSORPTION) % sum
+      end if
       write(ou,103) "Leakage Fraction", global_tallies(LEAKAGE) % sum
     end if
     write(ou,*)
@@ -1661,7 +1721,7 @@ contains
     real(8) :: t_value      ! t-values for confidence intervals
     real(8) :: alpha        ! significance level for CI
     character(MAX_FILE_LEN) :: filename                    ! name of output file
-    character(15)           :: filter_name(N_FILTER_TYPES) ! names of tally filters
+    character(16)           :: filter_name(N_FILTER_TYPES) ! names of tally filters
     character(36)           :: score_names(N_SCORE_TYPES)  ! names of scoring function
     character(36)           :: score_name                  ! names of scoring function
                                                            ! to be applied at write-time
@@ -1671,14 +1731,15 @@ contains
     if (n_tallies == 0) return
 
     ! Initialize names for tally filter types
-    filter_name(FILTER_UNIVERSE)  = "Universe"
-    filter_name(FILTER_MATERIAL)  = "Material"
-    filter_name(FILTER_CELL)      = "Cell"
-    filter_name(FILTER_CELLBORN)  = "Birth Cell"
-    filter_name(FILTER_SURFACE)   = "Surface"
-    filter_name(FILTER_MESH)      = "Mesh"
-    filter_name(FILTER_ENERGYIN)  = "Incoming Energy"
-    filter_name(FILTER_ENERGYOUT) = "Outgoing Energy"
+    filter_name(FILTER_UNIVERSE)    = "Universe"
+    filter_name(FILTER_MATERIAL)    = "Material"
+    filter_name(FILTER_DISTRIBCELL) = "Distributed Cell"
+    filter_name(FILTER_CELL)        = "Cell"
+    filter_name(FILTER_CELLBORN)    = "Birth Cell"
+    filter_name(FILTER_SURFACE)     = "Surface"
+    filter_name(FILTER_MESH)        = "Mesh"
+    filter_name(FILTER_ENERGYIN)    = "Incoming Energy"
+    filter_name(FILTER_ENERGYOUT)   = "Outgoing Energy"
 
     ! Initialize names for scores
     score_names(abs(SCORE_FLUX))          = "Flux"
@@ -1728,12 +1789,12 @@ contains
       end if
 
       ! Write header block
-      if (t % label == "") then
+      if (t % name == "") then
         call header("TALLY " // trim(to_str(t % id)), unit=UNIT_TALLY, &
              level=3)
       else
         call header("TALLY " // trim(to_str(t % id)) // ": " &
-             // trim(t % label), unit=UNIT_TALLY, level=3)
+             // trim(t % name), unit=UNIT_TALLY, level=3)
       endif
 
       ! Handle surface current tallies separately
@@ -2069,14 +2130,16 @@ contains
 
     type(TallyObject), pointer :: t        ! tally object
     integer, intent(in)        :: i_filter ! index in filters array
-    character(30)              :: label    ! user-specified identifier
+    character(100)              :: label    ! user-specified identifier
 
     integer :: i      ! index in cells/surfaces/etc array
     integer :: bin
+    integer :: offset
     integer, allocatable :: ijk(:) ! indices in mesh
     real(8)              :: E0     ! lower bound for energy bin
     real(8)              :: E1     ! upper bound for energy bin
     type(StructuredMesh), pointer :: m => null()
+    type(Universe), pointer :: univ => null()
 
     bin = matching_bins(i_filter)
 
@@ -2090,6 +2153,13 @@ contains
     case (FILTER_CELL, FILTER_CELLBORN)
       i = t % filters(i_filter) % int_bins(bin)
       label = to_str(cells(i) % id)
+    case (FILTER_DISTRIBCELL)
+      label = ''
+      univ => universes(BASE_UNIVERSE)
+      offset = 0
+      call find_offset(t % filters(i_filter) % offset, &
+           t % filters(i_filter) % int_bins(1), &
+           univ, bin-1, offset, label)
     case (FILTER_SURFACE)
       i = t % filters(i_filter) % int_bins(bin)
       label = to_str(surfaces(i) % id)
@@ -2111,5 +2181,255 @@ contains
     end select
 
   end function get_label
+  
+!===============================================================================
+! FIND_OFFSET uses a given map number, a target cell ID, and a target offset 
+! to build a string which is the path from the base universe to the target cell
+! with the given offset
+!===============================================================================
+
+  recursive subroutine find_offset(map, goal, univ, final, offset, path)
+
+    integer, intent(in) :: map                   ! Index in maps vector
+    integer, intent(in) :: goal                  ! The target cell ID
+    type(Universe), pointer, intent(in) :: univ  ! Universe to begin search
+    integer, intent(in) :: final                 ! Target offset
+    integer, intent(inout) :: offset             ! Current offset
+    character(100) :: path                       ! Path to offset
+    
+    integer :: i, j                 ! Index over cells
+    integer :: k, l, m              ! Indices in lattice
+    integer :: old_k, old_l, old_m  ! Previous indices in lattice
+    integer :: n_x, n_y, n_z        ! Lattice cell array dimensions
+    integer :: n                    ! Number of cells to search
+    integer :: cell_index           ! Index in cells array
+    integer :: lat_offset           ! Offset from lattice
+    integer :: temp_offset          ! Looped sum of offsets
+    logical :: this_cell = .false.  ! Advance in this cell?
+    logical :: later_cell = .false. ! Fill cells after this one?
+    type(Cell),     pointer:: c           ! Pointer to current cell
+    type(Universe), pointer :: next_univ  ! Next universe to loop through
+    class(Lattice), pointer :: lat        ! Pointer to current lattice
+
+    n = univ % n_cells
+    
+    ! Write to the geometry stack
+    if (univ%id == 0) then
+      path = trim(path) // to_str(univ%id)
+    else
+      path = trim(path) // "->" // to_str(univ%id)
+    end if
+
+    ! Look through all cells in this universe
+    do i = 1, n
+
+      cell_index = univ % cells(i)        
+      c => cells(cell_index)
+      
+      ! If the cell ID matches the goal and the offset matches final,
+      ! write to the geometry stack
+      if (cell_dict % get_key(c % id) == goal .AND. offset == final) then
+        path = trim(path) // "->" // to_str(c%id)
+        return
+      end if
+      
+    end do
+    
+    ! Find the fill cell or lattice cell that we need to enter
+    do i = 1, n
+
+      later_cell = .false.
+
+      cell_index = univ % cells(i)        
+      c => cells(cell_index)
+
+      this_cell = .false.  
+
+      ! If we got here, we still think the target is in this universe
+      ! or further down, but it's not this exact cell. 
+      ! Compare offset to next cell to see if we should enter this cell  
+      if (i /= n) then
+
+        do j = i+1, n
+
+          cell_index = univ % cells(j)
+          c => cells(cell_index)
+
+          ! Skip normal cells which do not have offsets
+          if (c % type == CELL_NORMAL) then
+            cycle
+          end if
+
+          ! Break loop once we've found the next cell with an offset    
+          exit   
+        end do
+
+        ! Ensure we didn't just end the loop by iteration
+        if (c % type /= CELL_NORMAL) then
+
+          ! There are more cells in this universe that it could be in
+          later_cell = .true.
+
+          ! Two cases, lattice or fill cell
+          if (c % type == CELL_FILL) then
+            temp_offset = c % offset(map)
+
+          ! Get the offset of the first lattice location
+          else
+            lat => lattices(c % fill) % obj
+            temp_offset = lat % offset(map, 1, 1, 1)
+          end if   
+
+          ! If the final offset is in the range of offset - temp_offset+offset
+          ! then the goal is in this cell
+          if (final < temp_offset + offset) then
+            this_cell = .true.
+          end if  
+        end if
+      end if
+
+      if (n == 1 .and. c % type /= CELL_NORMAL) then
+        this_cell = .true.
+      end if
+
+      if (.not. later_cell) then
+        this_cell = .true.
+      end if
+
+      ! Get pointer to THIS cell because target must be in this cell
+      if (this_cell) then
+
+        cell_index = univ % cells(i)
+        c => cells(cell_index)
+
+        path = trim(path) // "->" // to_str(c%id)
+
+        ! ====================================================================
+        ! CELL CONTAINS LOWER UNIVERSE, RECURSIVELY FIND CELL
+        if (c % type == CELL_FILL) then
+
+          ! Enter this cell to update the current offset
+          offset = c % offset(map) + offset
+
+          next_univ => universes(c % fill)
+          call find_offset(map, goal, next_univ, final, offset, path)
+          return
+
+        ! ====================================================================
+        ! CELL CONTAINS LATTICE, RECURSIVELY FIND CELL
+        elseif (c % type == CELL_LATTICE) then
+
+          ! Set current lattice
+          lat => lattices(c % fill) % obj
+
+          select type (lat)
+
+          ! ==================================================================
+          ! RECTANGULAR LATTICES
+          type is (RectLattice)
+
+            ! Write to the geometry stack
+            path = trim(path) // "->" // to_str(lat%id)
+
+            n_x = lat % n_cells(1)
+            n_y = lat % n_cells(2)
+            n_z = lat % n_cells(3)
+            old_m = 1
+            old_l = 1
+            old_k = 1
+
+            ! Loop over lattice coordinates
+            do k = 1, n_x
+             do l = 1, n_y
+               do m = 1, n_z 
+
+                  if (final >= lat % offset(map, k, l, m) + offset) then
+                    if (k == n_x .and. l == n_y .and. m == n_z) then
+                      ! This is last lattice cell, so target must be here
+                      lat_offset = lat % offset(map, k, l, m)
+                      offset = offset + lat_offset
+                      next_univ => universes(lat % universes(k, l, m))
+                      path = trim(path) // "(" // trim(to_str(k)) // &
+                           "," // trim(to_str(l)) // "," // &
+                           trim(to_str(m)) // ")"
+                      call find_offset(map, goal, next_univ, final, offset, path)
+                      return
+                    else
+                      old_m = m
+                      old_l = l
+                      old_k = k
+                      cycle
+                    end if
+                  else
+                    ! Target is at this lattice position
+                    lat_offset = lat % offset(map, old_k, old_l, old_m)
+                    offset = offset + lat_offset
+                    next_univ => universes(lat % universes(old_k, old_l, old_m))  
+                    path = trim(path) // "(" // trim(to_str(old_k)) // &
+                         "," // trim(to_str(old_l)) // "," // &
+                         trim(to_str(old_m)) // ")"
+                    call find_offset(map, goal, next_univ, final, offset, path)
+                    return
+                  end if
+               
+                end do
+              end do
+            end do
+
+          ! ==================================================================
+          ! HEXAGONAL LATTICES
+          type is (HexLattice)
+
+            ! Write to the geometry stack
+            path = trim(path) // "->" // to_str(lat%id)
+
+            n_z = lat % n_axial
+            n_y = 2 * lat % n_rings - 1
+            n_x = 2 * lat % n_rings - 1
+            old_m = 1
+            old_l = 1
+            old_k = 1
+
+            ! Loop over lattice coordinates
+            do m = 1, n_z
+              do l = 1, n_y
+                do k = 1, n_x
+
+                  ! This array position is never used
+                  if (k + l < lat % n_rings + 1) then
+                    cycle
+                  ! This array position is never used
+                  else if (k + l > 3*lat % n_rings - 1) then
+                    cycle
+                  end if
+
+                  if (final >= lat % offset(map, k, l, m) + offset) then
+                    old_m = m
+                    old_l = l
+                    old_k = k
+                    cycle
+                  else
+                    ! Target is at this lattice position
+                    lat_offset = lat % offset(map, old_k, old_l, old_m)
+                    offset = offset + lat_offset
+                    next_univ => universes(lat % universes(old_k, old_l, old_m))
+                    path = trim(path) // "(" // &
+                         trim(to_str(old_k - lat % n_rings)) // "," // &
+                         trim(to_str(old_l - lat % n_rings)) // "," // &
+                         trim(to_str(old_m)) // ")"
+                    call find_offset(map, goal, next_univ, final, offset, path)
+                    return
+                  end if
+
+                end do
+              end do
+            end do
+
+          end select
+
+        end if
+      end if
+    end do              
+  end subroutine find_offset
 
 end module output

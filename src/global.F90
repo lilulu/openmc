@@ -6,13 +6,14 @@ module global
   use cmfd_header
   use constants
   use dict_header,      only: DictCharInt, DictIntInt
-  use geometry_header,  only: Cell, Universe, Lattice, Surface
+  use geometry_header,  only: Cell, Universe, Lattice, LatticeContainer, Surface
   use material_header,  only: Material
   use mesh_header,      only: StructuredMesh
   use plot_header,      only: ObjectPlot
   use set_header,       only: SetInt
   use source_header,    only: ExtSource
   use tally_header,     only: TallyObject, TallyMap, TallyResult
+  use trigger_header,   only: KTrigger
   use timer_header,     only: Timer
 
 #ifdef HDF5
@@ -26,12 +27,12 @@ module global
   ! GEOMETRY-RELATED VARIABLES
 
   ! Main arrays
-  type(Cell),      allocatable, target :: cells(:)
-  type(Universe),  allocatable, target :: universes(:)
-  type(Lattice),   allocatable, target :: lattices(:)
-  type(Surface),   allocatable, target :: surfaces(:)
-  type(Material),  allocatable, target :: materials(:)
-  type(ObjectPlot),allocatable, target :: plots(:)
+  type(Cell),              allocatable, target :: cells(:)
+  type(Universe),          allocatable, target :: universes(:)
+  type(LatticeContainer),  allocatable, target :: lattices(:)
+  type(Surface),           allocatable, target :: surfaces(:)
+  type(Material),          allocatable, target :: materials(:)
+  type(ObjectPlot),        allocatable, target :: plots(:)
 
   ! Size of main arrays
   integer :: n_cells     ! # of cells
@@ -150,6 +151,16 @@ module global
   integer    :: current_gen   = 0 ! current generation within a batch
   integer    :: overall_gen   = 0 ! overall generation in the run
 
+  ! ============================================================================
+  ! TALLY PRECISION TRIGGER VARIABLES
+
+  integer        :: n_max_batches             ! max # of batches
+  integer        :: n_batch_interval = 1      ! batch interval for triggers
+  logical        :: pred_batches = .false.    ! predict batches for triggers
+  logical        :: trigger_on = .false.      ! flag for turning triggers on/off
+  type(KTrigger) :: keff_trigger              ! trigger for k-effective
+  logical :: satisfy_triggers = .false.       ! whether triggers are satisfied
+
   ! External source
   type(ExtSource), target :: external_source
 
@@ -218,6 +229,7 @@ module global
   type(Timer) :: time_total         ! timer for total run
   type(Timer) :: time_initialize    ! timer for initialization
   type(Timer) :: time_read_xs       ! timer for reading cross sections
+  type(Timer) :: time_unionize      ! timer for material xs-energy grid union
   type(Timer) :: time_bank          ! timer for fission bank synchronization
   type(Timer) :: time_bank_sample   ! timer for fission bank sampling
   type(Timer) :: time_bank_sendrecv ! timer for fission bank SEND/RECV
@@ -290,6 +302,9 @@ module global
   ! Particle restart run
   logical :: particle_restart_run = .false.
 
+  ! Number of distribcell maps
+  integer :: n_maps
+
   ! Write out initial source
   logical :: write_initial_source = .false.
 
@@ -301,9 +316,6 @@ module global
 
   ! Is CMFD active
   logical :: cmfd_run = .false.
-
-  ! CMFD communicator
-  integer :: cmfd_comm
 
   ! Timing objects
   type(Timer) :: time_cmfd      ! timer for whole cmfd calculation
@@ -323,9 +335,6 @@ module global
   integer :: n_cmfd_meshes  = 1 ! # of structured meshes
   integer :: n_cmfd_tallies = 3 ! # of user-defined tallies
 
-  ! Eigenvalue solver type
-  character(len=10) :: cmfd_solver_type = 'power'
-
   ! Adjoint method type
   character(len=10) :: cmfd_adjoint_type = 'physical'
 
@@ -343,8 +352,6 @@ module global
   logical :: cmfd_downscatter = .false.
 
   ! Convergence monitoring
-  logical :: cmfd_snes_monitor  = .false.
-  logical :: cmfd_ksp_monitor   = .false.
   logical :: cmfd_power_monitor = .false.
 
   ! Cmfd output

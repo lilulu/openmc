@@ -8,7 +8,7 @@ module constants
   ! OpenMC major, minor, and release numbers
   integer, parameter :: VERSION_MAJOR   = 0
   integer, parameter :: VERSION_MINOR   = 6
-  integer, parameter :: VERSION_RELEASE = 1
+  integer, parameter :: VERSION_RELEASE = 2
 
   ! Revision numbers for binary files
   integer, parameter :: REVISION_STATEPOINT       = 13
@@ -126,6 +126,9 @@ module constants
        SURF_CONE_X =  9, & ! Cone parallel to x-axis
        SURF_CONE_Y = 10, & ! Cone parallel to y-axis
        SURF_CONE_Z = 11    ! Cone parallel to z-axis
+
+  ! Flag to say that the outside of a lattice is not defined
+  integer, parameter :: NO_OUTER_UNIVERSE = -22
 
   ! Maximum number of lost particles
   integer, parameter :: MAX_LOST_PARTICLES = 10
@@ -294,16 +297,17 @@ module constants
   integer, parameter :: NO_BIN_FOUND = -1
 
   ! Tally filter and map types
-  integer, parameter :: N_FILTER_TYPES = 8
+  integer, parameter :: N_FILTER_TYPES = 9
   integer, parameter :: &
-       FILTER_UNIVERSE  = 1, &
-       FILTER_MATERIAL  = 2, &
-       FILTER_CELL      = 3, &
-       FILTER_CELLBORN  = 4, &
-       FILTER_SURFACE   = 5, &
-       FILTER_MESH      = 6, &
-       FILTER_ENERGYIN  = 7, &
-       FILTER_ENERGYOUT = 8
+       FILTER_UNIVERSE    = 1, &
+       FILTER_MATERIAL    = 2, &
+       FILTER_CELL        = 3, &
+       FILTER_CELLBORN    = 4, &
+       FILTER_SURFACE     = 5, &
+       FILTER_MESH        = 6, &
+       FILTER_ENERGYIN    = 7, &
+       FILTER_ENERGYOUT   = 8, &
+       FILTER_DISTRIBCELL = 9
 
   ! Tally surface current directions
   integer, parameter :: &
@@ -313,7 +317,13 @@ module constants
        OUT_FRONT = 4,   &
        IN_TOP    = 5,   &
        OUT_TOP   = 6
-
+  
+  ! Tally trigger types and threshold
+  integer, parameter :: &
+       VARIANCE           = 1, &
+       RELATIVE_ERROR     = 2, &
+       STANDARD_DEVIATION = 3 
+       
   ! Global tallY parameters
   integer, parameter :: N_GLOBAL_TALLIES = 4
   integer, parameter :: &
@@ -365,8 +375,9 @@ module constants
 
   ! Energy grid methods
   integer, parameter :: &
-       GRID_NUCLIDE   = 1, & ! non-unionized energy grid
-       GRID_LOGARITHM = 2    ! logarithmic mapping
+       GRID_NUCLIDE    = 1, & ! unique energy grid for each nuclide
+       GRID_MAT_UNION  = 2, & ! material union grids with pointers
+       GRID_LOGARITHM  = 3    ! lethargy mapping
 
   ! Running modes
   integer, parameter ::        &
