@@ -55,6 +55,7 @@ public:
     void setValue(int g, int i, int j, int k, double value);
     void incrementValue(int g, int i, int j, int k, double value);
     void normalize(double ratio);
+    void printElement(std::string string);
     void zero();
     double sum();
 };
@@ -68,6 +69,7 @@ public:
     energyElement(int ng, int nx, int ny, int nz, void *p);
     virtual ~energyElement();
     double getValue(int g1, int g2, int i, int j, int k);
+    void printElement(std::string string);
 };
 
 
@@ -84,6 +86,7 @@ public:
     double getValue(int s, int g, int i, int j, int k);
     void setValue(int s, int g, int i, int j, int k, double value);
     void normalize(double value);
+    void printElement(std::string string);
     void zero();
 };
 
@@ -213,10 +216,7 @@ public:
 
     void computeK();
 
-    // helper methods
-    void printElement(meshElement element, std::string string);
-    void printElement(energyElement element, std::string string);
-    void printElement(surfaceElement element, std::string string);
+    // helper routines
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 
 };

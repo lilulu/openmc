@@ -115,6 +115,20 @@ void meshElement::normalize(double ratio) {
     return;
 }
 
+/* print out every values in this data structure */
+void meshElement::printElement(std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    printf("(%d %d %d) g = %d: %e \n",
+                           i, j, k, g, getValue(g, i, j, k));
+                        }}}}
+    return;
+
+}
+
 /* applies: scattering & fission cross-sections */
 energyElement::energyElement(int ng, int nx, int ny, int nz, void *p)
     : _ng(ng), _nx(nx), _ny(ny), _nz(nz), _value((double*)p) { }
@@ -130,6 +144,21 @@ double energyElement::getValue(int g2, int g1, int i, int j, int k) {
     int index_f = g2 + g1 * _ng + i * _ng * _ng + j * _ng *  _ng * _nx
         + k * _ng * _ng * _nx * _ny;
     return _value[index_f];
+}
+
+void energyElement::printElement(std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g1 = 0; g1 < _ng; g1++) {
+                    for (int g2 = 0; g2 < _ng; g2++) {
+                        printf("(%d %d %d) g1 = %d -> g2 = %d: %f \n",
+                               i, j, k, g1, g2,
+                               getValue(g1, g2, i, j, k));
+                    }}}}}
+    return;
+
 }
 
 /* applies: currents & quad_currents */
@@ -191,6 +220,21 @@ void surfaceElement::normalize(double ratio) {
                     }}}}}
     return;
 }
+
+
+void surfaceElement::printElement(std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    for (int s = 0; s < _ns; s++) {
+                        printf("(%d %d %d) g = %d, s = %d: %f \n",
+                               i, j, k, g, s, getValue(s, g, i, j, k));
+                    }}}}}
+    return;
+}
+
 
 /**
  * Constructor
@@ -478,8 +522,7 @@ void Loo::computeQuadFlux(){
                         _old_quad_flux.setValue(
                             s, g, i, j, k, _quad_flux.getValue(s, g, i, j, k));
                     }}}}}
-    //printElement(_quad_current, "quad_current");
-    //printElement(_quad_flux, "quad_flux");
+    return;
 }
 
 /* compute the quadrature source associated with each track and the
@@ -553,17 +596,20 @@ void Loo::executeLoo(){
         total_source.zero();
         computeTotalSource(total_source);
 
-        /* update quad_src using total_source, _old_total_source, _quad_src */
+        /* update quad_src using total_source, _old_total_source,
+         * _quad_src */
         computeQuadSource(quad_src, total_source);
 
         /* sweep through geometry, updating sum_quad_flux,
          * net_current, and _leakage */
         sweep(sum_quad_flux, net_current);
 
-        /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
+        /* compute new mesh-cell averaged scalar flux _scalar_flux
+         * using LOO1 */
         computeScalarFlux(sum_quad_flux, net_current);
 
-        /* normalize scalar fluxes, quad fluxes, and leakage */
+        /* normalize scalar fluxes, quad fluxes, and leakage, by
+         * calling computeFissionSource */
         normalization();
 
         computeK();
@@ -594,6 +640,7 @@ void Loo::computeFissionSource() {
                 /* setter */
                 _fission_source.setValue(0, i, j, k, fission_source);
             }}}
+    _fission_source.printElement("fission source");
     return;
 }
 
@@ -835,19 +882,6 @@ void Loo::normalization() {
     _leakage *= ratio;
 }
 
-void Loo::printElement(meshElement element, std::string string){
-    printf("%s \n", string.c_str());
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    printf("(%d %d %d) g = %d: %e \n",
-                           i, j, k, g, element.getValue(g, i, j, k));
-                        }}}}
-    return;
-
-}
-
 void Loo::computeK(){
     double fission_total, absorption_total;
 
@@ -864,35 +898,6 @@ void Loo::computeK(){
 
     _k = fission_total / (absorption_total + _leakage);
 
-    return;
-}
-
-void Loo::printElement(energyElement element, std::string string){
-    printf("%s \n", string.c_str());
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g1 = 0; g1 < _ng; g1++) {
-                    for (int g2 = 0; g2 < _ng; g2++) {
-                        printf("(%d %d %d) g1 = %d -> g2 = %d: %f \n",
-                               i, j, k, g1, g2,
-                               element.getValue(g1, g2, i, j, k));
-                    }}}}}
-    return;
-
-}
-
-void Loo::printElement(surfaceElement element, std::string string){
-    printf("%s \n", string.c_str());
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                // FIXME: temporary, should be _ng
-                for (int g = 0; g < 1; g++) {
-                    for (int s = 0; s < element.getNs(); s++) {
-                        printf("(%d %d %d) g = %d, s = %d: %f \n",
-                               i, j, k, g, s, element.getValue(s, g, i, j, k));
-                    }}}}}
     return;
 }
 
