@@ -130,6 +130,20 @@ contains
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
                group="cmfd")
+          call sp % write_data(cmfd % openmc_src, "openmc_src", &
+               length=(/cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2), cmfd % indices(3)/), &
+               group="cmfd")
+          call sp % write_data(cmfd % openmc_total_src, &
+               "openmc_total_src", &
+               length=(/cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2), cmfd % indices(3)/), &
+               group="cmfd")
+          call sp % write_data(cmfd % openmc_total_src_old, &
+               "openmc_total_src_old", &
+               length=(/cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2), cmfd % indices(3)/), &
+               group="cmfd")
           call sp % write_data(cmfd % entropy, "cmfd_entropy", &
                length=current_batch, group="cmfd")
           call sp % write_data(cmfd % balance, "cmfd_balance", &
@@ -137,6 +151,10 @@ contains
           call sp % write_data(cmfd % dom, "cmfd_dominance", &
                length = current_batch, group="cmfd")
           call sp % write_data(cmfd % src_cmp, "cmfd_srccmp", &
+               length = current_batch, group="cmfd")
+          call sp % write_data(cmfd % src_cmp_openmc, "cmfd_srccmpmc", &
+               length = current_batch, group="cmfd")
+          call sp % write_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
                length = current_batch, group="cmfd")
         else
           call sp % write_data(0, "cmfd_on")
@@ -642,7 +660,6 @@ contains
 
     character(MAX_FILE_LEN)    :: path_temp
     character(19)              :: current_time
-    character(52)              :: name
     integer                    :: i, j, k
     integer                    :: length(4)
     integer                    :: int_array(3)
@@ -745,6 +762,14 @@ contains
         length = cmfd % indices([4,1,2,3])
         call sp % read_data(cmfd % cmfd_src, "cmfd_src", &
              length=length, group="cmfd")
+        call sp % read_data(cmfd % openmc_src, "openmc_src", &
+             length=length, group="cmfd")
+        call sp % read_data(cmfd % openmc_total_src, &
+             "openmc_total_src", &
+             length=length, group="cmfd")
+        call sp % read_data(cmfd % openmc_total_src_old, &
+             "openmc_total_src_old", &
+             length=length, group="cmfd")
         call sp % read_data(cmfd % entropy, "cmfd_entropy", &
              length=restart_batch, group="cmfd")
         call sp % read_data(cmfd % balance, "cmfd_balance", &
@@ -752,6 +777,10 @@ contains
         call sp % read_data(cmfd % dom, "cmfd_dominance", &
              length = restart_batch, group="cmfd")
         call sp % read_data(cmfd % src_cmp, "cmfd_srccmp", &
+             length = restart_batch, group="cmfd")
+        call sp % read_data(cmfd % src_cmp_openmc, "cmfd_srccmpmc", &
+             length = restart_batch, group="cmfd")
+        call sp % read_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
              length = restart_batch, group="cmfd")
       end if
     end if
