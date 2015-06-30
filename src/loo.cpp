@@ -712,7 +712,6 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
                 psi = sweepOneTrack(sum_quad_flux, net_current, psi, g, nt, 0);
             }
 
-<<<<<<< HEAD
             /* handle exiting psi: store psi (if reflective) or tally
              * leakage (if vacuum)*/
             _quad_flux.setValue(13, g, nl, _ny - 1, 0, psi * _albedo[3]);
@@ -881,8 +880,6 @@ void Loo::normalization() {
     _scalar_flux.normalize(ratio);
     _quad_flux.normalize(ratio);
     _leakage *= ratio;
-=======
->>>>>>> aaa5bd845c379606c34ba9065d2cacd5c0a18ba8
 }
 
 void Loo::computeK(){
