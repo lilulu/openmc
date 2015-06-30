@@ -176,7 +176,7 @@ public:
     /* compute mesh cell energy-integrated fission source */
     void computeFissionSource();
 
-    /* compute mesh cell energy-independent total source (fission +
+    /* compute mesh cell energy-dependent total source (fission +
      * scattering) and update the source term passed in by
      * reference */
     void computeTotalSource(meshElement& source);

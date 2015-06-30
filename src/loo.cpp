@@ -644,14 +644,13 @@ void Loo::computeFissionSource() {
     return;
 }
 
-/* compute mesh cell energy-independent total source (fission +
+/* compute mesh cell energy-dependent total source (fission +
  * scattering) and update the source term passed in by reference */
 void Loo::computeTotalSource(meshElement& source) {
     double src;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-
                 for (int g1 = 0; g1 < _ng; g1++) {
                     /* initialize source for this mesh this energy to be zero */
                     src = 0;
@@ -663,7 +662,7 @@ void Loo::computeTotalSource(meshElement& source) {
                     }
                     src *= _volume.getValue(0, i, j, k);
                     /* setter */
-                    source.setValue(0, i, j, k, src);
+                    source.setValue(g1, i, j, k, src);
                 }}}}
     return;
 }
