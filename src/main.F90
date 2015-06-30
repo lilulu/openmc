@@ -8,7 +8,7 @@ program main
   use initialize,        only: initialize_run
   use particle_restart,  only: run_particle_restart
   use plot,              only: run_plot
-
+  
   implicit none
 
   ! set up problem

@@ -10,6 +10,17 @@
 
 # OpenMC executable
 src/openmc
+src/bin
+
+$ generated files?
+src/CMakeFiles/
+src/CMakeCache.txt
+src/CTestTestfile.cmake
+src/DartConfiguration.tcl
+src/cmake_install.cmake
+
+# Inputs generated from Python API
+examples/python/**/*.xml
 
 # emacs backups
 *~
@@ -23,12 +34,14 @@ docs/source/_images/*.pdf
 
 # Source build
 src/build
+build
 
 # build from src/utils/setup.py
 src/utils/build
 
 # xml-fortran reader
 src/xml-fortran/xmlreader
+src/xml/fox
 
 # Modules built from XML templates
 src/templates/*.f90
@@ -41,3 +54,11 @@ results_error.dat
 
 # Data downloaded from NNDC
 data/nndc
+data/293.6K
+data/tsl
+
+# Makefile
+src/Makefile
+
+.idea
+.idea/*

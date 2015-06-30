@@ -37,7 +37,7 @@ endif()
 
 set(MPI_ENABLED FALSE)
 set(HDF5_ENABLED FALSE)
-if($ENV{FC} MATCHES "mpi.*")
+if($ENV{FC} MATCHES "mpi[^/]*$")
   message("-- Detected MPI wrapper: $ENV{FC}")
   add_definitions(-DMPI)
   set(MPI_ENABLED TRUE)
@@ -116,7 +116,8 @@ elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "XL")
   # IBM XL compiler options
-  set(f90flags  "-WF,-DNO_F2008 -O2")
+  set(f90flags  "-O2")
+  add_definitions(-DNO_F2008)
   if(debug)
     set(f90flags  "-g -C -qflag=i:i -u")
     set(ldflags   "-g")
@@ -249,7 +250,7 @@ add_subdirectory(xml/fox)
 
 set(program "openmc")
 file(GLOB source *.F90 xml/openmc_fox.F90)
-file(GLOB csource *.c++)
+file(GLOB csource *.cpp)
 add_executable(${program} ${source} ${csource})
 target_link_libraries(${program} ${libraries} fox_dom)
 set_target_properties(${program} PROPERTIES
@@ -261,15 +262,19 @@ set_target_properties(${program} PROPERTIES
 #===============================================================================
 
 install(TARGETS ${program} RUNTIME DESTINATION bin)
-install(PROGRAMS utils/statepoint_cmp.py
+install(PROGRAMS utils/plot_mesh_tally.py
   DESTINATION bin
-  RENAME statepoint_cmp)
+  RENAME plot_mesh_tally)
 install(PROGRAMS utils/statepoint_histogram.py
   DESTINATION bin
   RENAME statepoint_histogram)
-install(PROGRAMS utils/statepoint_meshplot.py
+install(PROGRAMS utils/update_inputs.py
   DESTINATION bin
-  RENAME statepoint_meshplot)
+  RENAME update_inputs)
+install(PROGRAMS utils/xml_validate.py
+  DESTINATION bin
+  RENAME xml_validate)
+install(DIRECTORY relaxng DESTINATION share)
 install(FILES ../man/man1/openmc.1 DESTINATION share/man/man1)
 install(FILES ../LICENSE DESTINATION "share/doc/${program}/copyright")
 

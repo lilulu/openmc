@@ -6,7 +6,7 @@ module global
   use cmfd_header
   use constants
   use dict_header,      only: DictCharInt, DictIntInt
-  use geometry_header,  only: Cell, Universe, Lattice, Surface
+  use geometry_header,  only: Cell, Universe, Lattice, LatticeContainer, Surface
   use material_header,  only: Material
   use mesh_header,      only: StructuredMesh
   use plot_header,      only: ObjectPlot
@@ -26,12 +26,12 @@ module global
   ! GEOMETRY-RELATED VARIABLES
 
   ! Main arrays
-  type(Cell),      allocatable, target :: cells(:)
-  type(Universe),  allocatable, target :: universes(:)
-  type(Lattice),   allocatable, target :: lattices(:)
-  type(Surface),   allocatable, target :: surfaces(:)
-  type(Material),  allocatable, target :: materials(:)
-  type(ObjectPlot),allocatable, target :: plots(:)
+  type(Cell),              allocatable, target :: cells(:)
+  type(Universe),          allocatable, target :: universes(:)
+  type(LatticeContainer),  allocatable, target :: lattices(:)
+  type(Surface),           allocatable, target :: surfaces(:)
+  type(Material),          allocatable, target :: materials(:)
+  type(ObjectPlot),        allocatable, target :: plots(:)
 
   ! Size of main arrays
   integer :: n_cells     ! # of cells
@@ -177,6 +177,8 @@ module global
   logical :: entropy_on = .false.
   real(8), allocatable :: entropy(:)         ! shannon entropy at each generation
   real(8), allocatable :: entropy_p(:,:,:,:) ! % of source sites in each cell
+  real(8) :: entropy_average = ONE           ! average entropy over active batches
+  real(8) :: entropy_std                     ! standard deviation of average entropy
   type(StructuredMesh), pointer :: entropy_mesh
 
   ! Uniform fission source weighting
@@ -218,6 +220,7 @@ module global
   type(Timer) :: time_total         ! timer for total run
   type(Timer) :: time_initialize    ! timer for initialization
   type(Timer) :: time_read_xs       ! timer for reading cross sections
+  type(Timer) :: time_unionize      ! timer for material xs-energy grid union
   type(Timer) :: time_bank          ! timer for fission bank synchronization
   type(Timer) :: time_bank_sample   ! timer for fission bank sampling
   type(Timer) :: time_bank_sendrecv ! timer for fission bank SEND/RECV
@@ -342,6 +345,9 @@ module global
   ! Compute effective downscatter cross section
   logical :: cmfd_downscatter = .false.
 
+  ! Rebalance: adjust thermal parameters such that neutron is balanced in each cell
+  logical :: cmfd_rebalance = .false. 
+  
   ! Convergence monitoring
   logical :: cmfd_snes_monitor  = .false.
   logical :: cmfd_ksp_monitor   = .false.
@@ -358,7 +364,11 @@ module global
 
   ! CMFD display info
   character(len=25) :: cmfd_display = 'balance'
+  character(len=25) :: cmfd_second_display = 'source'
 
+  ! CMFD display RMS deviation of openmc and cmfd sources from 1.0
+  logical :: cmfd_cmp_flat       = .false.
+  
   ! Estimate of spectral radius of CMFD matrices and tolerances
   real(8) :: cmfd_spectral = ZERO
   real(8) :: cmfd_shift = 1.e6
