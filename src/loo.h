@@ -34,8 +34,6 @@
 #include <assert.h>
 #include <math.h>
 
-/* P0 is sin theta from Tabuchi-Yamamoto set for 1 polar angle */
-#define P0 0.798184
 #define SIN_THETA_45 0.70710678118654746
 #define FOUR_PI 12.566370614359172
 #define TWO_PI 6.283185307179586

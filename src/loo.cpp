@@ -324,7 +324,7 @@ void Loo::computeTrackLength() {
                 y = _length.getValue(1, 0, i, j, k);
                 z = _length.getValue(2, 0, i, j, k);
                 _volume.setValue(0, i, j, k, x * y * z);
-                l = 0.5 * sqrt(x * x + y * y) / P0;
+                l = 0.5 * sqrt(x * x + y * y);
                 _track_length.setValue(0, i, j, k, l);
             }}}
 
@@ -513,7 +513,9 @@ void Loo::computeQuadFlux(){
                         /* compute _quad_flux based on _quad_current */
                         _quad_flux.setValue(
                             s, g, i, j, k,
-                            _quad_current.getValue(s, g, i, j, k) / P0 /
+                            /* FIXME: change sin 45 to reflect
+                             * rectangular cell */
+                            _quad_current.getValue(s, g, i, j, k) /
                             SIN_THETA_45);
 
                         /* store _quad_flux into _old_quad_flux. This
