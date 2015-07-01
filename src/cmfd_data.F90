@@ -57,7 +57,7 @@ contains
                             ONE, TINY_BIT
     use error,        only: fatal_error
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,&
-                            matching_bins
+                            matching_bins, keff
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -90,7 +90,7 @@ contains
     integer :: ii
     integer :: jj
     integer :: kk
-    
+
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
@@ -126,6 +126,7 @@ contains
           end do
        end do
     end do
+    cmfd % openmc_total_src = ZERO
 
    ! Begin loop around tallies
    TAL: do ital = 1, n_cmfd_tallies
@@ -259,7 +260,7 @@ contains
                   cmfd % openmc_total_src(g,i,j,k) = &
                        cmfd % openmc_total_src(g,i,j,k) + &
                        t % results(1,score_index) % sum + &
-                       t % results(2,score_index) % sum
+                       t % results(2,score_index) % sum / keff
                 end do INGROUP
 
              else if (ital == 3) then
