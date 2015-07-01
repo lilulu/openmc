@@ -185,13 +185,16 @@ public:
 
     /* the main sweeping routine, updating _quad_flux, sum_quad_flux,
      * net_current */
-    void sweep(meshElement& sum_quad_flux, meshElement& net_current);
+    void sweep(meshElement& sum_quad_flux, meshElement& net_current,
+               surfaceElement quad_src);
 
     /* the sweeping routine for sweeping through one track (nt) in one
      * direction (0 is forward, 1 is backward) for one energy group (g),
      * updating _quad_flux, sum_quad_flux, net_current, return updated
      * psi */
-    double sweepOneTrack(meshElement& sum_quad_flux, meshElement& net_current,
+    double sweepOneTrack(meshElement& sum_quad_flux,
+                         meshElement& net_current,
+                         surfaceElement quad_src,
                          double psi, int g, int nt, int direction);
 
     /* return bool representing whether a track starts from the mesh

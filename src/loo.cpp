@@ -604,7 +604,7 @@ void Loo::executeLoo(){
 
         /* sweep through geometry, updating sum_quad_flux,
          * net_current, and _leakage */
-        sweep(sum_quad_flux, net_current);
+        sweep(sum_quad_flux, net_current, quad_src);
 
         /* compute new mesh-cell averaged scalar flux _scalar_flux
          * using LOO1 */
@@ -694,7 +694,8 @@ void Loo::computeQuadSource(surfaceElement& quad_src,
 
 /* the main sweeping routine, updating _quad_flux, sum_quad_flux,
  * net_current */
-void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
+void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
+                surfaceElement quad_src) {
     /* current angular flux */
     double psi;
 
@@ -710,7 +711,8 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
 
             /* sweeping through tracks in the forward order */
             for (int nt = _num_track * nl; nt < _num_track * (nl + 1); nt++) {
-                psi = sweepOneTrack(sum_quad_flux, net_current, psi, g, nt, 0);
+                psi = sweepOneTrack(sum_quad_flux, net_current,
+                                    quad_src, psi, g, nt, 0);
             }
 
             /* handle exiting psi: store psi (if reflective) or tally
@@ -728,7 +730,8 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
             /* sweeping through tracks in the forward order */
             for (int nt = _num_track * (nl + 1) - 1;
                  nt > _num_track * nl - 1; nt--) {
-                psi = sweepOneTrack(sum_quad_flux,net_current, psi, g, nt, 1);
+                psi = sweepOneTrack(sum_quad_flux, net_current,
+                                    quad_src, psi, g, nt, 1);
             }
 
             /* handle exiting psi: store psi (if reflective) or tally
@@ -746,7 +749,9 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current) {
  * direction (0 is forward, 1 is backward) for one energy group (g),
  * updating _quad_flux, sum_quad_flux, net_current, return updated
  * psi */
-double Loo::sweepOneTrack(meshElement& sum_quad_flux, meshElement& net_current,
+double Loo::sweepOneTrack(meshElement& sum_quad_flux,
+                          meshElement& net_current,
+                          surfaceElement quad_src,
                           double psi, int g, int nt, int direction) {
     int i, j, k, t;
     double delta, xs, l, src;
@@ -771,7 +776,7 @@ double Loo::sweepOneTrack(meshElement& sum_quad_flux, meshElement& net_current,
     /* compute delta */
     xs = _total_xs.getValue(g, i, j, k);
     l = _track_length.getValue(0, i, j, k);
-    src = _quad_src.getValue(t, g, i, j, k);
+    src = quad_src.getValue(t, g, i, j, k);
     delta = (psi - src / xs) * (1.0 - exp(-xs * l));
 
     /* update sum_quad_flux */
