@@ -166,7 +166,7 @@ public:
     /* computes source term for every track from neutron balance using
      * quad fluxes and mesh-cell averaged cross-sections tallied
      * during MC. */
-    void computeQuadSrc();
+    void computeQuadSourceFromClosure();
 
     /* iteratively solve the low-order problem using MOC (LOO) */
     void executeLoo();
