@@ -39,7 +39,7 @@ Loo* new_loo(int *indices, double *k, double *albedo,
     loo->computeQuadFlux();
 
     /* computes _quad_src from _quad_flux and total xs */
-    loo->computeQuadSrc();
+    loo->computeQuadSourceFromClosure();
 
     /* execute loo iterative solver */
     loo->executeLoo();
@@ -484,6 +484,7 @@ void Loo::processFluxCurrent() {
                         _quad_current.setValue(s, g, i, j, k, quad_current
                                                / area);
                     }}}}}
+
     return;
 }
 
@@ -529,7 +530,7 @@ void Loo::computeQuadFlux(){
 
 /* compute the quadrature source associated with each track and the
  * sum of the eight quadrature fluxes in each mesh cell */
-void Loo::computeQuadSrc(){
+void Loo::computeQuadSourceFromClosure(){
     double xs, l, ex, src, sum_quad_flux, out, in;
 
     int in_index[] = {13, 5, 4, 11, 10, 2, 3, 12};
@@ -541,6 +542,11 @@ void Loo::computeQuadSrc(){
                 for (int g = 0; g < _ng; g++) {
                     sum_quad_flux = 0;
                     xs = _total_xs.getValue(g, i, j, k);
+                    /* Debug */
+                    if (xs < 1e-5) {
+                        printf("(%d %d %d) g = %d has tiny xs %f,"
+                               "this would cause infinite src.\n",
+                               i, j, k, g, xs);}
                     l = _track_length.getValue(0, i, j, k);
                     ex = exp(-xs * l);
 
