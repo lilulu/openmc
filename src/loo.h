@@ -123,6 +123,7 @@ private:
     /* total source at the end of last batch of MC, corresponding to
        the source before this batch of MC started) */
     meshElement _old_total_source;
+    meshElement _total_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
@@ -135,7 +136,7 @@ private:
 
 public:
     Loo(int *indices, double *k, double *albedo,
-        void *phxyz, void *pflx, void *ptso,
+        void *phxyz, void *pflx, void *ptso, void *ptsn,
         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
     virtual ~Loo();
 
@@ -166,13 +167,14 @@ public:
     /* computes source term for every track from neutron balance using
      * quad fluxes and mesh-cell averaged cross-sections tallied
      * during MC. */
-    void computeQuadSrc();
+    void computeQuadSourceFromClosure();
 
     /* iteratively solve the low-order problem using MOC (LOO) */
     void executeLoo();
 
-    /* compute mesh cell energy-integrated fission source */
-    void computeFissionSource();
+    /* compute mesh cell energy-integrated fission source, and
+     * return normalization factor such that the average is 1.0 */
+    double computeFissionSource(double old_avg);
 
     /* compute mesh cell energy-dependent total source (fission +
      * scattering) and update the source term passed in by
@@ -213,7 +215,9 @@ public:
     void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
 
     /* normalize scalar flux, quad flux and leakage */
-    void normalization();
+    void normalization(double old_avg);
+
+    double computeL2Norm(meshElement fission_source);
 
     void computeK();
 
@@ -224,7 +228,7 @@ public:
 
 extern "C" {
     Loo* new_loo(int *indices, double *k, double *albedo,
-                 void *phxyz, void *pflx, void *ptso,
+                 void *phxyz, void *pflx, void *ptso, void *ptsn,
                  void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
 }
 #endif /* LOO_H_ */
