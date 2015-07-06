@@ -489,6 +489,7 @@ void Loo::processFluxCurrent() {
                         _quad_current.setValue(s, g, i, j, k, quad_current
                                                / area);
                     }}}}}
+
     return;
 }
 
