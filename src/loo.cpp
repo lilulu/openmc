@@ -267,8 +267,8 @@ Loo::Loo(int *indices, double *k, double* albedo,
       /* meshElement */
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
-      _old_scalar_flux(_ng, _nx, _ny, _nz, pflx),
-      _scalar_flux(_ng, _nx, _ny, _nz),
+      _old_scalar_flux(_ng, _nx, _ny, _nz),
+      _scalar_flux(_ng, _nx, _ny, _nz, pflx),
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
       _abs_xs(_ng, _nx, _ny, _nz),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
@@ -471,7 +471,7 @@ void Loo::processFluxCurrent() {
                     /* the scalar flux passed in from openmc has
                        volume in it. This step divides it by volume so
                        _scalar_flux is the real scalar flux.  */
-                    scalar_flux = _old_scalar_flux.getValue(g, i, j, k)
+                    scalar_flux = _scalar_flux.getValue(g, i, j, k)
                         / volume;
                     _old_scalar_flux.setValue(g, i, j, k, scalar_flux);
                     _scalar_flux.setValue(g, i, j, k, scalar_flux);
