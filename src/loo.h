@@ -107,6 +107,7 @@ private:
     double _k;
     double _leakage;
     double *_albedo;
+    double _rms;
 
     /* track lengthes in LOO: first calculated in 2D then projected
      * into 3D using 1 polar angle*/
@@ -220,11 +221,13 @@ public:
     // helper routines
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 
+    double getRms();
 };
 
 extern "C" {
-    Loo* new_loo(int *indices, double *k, double *albedo,
+    double new_loo(int *indices, double *k, double *albedo,
                  void *phxyz, void *pflx, void *ptso,
-                 void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur);
+                 void *ptxs, void *pfxs, void *psxs, void *pcur,
+                 void *pqcur);
 }
 #endif /* LOO_H_ */

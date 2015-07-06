@@ -27,7 +27,7 @@
 */
 #include "loo.h"
 
-Loo* new_loo(int *indices, double *k, double *albedo,
+double new_loo(int *indices, double *k, double *albedo,
              void *phxyz, void *pflx, void *ptso,
              void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
 {
@@ -44,7 +44,7 @@ Loo* new_loo(int *indices, double *k, double *albedo,
     /* execute loo iterative solver */
     loo->executeLoo();
 
-    return loo;
+    return loo->getRms();
 }
 
 meshElement::meshElement(int ng, int nx, int ny, int nz, void *p)
@@ -122,7 +122,7 @@ void meshElement::printElement(std::string string){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    printf("(%d %d %d) g = %d: %e \n",
+                    printf("(%d %d %d) g = %d: %13.8e \n",
                            i, j, k, g, getValue(g, i, j, k));
                         }}}}
     return;
@@ -240,8 +240,8 @@ void surfaceElement::printElement(std::string string){
  * Constructor
  * @param indices parameters that contain #cells x,y,z and #energy groups
  */
-Loo::Loo(int *indices, double* k, double* albedo,
-         void *phxyz, void *pflx, void *ptso,
+Loo::Loo(int *indices, double *k, double* albedo,
+         void *phxyz, void *pflx, void *ptso, 
          void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
     : _nx(indices[0]),
       _ny(indices[1]),
@@ -259,9 +259,12 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _j_array(new int[_num_loop * _num_track]),
       _t_array(new int[_num_loop * _num_track]),
       _t_arrayb(new int[_num_loop *_num_track]),
+      /* double */
       _k(k[0]),
       _leakage(0.0),
       _albedo(albedo),
+      _rms(0.0),
+      /* meshElement */
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
       _old_scalar_flux(_ng, _nx, _ny, _nz, pflx),
@@ -271,8 +274,10 @@ Loo::Loo(int *indices, double* k, double* albedo,
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _fission_source(1, _nx, _ny, _nz),
       _old_total_source(_ng, _nx, _ny, _nz, ptso),
+      /* energyElement */
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
+      /* surfaceElement */
       _length(3, 1, _nx, _ny, _nz, phxyz),
       _area(3, 1, _nx, _ny, _nz),
       _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
@@ -601,7 +606,6 @@ void Loo::executeLoo(){
 
         /* compute total_source: scattering and fission source for
          * every mesh every energy group */
-        total_source.zero();
         computeTotalSource(total_source);
 
         /* update quad_src using total_source, _old_total_source,
@@ -932,4 +936,8 @@ void Loo::verifyPartialCurrent(surfaceElement element1,
                             //}
                     }}}}}
     return;
+}
+
+double Loo::getRms() {
+    return _rms;
 }

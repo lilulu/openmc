@@ -156,7 +156,9 @@ contains
                length = current_batch, group="cmfd")
           call sp % write_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
                length = current_batch, group="cmfd")
-        else
+          call sp % write_data(cmfd % src_cmp_loo, "cmfd_srccmploo", &
+               length = current_batch, group="cmfd")
+       else
           call sp % write_data(0, "cmfd_on")
         end if
       end if
@@ -781,6 +783,8 @@ contains
         call sp % read_data(cmfd % src_cmp_openmc, "cmfd_srccmpmc", &
              length = restart_batch, group="cmfd")
         call sp % read_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
+             length = restart_batch, group="cmfd")
+        call sp % read_data(cmfd % src_cmp_loo, "cmfd_srccmploo", &
              length = restart_batch, group="cmfd")
       end if
     end if

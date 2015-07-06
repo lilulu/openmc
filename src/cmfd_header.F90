@@ -87,7 +87,10 @@ module cmfd_header
     
     ! RMS deviation of CMFD normalized source from flat 
     real(8), allocatable :: src_cmp_cmfd(:)
-    
+
+    ! RMS deviation of LOO normalized source from flat 
+    real(8), allocatable :: src_cmp_loo(:)
+
     ! Dominance ratio
     real(8), allocatable :: dom(:)
 
@@ -161,6 +164,7 @@ contains
     if (.not. allocated(this % src_cmp)) allocate(this % src_cmp(n_batches))
     if (.not. allocated(this % src_cmp_openmc)) allocate(this % src_cmp_openmc(n_batches))
     if (.not. allocated(this % src_cmp_cmfd)) allocate(this % src_cmp_cmfd(n_batches))
+    if (.not. allocated(this % src_cmp_loo)) allocate(this % src_cmp_loo(n_batches))
     if (.not. allocated(this % dom)) allocate(this % dom(n_batches))
     if (.not. allocated(this % k_cmfd)) allocate(this % k_cmfd(n_batches))
 
@@ -188,6 +192,7 @@ contains
     this % src_cmp       = ZERO
     this % src_cmp_openmc= ZERO
     this % src_cmp_cmfd  = ZERO
+    this % src_cmp_loo  = ZERO
     this % dom           = ZERO
     this % k_cmfd        = ZERO
     this % entropy       = ZERO
@@ -229,6 +234,7 @@ contains
     if (allocated(this % src_cmp))       deallocate(this % src_cmp)
     if (allocated(this % src_cmp_openmc))deallocate(this % src_cmp_openmc)
     if (allocated(this % src_cmp_cmfd))  deallocate(this % src_cmp_cmfd)
+    if (allocated(this % src_cmp_loo))   deallocate(this % src_cmp_loo)
     if (allocated(this % dom))           deallocate(this % dom)
     if (allocated(this % k_cmfd))        deallocate(this % k_cmfd)
     if (allocated(this % entropy))       deallocate(this % entropy)

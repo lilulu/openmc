@@ -1,8 +1,8 @@
 module loo_pass_data
 
-  use constants,      only: CMFD_NOACCEL, ZERO
-  use global,         only: cmfd, cmfd_coremap, keff
+  use global,         only: cmfd, keff, current_batch
   use iso_c_binding,  only: c_int, c_double, c_loc
+  use, intrinsic :: ISO_FORTRAN_ENV
 
   implicit none
   private
@@ -10,12 +10,15 @@ module loo_pass_data
 
   ! C interface
   interface
-     subroutine new_loo(indices, keff, albedo, hxyz, flux, total_src_old, &
+     function new_loo(indices, k, albedo, hxyz, flux, &
+          total_src_old, &
           totalxs, nfissxs, scattxs, &
-          current, quad_current) bind (C, name='new_loo')
+          current, quad_current) &
+          result(rms) bind (C)
        use iso_c_binding
+       real (c_double) :: rms
        type (c_ptr), value :: indices
-       type (c_ptr), value :: keff
+       type (c_ptr), value :: k
        type (c_ptr), value :: albedo
        type (c_ptr), value :: hxyz
        type (c_ptr), value :: flux
@@ -25,7 +28,7 @@ module loo_pass_data
        type (c_ptr), value :: scattxs
        type (c_ptr), value :: current
        type (c_ptr), value :: quad_current
-     end subroutine new_loo
+     end function new_loo
   end interface
 
 contains
@@ -35,9 +38,10 @@ contains
 !===============================================================================
 
   subroutine pass_data_into_loo()
+    ! format for the following declaration:
     ! fortran data type (c_wrapper_type), target :: internal values
-    integer (c_int), target :: indices(4)
-    real (c_double), target :: k
+    integer (c_int), target:: indices(4)
+    real (c_double), target:: k
     real (c_double), target:: albedo(6)
     real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
@@ -47,7 +51,8 @@ contains
     real (c_double), allocatable, target:: scattxs(:,:,:,:,:)
     real (c_double), allocatable, target:: current(:,:,:,:,:)
     real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
-
+    real (c_double) rms
+    
     indices = cmfd % indices
     k = keff
     albedo = cmfd % albedo
@@ -59,11 +64,14 @@ contains
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
-    call new_loo(c_loc(indices), c_loc(k), c_loc(albedo), c_loc(hxyz), &
-         c_loc(flux(1,1,1,1)), c_loc(total_src_old(1,1,1,1)), &
+
+    rms = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
+         c_loc(hxyz), c_loc(flux(1,1,1,1)), &
+         c_loc(total_src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
          c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)))
+    cmfd % src_cmp_loo(current_batch) = rms
 
   end subroutine pass_data_into_loo
 end module loo_pass_data
