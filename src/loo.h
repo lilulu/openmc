@@ -172,8 +172,18 @@ public:
     /* iteratively solve the low-order problem using MOC (LOO) */
     void executeLoo();
 
-    /* compute mesh cell energy-integrated fission source */
-    void computeFissionSource();
+    /* compute and store mesh cell energy-integrated fission source:
+     * nu_sigma_f * flux * vol, compute and set _rms which is the
+     * computed fission sources' deviation from a flat source
+     * distribution, and return the normalization factor that would
+     * scale this current fission source distribution to have an
+     * average of old_avg */
+    double computeFissionSource(double old_avg);
+
+    /* save the internal _fission_source (which represents the
+     * most-up-to-date copy of mesh-cell energy-integrated fission
+     * source) into passed in fission_source */
+    void saveFissionSource(meshElement& fission_source);
 
     /* compute mesh cell energy-dependent total source (fission +
      * scattering) and update the source term passed in by
@@ -213,9 +223,17 @@ public:
     /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
     void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
 
-    /* normalize scalar flux, quad flux and leakage */
-    void normalization();
+    /* normalize fission source, scalar flux, quad flux and leakage
+     * such that the average of mesh-cell energy-integrated fission
+     * source is old_avg */
+    void normalization(double old_avg);
 
+    /* compute the L2 norm of relative change between the passed in
+     * fission_source variable (old fs from last iteration) and the
+     * stored _fission_source (current fs from this iteration) */
+    double computeL2Norm(meshElement fission_source);
+
+    /* compute keff using updated scalar fluxes and leakage */
     void computeK();
 
     // helper routines
