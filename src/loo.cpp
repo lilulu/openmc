@@ -116,14 +116,14 @@ void meshElement::normalize(double ratio) {
 }
 
 /* print out every values in this data structure */
-void meshElement::printElement(std::string string){
-    printf("%s \n", string.c_str());
+void meshElement::printElement(std::string string, FILE* pfile){
+    fprintf(pfile, "%s \n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    printf("(%d %d %d) g = %d: %13.8e \n",
-                           i, j, k, g, getValue(g, i, j, k));
+                    fprintf(pfile, "(%d %d %d) g = %d: %13.8e \n",
+                            i, j, k, g, getValue(g, i, j, k));
                         }}}}
     return;
 
@@ -146,16 +146,16 @@ double energyElement::getValue(int g2, int g1, int i, int j, int k) {
     return _value[index_f];
 }
 
-void energyElement::printElement(std::string string){
-    printf("%s \n", string.c_str());
+void energyElement::printElement(std::string string, FILE* pfile){
+    fprintf(pfile, "%s \n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g1 = 0; g1 < _ng; g1++) {
                     for (int g2 = 0; g2 < _ng; g2++) {
-                        printf("(%d %d %d) g1 = %d -> g2 = %d: %f \n",
-                               i, j, k, g1, g2,
-                               getValue(g1, g2, i, j, k));
+                        fprintf(pfile, "(%d %d %d) g1 = %d -> g2 = %d: %f \n",
+                                i, j, k, g1, g2,
+                                getValue(g1, g2, i, j, k));
                     }}}}}
     return;
 
@@ -222,15 +222,15 @@ void surfaceElement::normalize(double ratio) {
 }
 
 
-void surfaceElement::printElement(std::string string){
-    printf("%s \n", string.c_str());
+void surfaceElement::printElement(std::string string, FILE* pfile){
+    fprintf(pfile, "%s \n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        printf("(%d %d %d) g = %d, s = %d: %f \n",
-                               i, j, k, g, s, getValue(s, g, i, j, k));
+                        fprintf(pfile, "(%d %d %d) g = %d, s = %d: %f \n",
+                                i, j, k, g, s, getValue(s, g, i, j, k));
                     }}}}}
     return;
 }
@@ -577,6 +577,16 @@ void Loo::computeQuadSourceFromClosure(){
 
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
+    /* openfiles for printing */
+    FILE* pfile;
+
+    pfile = fopen("log.txt", "w");
+    _quad_current.printElement("quad current", pfile);
+    _scalar_flux.printElement("scalar flux", pfile);
+    _total_xs.printElement("total xs", pfile);
+    _scatt_xs.printElement("scat xs", pfile);
+    _nfiss_xs.printElement("fission xs", pfile);
+
     /* loo iteration control */
     int loo_iter, min_loo_iter, max_loo_iter;
     double openmc_fs_avg, eps, eps_converged;
@@ -589,7 +599,7 @@ void Loo::executeLoo(){
     surfaceElement quad_src (_nt, _ng, _nx, _ny, _nz);
 
     /* loop control variables: min, max number of loo sweeps to be performed */
-    eps_converged = 1e-6;
+    eps_converged = 1e-8;
     min_loo_iter = 10;
     max_loo_iter = 1000;
 
@@ -632,6 +642,8 @@ void Loo::executeLoo(){
         eps = computeL2Norm(fission_source);
         computeK();
 
+        fprintf(pfile, "%.7f, rms = %f \n", _k, _rms);
+
         /* save _fission_source into fission_source */
         saveFissionSource(fission_source);
 
@@ -640,7 +652,13 @@ void Loo::executeLoo(){
             break;
     }
 
+    openmc_fs_avg = computeFissionSource(1.0);
+    _fission_source.normalize(openmc_fs_avg);
+    _fission_source.printElement("fission source", pfile);
+
     /* cleans up memory */
+    fclose(pfile);
+    
     return;
 }
 
@@ -689,7 +707,6 @@ double Loo::computeFissionSource(double old_avg) {
                            - 1, 2.0);
             }}}
     rms = sqrt(sum / ((double) _nx * _ny * _nz));
-    //if (old_avg > 1.0) printf("rms = %f\n", rms);
     _rms = rms;
 
     /* finally return the normalization factor to make the current

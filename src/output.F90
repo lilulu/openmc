@@ -1431,16 +1431,16 @@ contains
     ! write out information batch and option independent output
     write(UNIT=OUTPUT_UNIT, FMT='(2X,A9)', ADVANCE='NO') &
          trim(to_str(current_batch)) // "/" // trim(to_str(gen_per_batch))
-    write(UNIT=OUTPUT_UNIT, FMT='(3X,F8.5)', ADVANCE='NO') &
+    write(UNIT=OUTPUT_UNIT, FMT='(3X,F10.7)', ADVANCE='NO') &
          k_generation(overall_gen)
 
     ! write out entropy info
-    if (entropy_on) write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+    if (entropy_on) write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
          entropy(current_batch*gen_per_batch)
     
     ! write out accumulated k-effective if after first active batch
     if (overall_gen - n_inactive*gen_per_batch > 1) then
-      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7," +/-",F8.5)', ADVANCE='NO') &
            keff, keff_std
     else
       write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
@@ -1457,14 +1457,14 @@ contains
 
     ! write out cmfd keff if it is active and other display info
     if (cmfd_on) then
-      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
          cmfd % k_cmfd(current_batch)
       select case(trim(cmfd_display))
         case('entropy')
-          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
             cmfd % entropy(current_batch)
         case('balance')
-          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
             cmfd % balance(current_batch)
         case('source')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
