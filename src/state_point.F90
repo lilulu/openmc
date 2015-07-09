@@ -139,8 +139,8 @@ contains
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
                group="cmfd")
-          call sp % write_data(cmfd % openmc_total_src_old, &
-               "openmc_total_src_old", &
+          call sp % write_data(cmfd % openmc_src_old, &
+               "openmc_src_old", &
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
                group="cmfd")
@@ -769,8 +769,8 @@ contains
         call sp % read_data(cmfd % openmc_total_src, &
              "openmc_total_src", &
              length=length, group="cmfd")
-        call sp % read_data(cmfd % openmc_total_src_old, &
-             "openmc_total_src_old", &
+        call sp % read_data(cmfd % openmc_src_old, &
+             "openmc_src_old", &
              length=length, group="cmfd")
         call sp % read_data(cmfd % entropy, "cmfd_entropy", &
              length=restart_batch, group="cmfd")

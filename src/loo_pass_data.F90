@@ -11,7 +11,7 @@ module loo_pass_data
   ! C interface
   interface
      function new_loo(indices, k, albedo, hxyz, flux, &
-          total_src_old, &
+          src_old, &
           totalxs, nfissxs, scattxs, &
           current, quad_current) &
           result(rms) bind (C)
@@ -22,7 +22,7 @@ module loo_pass_data
        type (c_ptr), value :: albedo
        type (c_ptr), value :: hxyz
        type (c_ptr), value :: flux
-       type (c_ptr), value :: total_src_old
+       type (c_ptr), value :: src_old
        type (c_ptr), value :: totalxs
        type (c_ptr), value :: nfissxs
        type (c_ptr), value :: scattxs
@@ -45,20 +45,20 @@ contains
     real (c_double), target:: albedo(6)
     real (c_double), allocatable, target:: hxyz(:,:,:,:)
     real (c_double), allocatable, target:: flux(:,:,:,:)
-    real (c_double), allocatable, target:: total_src_old(:,:,:,:)
+    real (c_double), allocatable, target:: src_old(:,:,:,:)
     real (c_double), allocatable, target:: totalxs(:,:,:,:)
     real (c_double), allocatable, target:: nfissxs(:,:,:,:,:)
     real (c_double), allocatable, target:: scattxs(:,:,:,:,:)
     real (c_double), allocatable, target:: current(:,:,:,:,:)
     real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
     real (c_double) rms
-    
+
     indices = cmfd % indices
     k = keff
     albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
-    total_src_old = cmfd % openmc_total_src_old
+    src_old = cmfd % openmc_src_old
     totalxs = cmfd % totalxs
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs
@@ -67,7 +67,7 @@ contains
 
     rms = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
          c_loc(hxyz), c_loc(flux(1,1,1,1)), &
-         c_loc(total_src_old(1,1,1,1)), &
+         c_loc(src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
          c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)))

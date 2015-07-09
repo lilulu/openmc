@@ -273,7 +273,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _abs_xs(_ng, _nx, _ny, _nz),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _fission_source(1, _nx, _ny, _nz),
-      _old_total_source(_ng, _nx, _ny, _nz, ptso),
+      _old_source(_ng, _nx, _ny, _nz, ptso),
       /* energyElement */
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
@@ -593,6 +593,7 @@ void Loo::executeLoo(){
 
     /* memory allocation for data structure internal to this routine */
     meshElement total_source (_ng, _nx, _ny, _nz);
+    meshElement old_total_source (_ng, _nx, _ny, _nz);
     meshElement fission_source (1, _nx, _ny, _nz);
     meshElement net_current (_ng, _nx, _ny, _nz);
     meshElement sum_quad_flux (_ng, _nx, _ny, _nz);
@@ -619,11 +620,11 @@ void Loo::executeLoo(){
 
         /* compute total_source: scattering and fission source for
          * every mesh every energy group */
-        computeTotalSource(total_source);
+        computeTotalSource(total_source, old_total_source);
 
-        /* update quad_src using total_source, _old_total_source,
+        /* update quad_src using total_source, _old_source,
          * _quad_src */
-        computeQuadSource(quad_src, total_source);
+        computeQuadSource(quad_src, total_source, old_total_source);
 
         /* sweep through geometry, updating sum_quad_flux,
          * net_current, and _leakage */
@@ -729,31 +730,42 @@ void Loo::saveFissionSource(meshElement& fission_source) {
 
 /* compute mesh cell energy-dependent total source (fission +
  * scattering) and update the source term passed in by reference */
-void Loo::computeTotalSource(meshElement& source) {
-    double src;
+void Loo::computeTotalSource(meshElement& source,
+                             meshElement& old_source) {
+    double scattering_source, fission_source;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g1 = 0; g1 < _ng; g1++) {
                     /* initialize source for this mesh this energy to be zero */
-                    src = 0;
+                    scattering_source = 0;
+                    fission_source = 0;
 
                     for (int g2 = 0; g2 < _ng; g2++) {
-                        src += (_scatt_xs.getValue(g2, g1, i, j, k)
-                                + _nfiss_xs.getValue(g2, g1, i, j, k) / _k)
+                        scattering_source +=
+                            _scatt_xs.getValue(g2, g1, i, j, k)
+                            * _scalar_flux.getValue(g2, i, j, k);
+                        fission_source +=
+                            _nfiss_xs.getValue(g2, g1, i, j, k) / _k
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
-                    src *= _volume.getValue(0, i, j, k);
+
+                    scattering_source *= _volume.getValue(0, i, j, k);
+                    fission_source *= _volume.getValue(0, i, j, k);
                     /* setter */
-                    source.setValue(g1, i, j, k, src);
+                    source.setValue(g1, i, j, k, scattering_source
+                                    + fission_source);
+                    old_source.setValue(g1, i, j, k, scattering_source
+                                        + _old_source.getValue(g1, i, j, k));
                 }}}}
     return;
 }
 
 /* update quad_src using the current total_source and class member
- * _old_total_source and _quad_src */
+ * _old_source and _quad_src */
 void Loo::computeQuadSource(surfaceElement& quad_src,
-                            meshElement& total_source) {
+                            meshElement& total_source,
+                            meshElement& old_total_source) {
     double src_ratio;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -762,7 +774,7 @@ void Loo::computeQuadSource(surfaceElement& quad_src,
                     /* computes the form factor applied to all the
                      * tracks in this cell */
                     src_ratio = total_source.getValue(g, i, j, k) /
-                        _old_total_source.getValue(g, i, j, k);
+                        old_total_source.getValue(g, i, j, k);
 
                     for (int t = 0; t < _nt; t++) {
                         quad_src.setValue(t, g, i, j, k,

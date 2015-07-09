@@ -121,9 +121,9 @@ private:
     meshElement _abs_xs;
     meshElement _sum_quad_flux;
     meshElement _fission_source;
-    /* total source at the end of last batch of MC, corresponding to
+    /* fission source at the end of last batch of MC, corresponding to
        the source before this batch of MC started) */
-    meshElement _old_total_source;
+    meshElement _old_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
@@ -188,11 +188,14 @@ public:
     /* compute mesh cell energy-dependent total source (fission +
      * scattering) and update the source term passed in by
      * reference */
-    void computeTotalSource(meshElement& source);
+    void computeTotalSource(meshElement& source,
+                            meshElement& old_source);
 
     /* compute quad_src using the current total_source and class member
-     * _old_total_source and _quad_src */
-    void computeQuadSource(surfaceElement& quad_src, meshElement& total_source);
+     * _old_source and _quad_src */
+    void computeQuadSource(surfaceElement& quad_src,
+                           meshElement& total_source,
+                           meshElement& old_total_source);
 
     /* the main sweeping routine, updating _quad_flux, sum_quad_flux,
      * net_current */

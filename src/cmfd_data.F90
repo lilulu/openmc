@@ -99,7 +99,6 @@ contains
 
     ! Set flux object and source distribution to all zeros
     cmfd % flux = ZERO
-    cmfd % openmc_src = ZERO
 
     ! Associate tallies and mesh
     t => cmfd_tallies(1)
@@ -113,19 +112,20 @@ contains
 
     cmfd % keff_bal = ZERO
 
-    ! Save a copy of the total source from the previous batch,
-    ! because LOO needs a copy of the total source before this batch
+    ! Save a copy of the fission source from the previous batch,
+    ! because LOO needs a copy of the fission source before this batch
     ! of MC is performed.
     do k = 1, nz
        do j = 1, ny
           do i = 1, nx
              do h = 1, ng
-                cmfd % openmc_total_src_old(h, i, j, k) = &
-                     cmfd % openmc_total_src(h, i, j, k)
+                cmfd % openmc_src_old(h, i, j, k) = &
+                     cmfd % openmc_src(h, i, j, k)
              end do
           end do
        end do
     end do
+    cmfd % openmc_src = ZERO
     cmfd % openmc_total_src = ZERO
 
    ! Begin loop around tallies
