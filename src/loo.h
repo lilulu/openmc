@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <time.h>       /* time_t, time, ctime */
 
 #define SIN_THETA_45 0.70710678118654746
 #define FOUR_PI 12.566370614359172
@@ -100,6 +101,7 @@ private:
     int _ns_3d;
     int _num_loop;
     int _num_track;
+    int _loo_iter;
     int *_i_array;
     int *_j_array;
     int *_t_array;
@@ -133,6 +135,7 @@ private:
     surfaceElement _quad_flux;
     surfaceElement _old_quad_flux;
     surfaceElement _quad_src;
+    FILE* _pfile;
 
 public:
     Loo(int *indices, double *k, double *albedo,
@@ -141,6 +144,9 @@ public:
     virtual ~Loo();
 
     // main methods
+    /* open log file for printing */
+    void openLogFile();
+    
     /* compute the surface areas and volume for each mesh cell */
     void computeAreaVolume();
 
