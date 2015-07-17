@@ -22,7 +22,7 @@ contains
 
     use cmfd_header,  only: allocate_cmfd
 
-    integer :: color    ! color group of processor
+    integer :: color       ! color group of processor
 
     ! Read in cmfd input file
     call read_cmfd_xml()
@@ -71,6 +71,9 @@ contains
     integer :: i
     integer :: ng
     integer :: n_params
+    integer :: start_index ! starting index for CMFD tally reset
+    integer :: end_index   ! ending index for CMFD tally reset
+    integer :: interval    ! interval for CMFD tally reset
     integer, allocatable :: iarray(:)
     integer, allocatable :: int_array(:)
     logical :: file_exists ! does cmfd.xml exist?
@@ -243,6 +246,35 @@ contains
         call cmfd_reset % add(int_array(i))
       end do
       deallocate(int_array)
+    end if
+
+    ! Alternative option for cmfd tally resets: specify intervals
+    if (check_for_node(doc, "tally_reset_interval")) then
+       n_cmfd_resets = get_arraysize_integer(doc, "tally_reset_interval")
+       if (n_cmfd_resets > 0) then
+          allocate(int_array(n_cmfd_resets))
+          call get_node_array(doc, "tally_reset_interval", int_array)
+
+          ! If only one value is entered, this is the interval during all
+          ! inactive cycles. Assume: openmc processes settings.xml first
+          ! which reads in n_inactive
+          if (n_cmfd_resets == 1) then
+             start_index = 1
+             end_index = n_inactive
+             interval = int_array(1)
+          ! If three entries, then they specify the start, end and interval
+          else if (n_cmfd_resets == 3) then
+             start_index = int_array(1)
+             end_index = int_array(2)
+             interval = int_array(3)
+          else
+             call fatal_error("Wrong format in tally_reset_interval")
+          end if
+          do i = start_index, end_index, interval
+             call cmfd_reset % add(i)
+          end do
+          deallocate(int_array)
+       end if
     end if
 
     ! Get display
