@@ -7,10 +7,14 @@
 
   <!-- Parameters for k-eigenvalue calculation -->
   <eigenvalue>
-    <batches>200</batches>
-    <inactive>10</inactive>
+    <batches>510</batches>
+    <inactive>500</inactive>
     <particles>5000</particles>
   </eigenvalue>
+
+  <state_point>
+    <batches> 19 30 45 50 100 200 500 800 1000 2000</batches>
+  </state_point>
 
   <!-- Starting source -->
   <source>

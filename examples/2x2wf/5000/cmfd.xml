@@ -8,9 +8,10 @@
     <energy> 0 0.625e-6 100  </energy>
   </mesh>
 
-  <feedback> true </feedback>
-  <begin> 20 </begin>
-  <tally_reset> 2 11 100 150 </tally_reset>
+  <feedback> false </feedback>
+  <begin> 10 </begin>
+  <tally_reset> 2 11 100 1000</tally_reset>
+  <tally_reset_interval> 5 </tally_reset_interval>
   <gauss_seidel_tolerance>1e-14 1e-10</gauss_seidel_tolerance>
 
   <downscatter> false </downscatter>

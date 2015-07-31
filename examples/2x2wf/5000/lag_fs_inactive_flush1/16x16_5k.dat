@@ -1,0 +1,151 @@
+
+       .d88888b.                             888b     d888  .d8888b.
+      d88P" "Y88b                            8888b   d8888 d88P  Y88b
+      888     888                            88888b.d88888 888    888
+      888     888 88888b.   .d88b.  88888b.  888Y88888P888 888       
+      888     888 888 "88b d8P  Y8b 888 "88b 888 Y888P 888 888       
+      888     888 888  888 88888888 888  888 888  Y8P  888 888    888
+      Y88b. .d88P 888 d88P Y8b.     888  888 888   "   888 Y88b  d88P
+       "Y88888P"  88888P"   "Y8888  888  888 888       888  "Y8888P"
+__________________888______________________________________________________
+                  888
+                  888
+
+      Copyright:      2011-2015 Massachusetts Institute of Technology
+      License:        http://mit-crpg.github.io/openmc/license.html
+      Version:        0.6.2
+      Git SHA1:       6f4c299d711308c4918617768ee2ffde3dbc8d22
+      Date/Time:      2015-07-17 08:26:40
+
+ ===========================================================================
+ ========================>     INITIALIZATION     <=========================
+ ===========================================================================
+
+ Reading settings XML file...
+ Reading cross sections XML file...
+ Reading geometry XML file...
+ Reading materials XML file...
+ Reading CMFD XML file...
+ Building neighboring cells lists for each surface...
+ Loading ACE cross section table: 92234.71c
+ Loading ACE cross section table: 92235.71c
+ Loading ACE cross section table: 92238.71c
+ Loading ACE cross section table: 8016.71c
+ Loading ACE cross section table: 8017.71c
+ Loading ACE cross section table: 2004.71c
+ Loading ACE cross section table: 24050.71c
+ Loading ACE cross section table: 24052.71c
+ Loading ACE cross section table: 24053.71c
+ Loading ACE cross section table: 24054.71c
+ Loading ACE cross section table: 26054.71c
+ Loading ACE cross section table: 26056.71c
+ Loading ACE cross section table: 26057.71c
+ Loading ACE cross section table: 26058.71c
+ Loading ACE cross section table: 40090.71c
+ Loading ACE cross section table: 40091.71c
+ Loading ACE cross section table: 40092.71c
+ Loading ACE cross section table: 40094.71c
+ Loading ACE cross section table: 40096.71c
+ Loading ACE cross section table: 50112.71c
+ Loading ACE cross section table: 50114.71c
+ Loading ACE cross section table: 50115.71c
+ Loading ACE cross section table: 50116.71c
+ Loading ACE cross section table: 50117.71c
+ Loading ACE cross section table: 50118.71c
+ Loading ACE cross section table: 50119.71c
+ Loading ACE cross section table: 50120.71c
+ Loading ACE cross section table: 50122.71c
+ Loading ACE cross section table: 50124.71c
+ Loading ACE cross section table: 5010.71c
+ Loading ACE cross section table: 5011.71c
+ Loading ACE cross section table: 1001.71c
+ Loading ACE cross section table: 1002.71c
+ Loading ACE cross section table: HH2O.71t
+ Initializing source particles...
+
+ ===========================================================================
+ ====================>     K EIGENVALUE SIMULATION     <====================
+ ===========================================================================
+
+  Bat./Gen.      k       Entropy         Average k              Average Ent        CMFD k    CMFD Ent   RMS Src    
+  =========   ========   ========   ====================   ====================   ========   ========   ========   
+ CMFD tallies reset
+        1/1    0.5595559    0.0271116                                              
+ CMFD tallies reset
+        2/1    0.5479872    0.0531438                                              
+ CMFD tallies reset
+        3/1    0.5732490    0.0727696                                              
+ CMFD tallies reset
+        4/1    0.5596720    0.1803622                                              
+ CMFD tallies reset
+        5/1    0.5406343    0.3341453                                              
+ CMFD tallies reset
+        6/1    0.5435623    0.4669076                                              
+ CMFD tallies reset
+        7/1    0.5601639    0.5371193                                              
+ CMFD tallies reset
+        8/1    0.5596546    0.7213894                                              
+ CMFD tallies reset
+        9/1    0.5762668    0.8088365                                              
+ CMFD tallies reset
+       10/1    0.5616484    0.8617947                                              
+ CMFD tallies reset
+       11/1    0.5612835    0.9715373                                              
+ CMFD tallies reset
+       12/1    0.5736281    1.0834674                                              
+ CMFD tallies reset
+       13/1    0.5410553    1.1758676                                              
+ CMFD tallies reset
+       14/1    0.5631957    1.2808401                                              
+ CMFD tallies reset
+       15/1    0.5393529    1.3185449                                              
+ CMFD tallies reset
+       16/1    0.5266268    1.3710841                                              
+ CMFD tallies reset
+       17/1    0.5580728    1.4499482                                              
+ CMFD tallies reset
+       18/1    0.5536895    1.4835427                                              
+ CMFD tallies reset
+       19/1    0.5485366    1.5406738                                              
+ CMFD tallies reset
+       20/1    0.5605241    1.5508227                                                  0.5569742    1.6407662    8.339E-01    7.656E-01    8.338E-01
+ CMFD tallies reset
+       21/1    0.5582543    1.5577956                                                  0.5664694    1.7740993    8.306E-01    4.891E-01    8.306E-01
+ CMFD tallies reset
+       22/1    0.5667056    1.6066219                                                  0.5777180    1.3771224    7.799E-01    9.461E-01    7.796E-01
+ CMFD tallies reset
+       23/1    0.5405453    1.6275002                                                  0.5675753    1.1184225    7.599E-01    1.102E+00    7.598E-01
+ CMFD tallies reset
+       24/1    0.5510124    1.6339022                                                  0.5451626    1.8031180    7.535E-01    5.489E-01    7.535E-01
+ CMFD tallies reset
+       25/1    0.5602520    1.6817056                                                  0.6074488    0.3830795    7.059E-01    1.599E+00    7.057E-01
+ CMFD tallies reset
+       26/1    0.5620297    1.7322850                                                  0.6138034    1.0956915    6.342E-01    1.225E+00    6.339E-01
+ CMFD tallies reset
+       27/1    0.5634773    1.7567466                                                  0.5424942    1.4252451    6.049E-01    7.803E-01    6.047E-01
+ CMFD tallies reset
+       28/1    0.5362046    1.8013433                                                  0.5846401    0.9524315    5.384E-01    1.226E+00    5.381E-01
+ CMFD tallies reset
+       29/1    0.5625563    1.8335539                                                  0.6175569    0.3616100    4.992E-01    1.613E+00    4.990E-01
+ CMFD tallies reset
+       30/1    0.5623577    1.8276404                                                  0.5847598    1.5527266    5.083E-01    8.314E-01    5.083E-01
+ Creating state point statepoint.030.binary...
+ CMFD tallies reset
+       31/1    0.5582896    1.8842361                                                  0.6152900    0.6459785    4.141E-01    1.452E+00    4.136E-01
+ CMFD tallies reset
+       32/1    0.5365578    1.9052962                                                  0.5716372    0.6710685    3.682E-01    1.477E+00    3.681E-01
+ CMFD tallies reset
+       33/1    0.5712544    1.8971567                                                  0.5636141    0.9555938    3.872E-01    1.242E+00    3.873E-01
+ CMFD tallies reset
+       34/1    0.5567496    1.8817674                                                  0.5942385    1.2406041    4.181E-01    1.088E+00    4.183E-01
+ CMFD tallies reset
+       35/1    0.5454999    1.8961184                                                  0.5869825    0.6612148    3.924E-01    1.469E+00    3.923E-01
+ CMFD tallies reset
+       36/1    0.5478616    1.9145088                                                  0.5502805    1.3437616    3.533E-01    1.033E+00    3.532E-01
+ CMFD tallies reset
+       37/1    0.5870640    1.9161928                                                  0.5661136    1.3092834    3.471E-01    1.046E+00    3.471E-01
+ CMFD tallies reset
+       38/1    0.5661283    1.9323598                                                  0.5496187    1.6659185    3.112E-01    6.528E-01    3.110E-01
+ CMFD tallies reset
+       39/1    0.5459161    1.9283930                                                  0.5685734    0.4483127    3.126E-01    1.582E+00    3.127E-01
+ CMFD tallies reset
