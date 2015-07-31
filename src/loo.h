@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>     /* abort */
 #include <time.h>       /* time_t, time, ctime */
 
 #define SIN_THETA_45 0.70710678118654746
@@ -55,6 +56,7 @@ public:
     void incrementValue(int g, int i, int j, int k, double value);
     void normalize(double ratio);
     void printElement(std::string string, FILE* pfile);
+    void printElement(std::string string);
     void zero();
     double sum();
 };
@@ -86,6 +88,7 @@ public:
     void setValue(int s, int g, int i, int j, int k, double value);
     void normalize(double value);
     void printElement(std::string string, FILE* pfile);
+    void printElement(std::string string);
     void zero();
 };
 
@@ -133,6 +136,7 @@ private:
     surfaceElement _current;
     surfaceElement _quad_current;
     surfaceElement _quad_flux;
+    /* not currently used in LOO1 */
     surfaceElement _old_quad_flux;
     surfaceElement _quad_src;
     FILE* _pfile;
@@ -163,6 +167,12 @@ public:
      * _scalar_flux and c_current are volume-integrated and
      * area-integrated respectively */
     void processFluxCurrent();
+
+    /* normalize _old_total_source s.t. avg is 1.0; normalize
+     _scalar_flux and _quad_flux s.t. current total source's avg is
+     1.0. This is needed because the reaction rates and currents
+     tallies grow with respect to \# of accumulative CMFD tallies */
+    void normalizeSourceFlux();
 
     /* compute absorption xs */
     void processXs();
@@ -230,9 +240,9 @@ public:
     void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
 
     /* normalize fission source, scalar flux, quad flux and leakage
-     * such that the average of mesh-cell energy-integrated fission
-     * source is old_avg */
-    void normalization(double old_avg);
+     * such that the average of mesh-cell energy-integrated total
+     * source is 1.0 */
+    void normalizeByTotalSource();
 
     /* compute the L2 norm of relative change between the passed in
      * fission_source variable (old fs from last iteration) and the

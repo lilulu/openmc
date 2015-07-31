@@ -110,8 +110,9 @@ void meshElement::normalize(double ratio) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
-                }}}}
+                    if (getValue(g, i, j, k) > 1e-5) {
+                        setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
+                    }}}}}
     return;
 }
 
@@ -121,8 +122,21 @@ void meshElement::printElement(std::string string, FILE* pfile){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
+                for (int g = 0; g < 1; g++) {
                     fprintf(pfile, "(%d %d %d) g = %d: %13.8e \n",
+                            i, j, k, g, getValue(g, i, j, k));
+                        }}}}
+    return;
+
+}
+
+void meshElement::printElement(std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    printf("(%d %d %d) g = %d: %13.8e \n",
                             i, j, k, g, getValue(g, i, j, k));
                         }}}}
     return;
@@ -152,7 +166,7 @@ void energyElement::printElement(std::string string, FILE* pfile){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g1 = 0; g1 < _ng; g1++) {
-                    for (int g2 = 0; g2 < _ng; g2++) {
+                    for (int g2 = 0; g2 < 1; g2++) {
                         fprintf(pfile, "(%d %d %d) g1 = %d -> g2 = %d: %f \n",
                                 i, j, k, g1, g2,
                                 getValue(g1, g2, i, j, k));
@@ -215,9 +229,10 @@ void surfaceElement::normalize(double ratio) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        setValue(s, g, i, j, k,
-                                 getValue(s, g, i, j, k) * ratio);
-                    }}}}}
+                        if (getValue(s, g, i, j, k) > 1e-5) {
+                            setValue(s, g, i, j, k,
+                                     getValue(s, g, i, j, k) * ratio);
+                        }}}}}}
     return;
 }
 
@@ -227,7 +242,7 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
+                for (int g = 0; g < 1; g++) {
                     for (int s = 0; s < _ns; s++) {
                         fprintf(pfile, "(%d %d %d) g = %d, s = %d: %f \n",
                                 i, j, k, g, s, getValue(s, g, i, j, k));
@@ -235,6 +250,18 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
     return;
 }
 
+void surfaceElement::printElement(std::string string){
+    printf("%s \n", string.c_str());
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    for (int s = 0; s < _ns; s++) {
+                        printf("(%d %d %d) g = %d, s = %d: %f \n",
+                                i, j, k, g, s, getValue(s, g, i, j, k));
+                    }}}}}
+    return;
+}
 
 /**
  * Constructor
@@ -293,6 +320,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
     computeTrackLength();
     generate2dTrack();
     processFluxCurrent();
+    normalizeSourceFlux();
     processXs();
 }
 
@@ -482,6 +510,26 @@ void Loo::generate2dTrack() {
     return;
 }
 
+/* normalize _old_total_source s.t. avg is 1.0; normalize _scalar_flux
+   and _quad_flux s.t. current total source's avg is 1.0. This is
+   needed because the reaction rates and currents tallies grow with
+   respect to \# of accumulative CMFD tallies */
+void Loo::normalizeSourceFlux() {
+    double sum, ratio;
+    meshElement total_source (_ng, _nx, _ny, _nz);
+
+    /* normalize _old_total_source s.t. avg is 1.0 */
+    sum = _old_total_source.sum();
+    ratio = (double) (_nx * _ny * _nz * _ng) / sum;
+    _old_total_source.normalize(ratio);
+
+    /* normalize current scalar flux and quad flux such that
+     * total_source avg is 1.0 */
+    normalizeByTotalSource();
+
+    return;
+}
+
 /* process _scalar_flux and _current: the openmc generated
  * _scalar_flux and c_current are volume-integrated and
  * area-integrated respectively */
@@ -603,16 +651,14 @@ void Loo::computeQuadSourceFromClosure(){
 
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
+    fprintf(_pfile, "*********************************\n");
     fprintf(_pfile, "data passed into LOO from openmc:\n");
-    _quad_current.printElement("quad current", _pfile);
     _scalar_flux.printElement("scalar flux", _pfile);
     _total_xs.printElement("total xs", _pfile);
-    _scatt_xs.printElement("scat xs", _pfile);
-    _nfiss_xs.printElement("fission xs", _pfile);
 
     /* loo iteration control */
     int min_loo_iter, max_loo_iter;
-    double openmc_fs_avg, eps, eps_converged;
+    double eps, eps_converged;
 
     /* memory allocation for data structure internal to this routine */
     meshElement total_source (_ng, _nx, _ny, _nz);
@@ -623,19 +669,29 @@ void Loo::executeLoo(){
 
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-8;
-    min_loo_iter = 10;
-    max_loo_iter = 1000;
+    //FIXME
+    min_loo_iter = 0;
+    max_loo_iter = 2;
 
-    /* compute fission source generated by MC. We store the average of
-     * this distribution, so that we can normalize during LOO. */
-    openmc_fs_avg = 1.0 / computeFissionSource(1.0);
-
-    /* save _fission_source into fission_source */
+    /* compute _fission_source, then save _fission_source into fission_source */
+    normalizeByTotalSource();
+    computeFissionSource(1.0);
     saveFissionSource(fission_source);
+    fprintf(_pfile, "rms = %f, fission source: %f %f %f %f\n", _rms,
+            _fission_source.getValue(0, 0, 0, 0),
+            _fission_source.getValue(0, 1, 0, 0),
+            _fission_source.getValue(0, 0, 1, 0),
+            _fission_source.getValue(0, 1, 1, 0));
+
 
     /* iteratively solve the LOO problem */
     for (_loo_iter = 0; _loo_iter < max_loo_iter; _loo_iter++) {
-        fprintf(_pfile, "loo iteration = %d\n", _loo_iter);
+        fprintf(_pfile, " loo iteration = %d\n", _loo_iter);
+        fprintf(_pfile, "quad fluxes: %f %f, %f %f\n",
+                _quad_flux.getValue(13, 0, 0, 1, 0),
+                _quad_flux.getValue(13, 0, 1, 1, 0),
+                _quad_flux.getValue(12, 0, 0, 1, 0),
+                _quad_flux.getValue(12, 0, 1, 1, 0));              ;
 
         /* reset net current, summmation of quad fluxes, leakage */
         net_current.zero();
@@ -659,15 +715,23 @@ void Loo::executeLoo(){
         computeScalarFlux(sum_quad_flux, net_current);
 
         /* normalize scalar fluxes, quad fluxes, and leakage, by
-         * calling computeFissionSource */
-        normalization(openmc_fs_avg);
+         * calling computeTotalSource */
+        normalizeByTotalSource();
+
+        /* compute new _fission_source so we can compute eps next */
+        computeFissionSource(1.0);
 
         /* compute L2 norm of relative difference between successive
          * iterations, and compute k */
         eps = computeL2Norm(fission_source);
         computeK();
 
-        fprintf(_pfile, "k = %.7f, rms = %f \n", _k, _rms);
+        fprintf(_pfile, "fission source: %f %f %f %f\n",
+                _fission_source.getValue(0, 0, 0, 0),
+                _fission_source.getValue(0, 1, 0, 0),
+                _fission_source.getValue(0, 0, 1, 0),
+                _fission_source.getValue(0, 1, 1, 0));
+        fprintf(_pfile, "k = %.7f, rms = %f, eps = %e\n", _k, _rms, eps);
 
         /* save _fission_source into fission_source */
         saveFissionSource(fission_source);
@@ -733,7 +797,7 @@ double Loo::computeFissionSource(double old_avg) {
                 sum += pow(_fission_source.getValue(0, i, j, k) / avg
                            - 1, 2.0);
             }}}
-    rms = sqrt(sum / ((double) _nx * _ny * _nz));
+    rms = sqrt(sum / ((double) counter));
     _rms = rms;
 
     /* finally return the normalization factor to make the current
@@ -790,7 +854,8 @@ void Loo::computeQuadSource(surfaceElement& quad_src,
                      * tracks in this cell */
                     src_ratio = total_source.getValue(g, i, j, k) /
                         _old_total_source.getValue(g, i, j, k);
-
+                    fprintf(_pfile, "(%d %d %d) g %d: %f\n",
+                            i, j, k, g, src_ratio);
                     for (int t = 0; t < _nt; t++) {
                         quad_src.setValue(t, g, i, j, k,
                                           _quad_src.getValue(t, g, i, j, k)
@@ -820,6 +885,7 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
             for (int nt = _num_track * nl; nt < _num_track * (nl + 1); nt++) {
                 psi = sweepOneTrack(sum_quad_flux, net_current,
                                     quad_src, psi, g, nt, 0);
+                if (psi > 1e3) abort();
             }
 
             /* handle exiting psi: store psi (if reflective) or tally
@@ -847,6 +913,7 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
             _leakage += psi * getSurfaceArea(7, nl, _ny - 1, 0, 0)
                 * (1 - _albedo[3]);
         }
+        if (_quad_flux.getValue(0, 0, 0, 0, 0) > 1e5) abort();
     }
 
     return;
@@ -981,27 +1048,23 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux, meshElement net_current){
     return;
 }
 
-/* normalize fission source, scalar flux, quad flux and leakage such
- * that the average of mesh-cell energy-integrated fission source is
- * old_avg */
-void Loo::normalization(double openmc_fs_avg) {
-    double ratio;
+/* normalize scalar flux, quad flux and leakage such
+ * that the average of mesh-cell energy-integrated total source is
+ * 1.0 */
+void Loo::normalizeByTotalSource() {
+    double sum, ratio;
+    meshElement total_source (_ng, _nx, _ny, _nz);
 
     /* for debugging: print out fission source whose avg is 1.0 */
     //ratio = computeFissionSource(1.0);
     //_fission_source.normalize(ratio);
 
-    /* compute normalization factor to maintain the fission source
-     * average to be openmc_fs_avg, which is the average of the
-     * initial fission source generated by openmc*/
-    ratio = computeFissionSource(openmc_fs_avg);
-
-    /* Loo does not really use normalized _fission_source during
-     * sweeps, hence the normalization here is strictly for computing
-     * L2 norm of fission source relative change */
-    _fission_source.normalize(ratio);
+    computeTotalSource(total_source);
+    sum = total_source.sum();
+    ratio = (double) (_nx * _ny * _nz * _ng) / sum;
 
     /* Loo needs normalized scalar flux, angular flux and leakage */
+    _fission_source.normalize(ratio);
     _scalar_flux.normalize(ratio);
     _quad_flux.normalize(ratio);
     _leakage *= ratio;
@@ -1018,7 +1081,7 @@ double Loo::computeL2Norm(meshElement fission_source) {
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                if (fission_source.getValue(0, i, j, k) > 0) {
+                if (fission_source.getValue(0, i, j, k) > 1e-5) {
                     counter++;
                     sum += pow(_fission_source.getValue(0, i, j, k) /
                                fission_source.getValue(0, i, j, k) - 1
