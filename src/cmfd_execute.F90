@@ -48,15 +48,13 @@ contains
         call cmfd_solver_execute(adjoint=.true.)
       end if
 
-        ! calculate fission source
-        call calc_fission_source()
-
-        ! calculate weight factors
-        call cmfd_reweight(.true.)
-
-      end if
-
     end if
+
+    ! calculate fission source
+    call calc_fission_source()
+
+    ! calculate weight factors
+    call cmfd_reweight(.true.)
 
     ! stop cmfd timer
     if (master) call time_cmfd % stop()

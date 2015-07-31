@@ -202,8 +202,8 @@ add_subdirectory(src/xml/fox)
 #===============================================================================
 
 set(program "openmc")
-file(GLOB source *.F90 xml/openmc_fox.F90)
-file(GLOB csource *.cpp)
+file(GLOB source src/*.F90 src/xml/openmc_fox.F90)
+file(GLOB csource src/*.cpp)
 add_executable(${program} ${source} ${csource})
 target_link_libraries(${program} ${libraries} fox_dom)
 set_target_properties(${program} PROPERTIES

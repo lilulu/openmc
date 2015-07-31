@@ -100,7 +100,7 @@ contains
   subroutine init_data(adjoint)
 
     use constants, only: ONE, ZERO
-    use global,    only: cmfd_shift, keff, cmfd_ktol, cmfd_stol, &
+    use global,    only: cmfd, cmfd_shift, keff, cmfd_ktol, cmfd_stol, &
                          cmfd_write_matrices
 
     logical, intent(in) :: adjoint
@@ -153,16 +153,6 @@ contains
     ! Set norms to 0
     norm_n = ZERO
     norm_o = ZERO
-    
-    ! Set up solver
-    select case(cmfd % indices(4))
-      case(1)
-        cmfd_linsolver => cmfd_linsolver_1g
-      case(2)
-        cmfd_linsolver => cmfd_linsolver_2g
-      case default
-        cmfd_linsolver => cmfd_linsolver_ng
-    end select
 
     ! Set tolerances
     ktol = cmfd_ktol
