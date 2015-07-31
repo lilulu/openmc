@@ -1,7 +1,7 @@
 module eigenvalue
 
 #ifdef MPI
-  use mpi
+  use message_passing
 #endif
 
   use cmfd_execute, only: cmfd_init_batch, execute_cmfd
@@ -21,6 +21,7 @@ module eigenvalue
   use string,       only: to_str
   use tally,        only: synchronize_tallies, setup_active_usertallies, &
                           reset_result
+  use trigger,      only: check_triggers
   use tracking,     only: transport
 
   implicit none
@@ -54,7 +55,7 @@ contains
 
     ! ==========================================================================
     ! LOOP OVER BATCHES
-    BATCH_LOOP: do current_batch = 1, n_batches
+    BATCH_LOOP: do current_batch = 1, n_max_batches
 
       call initialize_batch()
 
@@ -96,6 +97,8 @@ contains
       end do GENERATION_LOOP
 
       call finalize_batch()
+
+      if (satisfy_triggers) exit BATCH_LOOP
 
     end do BATCH_LOOP
 
@@ -169,6 +172,26 @@ contains
 
   subroutine finalize_generation()
 
+    ! Update global tallies with the omp private accumulation variables
+!$omp parallel
+!$omp critical
+    global_tallies(K_TRACKLENGTH) % value = &
+         global_tallies(K_TRACKLENGTH) % value + global_tally_tracklength
+    global_tallies(K_COLLISION) % value   = &
+         global_tallies(K_COLLISION) % value + global_tally_collision
+    global_tallies(LEAKAGE) % value   = &
+         global_tallies(LEAKAGE) % value + global_tally_leakage
+    global_tallies(K_ABSORPTION) % value   = &
+         global_tallies(K_ABSORPTION) % value + global_tally_absorption
+!$omp end critical
+
+    ! reset private tallies
+    global_tally_tracklength = 0
+    global_tally_collision   = 0
+    global_tally_leakage     = 0
+    global_tally_absorption  = 0
+!$omp end parallel
+
 #ifdef _OPENMP
     ! Join the fission bank from each thread into one global fission bank
     call join_bank_from_threads()
@@ -219,12 +242,22 @@ contains
     ! Display output
     if (master) call print_batch_keff()
 
+    ! Calculate combined estimate of k-effective
+    if (master) call calculate_combined_keff()
+
+    ! Check_triggers
+    if (master) call check_triggers()
+#ifdef MPI
+    call MPI_BCAST(satisfy_triggers, 1, MPI_LOGICAL, 0, &
+         MPI_COMM_WORLD, mpi_err)
+#endif
+    if (satisfy_triggers .or. &
+         (trigger_on .and. current_batch == n_max_batches)) then
+      call statepoint_batch % add(current_batch)
+    end if
+
     ! Write out state point if it's been specified for this batch
     if (statepoint_batch % contains(current_batch)) then
-      ! Calculate combined estimate of k-effective
-      if (master) call calculate_combined_keff()
-
-      ! Create state point file
       call write_state_point()
     end if
 
@@ -234,7 +267,7 @@ contains
       call write_source_point()
     end if
 
-    if (master .and. current_batch == n_batches) then
+    if (master .and. current_batch == n_max_batches) then
       ! Make sure combined estimate of k-effective is calculated at the last
       ! batch in case no state point is written
       call calculate_combined_keff()
@@ -264,7 +297,11 @@ contains
 #ifdef MPI
     integer(8) :: n            ! number of sites to send/recv
     integer    :: neighbor     ! processor to send/recv data from
+#ifdef MPIF08
+    type(MPI_Request) :: request(20)
+#else
     integer    :: request(20)  ! communication request for send/recving sites
+#endif
     integer    :: n_request    ! number of communication requests
     integer(8) :: index_local  ! index in local source bank
     integer(8), save, allocatable :: &
@@ -495,7 +532,7 @@ contains
     call MPI_WAITALL(n_request, request, MPI_STATUSES_IGNORE, mpi_err)
 
     ! Deallocate space for bank_position on the very last generation
-    if (current_batch == n_batches .and. current_gen == gen_per_batch) &
+    if (current_batch == n_max_batches .and. current_gen == gen_per_batch) &
          deallocate(bank_position)
 #else
     source_bank = temp_sites(1:n_particles)
@@ -504,7 +541,7 @@ contains
     call time_bank_sendrecv % stop()
 
     ! Deallocate space for the temporary source bank on the last generation
-    if (current_batch == n_batches .and. current_gen == gen_per_batch) &
+    if (current_batch == n_max_batches .and. current_gen == gen_per_batch) &
          deallocate(temp_sites)
 
   end subroutine synchronize_bank
@@ -535,7 +572,7 @@ contains
         ! If the user did not specify how many mesh cells are to be used in
         ! each direction, we automatically determine an appropriate number of
         ! cells
-        n = ceiling((n_particles/20)**(1.0/3.0))
+        n = ceiling((n_particles/20)**(ONE/THREE))
 
         ! copy dimensions
         m % n_dimension = 3

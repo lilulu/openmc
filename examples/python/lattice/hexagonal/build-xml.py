@@ -129,6 +129,9 @@ settings_file.batches = batches
 settings_file.inactive = inactive
 settings_file.particles = particles
 settings_file.set_source_space('box', [-1, -1, -1, 1, 1, 1])
+settings_file.keff_trigger = {'type' : 'std_dev', 'threshold' : 5E-4}
+settings_file.trigger_active = True
+settings_file.trigger_max_batches = 100
 settings_file.export_to_xml()
 
 
@@ -156,3 +159,18 @@ plot_file = openmc.PlotsFile()
 plot_file.add_plot(plot_xy)
 plot_file.add_plot(plot_yz)
 plot_file.export_to_xml()
+
+
+###############################################################################
+#                   Exporting to OpenMC tallies.xml File
+###############################################################################
+
+# Instantiate a distribcell Tally
+tally = openmc.Tally(tally_id=1)
+tally.add_filter(openmc.Filter(type='distribcell', bins=[cell2.id]))
+tally.add_score('total')
+
+# Instantiate a TalliesFile, register Tally/Mesh, and export to XML
+tallies_file = openmc.TalliesFile()
+tallies_file.add_tally(tally)
+tallies_file.export_to_xml()

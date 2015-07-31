@@ -4,10 +4,6 @@ module cmfd_input
 
   use global
 
-#ifdef PETSC
-  use petscsys
-#endif
-
   implicit none
   private
   public :: configure_cmfd
@@ -15,7 +11,7 @@ module cmfd_input
 contains
 
 !===============================================================================
-! CONFIGURE_CMFD initializes PETSc and CMFD parameters
+! CONFIGURE_CMFD initializes CMFD parameters
 !===============================================================================
 
   subroutine configure_cmfd()
@@ -34,17 +30,6 @@ contains
       color = 2
     end if
 
-    ! Split up procs
-#ifdef PETSC
-    call MPI_COMM_SPLIT(MPI_COMM_WORLD, color, 0, cmfd_comm, mpi_err)
-
-    ! assign to PETSc
-    PETSC_COMM_WORLD = cmfd_comm
-
-    ! Initialize PETSc on all procs
-    call PetscInitialize(PETSC_NULL_CHARACTER, mpi_err)
-#endif
-
     ! Initialize timers
     call time_cmfd % reset()
     call time_cmfdbuild % reset()
@@ -61,6 +46,7 @@ contains
 
   subroutine read_cmfd_xml()
 
+    use constants, only: ZERO, ONE
     use error,   only: fatal_error, warning
     use global
     use output,  only: write_message
@@ -123,7 +109,7 @@ contains
       cmfd % indices(4) = ng - 1 ! sets energy group dimension
     else
       if(.not.allocated(cmfd % egrid)) allocate(cmfd % egrid(2))
-      cmfd % egrid = (/0.0_8,20.0_8/)
+      cmfd % egrid = [ ZERO, 20.0_8 ]
       cmfd % indices(4) = 1 ! one energy group
     end if
 
@@ -131,7 +117,7 @@ contains
     if (check_for_node(node_mesh, "albedo")) then
       call get_node_array(node_mesh, "albedo", cmfd % albedo)
     else
-      cmfd % albedo = (/1.0, 1.0, 1.0, 1.0, 1.0, 1.0/)
+      cmfd % albedo = [ ONE, ONE, ONE, ONE, ONE, ONE ]
     end if
 
     ! Get acceleration map
@@ -186,23 +172,7 @@ contains
         dhat_reset = .true.
     end if
 
-    ! Set the solver type
-    if (check_for_node(doc, "solver")) &
-         call get_node_value(doc, "solver", cmfd_solver_type)
-
     ! Set monitoring
-    if (check_for_node(doc, "snes_monitor")) then
-      call get_node_value(doc, "snes_monitor", temp_str)
-      temp_str = to_lower(temp_str)
-      if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
-           cmfd_snes_monitor = .true.
-    end if
-    if (check_for_node(doc, "ksp_monitor")) then
-      call get_node_value(doc, "ksp_monitor", temp_str)
-      temp_str = to_lower(temp_str)
-      if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
-           cmfd_ksp_monitor = .true.
-    end if
     if (check_for_node(doc, "power_monitor")) then
       call get_node_value(doc, "power_monitor", temp_str)
       temp_str = to_lower(temp_str)
@@ -223,9 +193,6 @@ contains
       call get_node_value(doc, "run_adjoint", temp_str)
       temp_str = to_lower(temp_str)
       if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
-#ifndef PETSC
-        call fatal_error('Must use PETSc when running adjoint option.')
-#endif
         cmfd_run_adjoint = .true.
     end if
 
@@ -280,6 +247,7 @@ contains
     ! Get display
     if (check_for_node(doc, "display")) &
          call get_node_value(doc, "display", cmfd_display)
+
     if (trim(cmfd_display) == 'dominance' .and. &
          trim(cmfd_solver_type) /= 'power') then
        if (master) call warning('Dominance Ratio only aviable with power &

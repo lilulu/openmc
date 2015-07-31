@@ -23,7 +23,7 @@ module state_point
   use dict_header,        only: ElemKeyValueII, ElemKeyValueCI
 
 #ifdef MPI
-  use mpi
+  use message_passing
 #endif
 
   implicit none
@@ -52,7 +52,7 @@ contains
 
     ! Set filename for state point
     filename = trim(path_output) // 'statepoint.' // &
-        & zero_padded(current_batch, count_digits(n_batches))
+        & zero_padded(current_batch, count_digits(n_max_batches))
 
     ! Append appropriate extension
 #ifdef HDF5
@@ -269,6 +269,9 @@ contains
             call sp % write_data(tally % filters(j) % type, "type", &
                  group="tallies/tally " // trim(to_str(tally % id)) // &
                  "/filter " // to_str(j))
+            call sp % write_data(tally % filters(j) % offset, "offset", &
+                 group="tallies/tally " // trim(to_str(tally % id)) // &
+                 "/filter " // to_str(j))
             call sp % write_data(tally % filters(j) % n_bins, "n_bins", &
                  group="tallies/tally " // trim(to_str(tally % id)) // &
                  "/filter " // to_str(j))
@@ -293,7 +296,11 @@ contains
           ! Set up nuclide bin array and then write
           allocate(key_array(tally % n_nuclide_bins))
           NUCLIDE_LOOP: do j = 1, tally % n_nuclide_bins
-            key_array(j) = tally % nuclide_bins(j)
+            if (tally % nuclide_bins(j) > 0) then
+              key_array(j) = nuclides(tally % nuclide_bins(j)) % zaid
+            else
+              key_array(j) = tally % nuclide_bins(j)
+            end if
           end do NUCLIDE_LOOP
           call sp % write_data(key_array, "nuclides", &
                group="tallies/tally " // trim(to_str(tally % id)), &
@@ -425,7 +432,7 @@ contains
 
         ! Set filename
         filename = trim(path_output) // 'source.' // &
-            & zero_padded(current_batch, count_digits(n_batches))
+            & zero_padded(current_batch, count_digits(n_max_batches))
 
 #ifdef HDF5
         filename = trim(filename) // '.h5'
@@ -447,7 +454,7 @@ contains
 
         ! Set filename for state point
         filename = trim(path_output) // 'statepoint.' // &
-            & zero_padded(current_batch, count_digits(n_batches))
+            & zero_padded(current_batch, count_digits(n_max_batches))
 #ifdef HDF5
         filename = trim(filename) // '.h5'
 #else
@@ -543,7 +550,7 @@ contains
 #endif
 
       ! Transfer values to value on master
-      if (current_batch == n_batches) then
+      if (current_batch == n_max_batches .or. satisfy_triggers) then
         global_tallies(:) % sum    = global_temp(1,:)
         global_tallies(:) % sum_sq = global_temp(2,:)
       end if
@@ -615,7 +622,7 @@ contains
 
           ! At the end of the simulation, store the results back in the
           ! regular TallyResults array
-          if (current_batch == n_batches) then
+          if (current_batch == n_max_batches .or. satisfy_triggers) then
             tally % results(:,:) % sum = tally_temp(1,:,:)
             tally % results(:,:) % sum_sq = tally_temp(2,:,:)
           end if
@@ -863,6 +870,9 @@ contains
         call sp % read_data(tally % filters(j) % type, "type", &
              group="tallies/tally " // trim(to_str(curr_key)) // &
              "/filter " // to_str(j))
+        call sp % read_data(tally % filters(j) % offset, "offset", &
+              group="tallies/tally " // trim(to_str(curr_key)) // &
+               "/filter " // to_str(j))
         call sp % read_data(tally % filters(j) % n_bins, "n_bins", &
              group="tallies/tally " // trim(to_str(curr_key)) // &
              "/filter " // to_str(j))
@@ -897,6 +907,7 @@ contains
           tally % nuclide_bins(j) = temp_array(j)
         end if
       end do NUCLIDE_LOOP
+
       deallocate(temp_array)
 
       ! Write number of score bins, score bins, user score bins
