@@ -5,13 +5,9 @@
     ../data/cross_sections_nndc.xml
   </cross_sections>
 
-  <run_cmfd>
-    true
-  </run_cmfd>
-  
   <!-- Parameters for k-eigenvalue calculation -->
   <eigenvalue>
-    <batches>15</batches>
+    <batches>100</batches>
     <inactive>5</inactive>
     <particles>10000</particles>
   </eigenvalue>
@@ -19,8 +15,18 @@
   <!-- Starting source -->
   <source>
     <space type="box">
-      <parameters>-1 -1 -1  1  1  1</parameters>
+      <parameters>-10 -10 -10  0  0  10</parameters>
     </space>
   </source>
 
+  <!-- Run CMFD or not -->
+  <run_cmfd>
+    true
+  </run_cmfd>
+  
+  <entropy>
+    <dimension>2 2 1</dimension>
+    <lower_left>-10 -10 -10</lower_left>
+    <upper_right>10 10 10</upper_right>
+  </entropy>
 </settings>

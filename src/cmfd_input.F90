@@ -150,7 +150,15 @@ contains
            cmfd_downscatter = .true.
     end if
 
-    ! Reset dhat parameters
+    ! Set rebalance logical
+    if (check_for_node(doc, "rebalance")) then
+      call get_node_value(doc, "rebalance", temp_str)
+      temp_str = to_lower(temp_str)
+      if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
+           cmfd_rebalance = .true.
+    end if
+    
+    ! Reset dhat parameters 
     if (check_for_node(doc, "dhat_reset")) then
       call get_node_value(doc, "dhat_reset", temp_str)
       temp_str = to_lower(temp_str)
@@ -205,6 +213,31 @@ contains
     if (check_for_node(doc, "display")) &
          call get_node_value(doc, "display", cmfd_display)
 
+    if (trim(cmfd_display) == 'dominance' .and. &
+         trim(cmfd_solver_type) /= 'power') then
+       if (master) call warning('Dominance Ratio only aviable with power &
+           &iteration solver')
+       cmfd_display = ''
+    end if
+    
+    ! Get second display
+    if (check_for_node(doc, "second_display")) &
+         call get_node_value(doc, "second_display", cmfd_second_display)
+    if (trim(cmfd_second_display) == 'dominance' .and. &
+         trim(cmfd_solver_type) /= 'power') then
+       if (master) call warning('Dominance Ratio only aviable with power &
+           &iteration solver')
+       cmfd_second_display = ''
+    end if
+
+    ! Get whether to compare openmc and cmfd sources to flat source
+    if (check_for_node(doc, "cmp_flat")) then
+       call get_node_value(doc, "cmp_flat", temp_str)
+       temp_str = to_lower(temp_str)
+       if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
+            cmfd_cmp_flat = .true.
+    end if
+    
     ! Read in spectral radius estimate and tolerances
     if (check_for_node(doc, "spectral")) &
          call get_node_value(doc, "spectral", cmfd_spectral)

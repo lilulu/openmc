@@ -1356,6 +1356,8 @@ contains
     write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "   k    "
     if (entropy_on) write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Entropy "
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "     Average k      "
+    if (entropy_on) write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') &
+         "     Average Ent    "
     if (cmfd_run) then
       write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') " CMFD k "
       select case(trim(cmfd_display))
@@ -1367,7 +1369,17 @@ contains
           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Src "
         case('dominance')
           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Dom Rat "
-      end select
+       end select
+      select case(trim(cmfd_second_display))
+        case('entropy')
+          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "CMFD Ent"
+        case('balance')
+          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Bal "
+        case('source')
+          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Src "
+        case('dominance')
+          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Dom Rat "
+       end select
     end if
     write(UNIT=ou, FMT=*)
 
@@ -1375,10 +1387,13 @@ contains
     write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
     if (entropy_on) write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "===================="
+    write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "===================="
     if (cmfd_run) then
       write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
       if (cmfd_display /= '') &
-        write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+      if (cmfd_second_display /= '') &
+           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
     end if
     write(UNIT=ou, FMT=*)
 
@@ -1403,8 +1418,13 @@ contains
     if (overall_gen - n_inactive*gen_per_batch > 1) then
       write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
            keff, keff_std
-    end if
-
+   end if
+   
+    if ((overall_gen - n_inactive*gen_per_batch > 1) .and. (entropy_on)) then
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
+           entropy_average, entropy_std
+   end if
+   
     ! next line
     write(UNIT=OUTPUT_UNIT, FMT=*)
 
@@ -1426,7 +1446,7 @@ contains
     ! write out entropy info
     if (entropy_on) write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
          entropy(current_batch*gen_per_batch)
-
+    
     ! write out accumulated k-effective if after first active batch
     if (overall_gen - n_inactive*gen_per_batch > 1) then
       write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
@@ -1434,6 +1454,15 @@ contains
     else
       write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
     end if
+
+    ! write out accumulated entropy if after first active batch
+    if ((overall_gen - n_inactive*gen_per_batch > 1) .and. (entropy_on)) then
+      write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5," +/-",F8.5)', ADVANCE='NO') &
+           entropy_average, entropy_std
+    else
+      write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
+    end if
+
 
     ! write out cmfd keff if it is active and other display info
     if (cmfd_on) then
@@ -1447,8 +1476,30 @@ contains
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % balance(current_batch)
         case('source')
-          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
             cmfd % src_cmp(current_batch)
+        case('dominance')
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+            cmfd % dom(current_batch)
+      end select
+
+    ! write out second display
+      select case(trim(cmfd_second_display))
+        case('entropy')
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+            cmfd % entropy(current_batch)
+        case('balance')
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
+            cmfd % balance(current_batch)
+        case('source')
+           write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
+                cmfd % src_cmp(current_batch)
+           if (cmfd_cmp_flat) then
+              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
+                   cmfd % src_cmp_openmc(current_batch)
+              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
+                   cmfd % src_cmp_cmfd(current_batch)
+           end if
         case('dominance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % dom(current_batch)
@@ -1457,7 +1508,7 @@ contains
 
     ! next line
     write(UNIT=OUTPUT_UNIT, FMT=*)
-
+    
   end subroutine print_batch_keff
 
 !===============================================================================

@@ -5,6 +5,7 @@ module cmfd_execute
 ! cross section generation, diffusion calculation, and source re-weighting
 !==============================================================================
 
+  use, intrinsic :: ISO_FORTRAN_ENV
   use global
 
   implicit none
@@ -103,6 +104,7 @@ contains
     integer :: nz      ! maximum number of cells in z direction
     integer :: ng      ! maximum number of energy groups
     integer :: n       ! total size
+    integer :: np      ! number of cells in 3D 
     integer :: i       ! iteration counter for x
     integer :: j       ! iteration counter for y
     integer :: k       ! iteration counter for z
@@ -111,14 +113,29 @@ contains
     real(8) :: hxyz(3) ! cell dimensions of current ijk cell
     real(8) :: vol     ! volume of cell
     real(8),allocatable :: source(:,:,:,:)  ! tmp source array for entropy
-
+    real(8) :: avg     ! avg source if it is flat
+    real(8) :: temp   ! temporary counter
+    real(8) :: temp1   ! temporary counter
+    real(8) :: temp2   ! temporary counter
+    real(8) :: temp3   ! temporary counter
+    real(8) :: temp4   ! temporary counter 
+    real(8) :: temp5   ! temporary counter
+    real(8) :: temp6   ! temporary counter  
+    real(8) :: siga1
+    real(8) :: siga2
+    real(8) :: nusigf1
+    real(8) :: nusigf2
+    real(8) :: sigs12
     ! Get maximum of spatial and group indices
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
     nz = cmfd % indices(3)
     ng = cmfd % indices(4)
     n  = ng*nx*ny*nz
+    np = nx * ny * nz
 
+    avg = 1.0 
+    
     ! Allocate cmfd source if not already allocated and allocate buffer
     if (.not. allocated(cmfd % cmfd_src)) &
        allocate(cmfd % cmfd_src(ng,nx,ny,nz))
@@ -192,12 +209,67 @@ contains
       end if
 
       ! Normalize source so average is 1.0
-      cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)*cmfd % norm
+      cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src) * cmfd % norm
 
       ! Calculate differences between normalized sources
-      cmfd % src_cmp(current_batch) = sqrt(ONE/cmfd % norm * &
-             sum((cmfd % cmfd_src - cmfd % openmc_src)**2))
+      !cmfd % src_cmp(current_batch) = sqrt(ONE/cmfd % norm * &
+      !     sum((cmfd % cmfd_src - cmfd % openmc_src)**2))
+      temp = 0
+      temp3 = 0
+      temp4 = 0
+      do k = 1, nz
+         do j = 1, ny
+            do i = 1, nx
+               ! temp1, temp2 accumulates the energy-integrated pin
+               ! fission source for openmc and cmfd 
+               temp1 = 0
+               temp2 = 0
+               do g = 1, ng
+                  temp1 = temp1 + cmfd % openmc_src(g, i, j, k)
+                  temp2 = temp2 + cmfd % cmfd_src(g, i, j, k)
+               enddo
+               ! multiple by number of meshes so that the source has
+               ! average of 1.0
+               temp1 = temp1 * np
+               temp2 = temp2 * np
 
+#if 0
+               siga1 = cmfd % totalxs(1,i,j,k) - cmfd % scattxs(1,1,i,j,k) &
+                    & - cmfd % scattxs(1,2,i,j,k)
+               siga2 = cmfd % totalxs(2,i,j,k) - cmfd % scattxs(2,1,i,j,k) &
+                    & - cmfd % scattxs(2,2,i,j,k)
+               nusigf1 = cmfd % nfissxs(1,1,i,j,k)
+               nusigf2 = cmfd % nfissxs(2,1,i,j,k)
+               sigs12 = cmfd % scattxs(1,2,i,j,k)
+               ! D1, D2, S12, A1, A2, NuF1, NuF2, KINF
+               write(OUTPUT_UNIT, '(3I2, 10F8.5)') i, j, k, temp1, temp2, &
+                    & cmfd % diffcof(1, i, j, k), cmfd % diffcof(2, i, j, k), &
+                    & sigs12, siga1, siga2, nusigf1, nusigf2, &
+                    & (nusigf1 + nusigf2 * sigs12 / siga2) / (siga1 + sigs12)
+#endif
+#if 0
+               write(OUTPUT_UNIT,FMT='("iter ", I0, ": (", I0, ", ", I0, ", ", &
+                    & I0, ") ", "mc, cmfd: ", ES9.2, ", ", &
+                    & ES9.2, " relative: ", ES10.3, ", ", ES10.3, ", ", L1, " ", &
+                    & E8.3, " , res: ", ES9.2, " ,", ES9.2, " ,", ES9.2)') &
+                    & current_batch, i, j, k, temp1, temp2, &
+                    & temp1 / avg - 1.0, temp2 / avg - 1.0, &
+                    & (abs(temp2 / avg - 1.0) < abs(temp1 / avg) - 1.0), &
+                    & cmfd % diffcof(1, i, j, k), cmfd % resnb(1, i, j, k), &
+                    & cmfd % resnb(2, i, j, k), &
+                    & cmfd % balance(current_batch)
+#endif
+               if (temp2 > 1e-10) then
+                  temp = temp + (temp1 /temp2 - 1) ** 2
+               endif
+               temp3 = temp3 + (temp1 / avg - 1) ** 2
+               temp4 = temp4 + (temp2 / avg - 1 ) ** 2
+            enddo
+         enddo
+      enddo
+      cmfd % src_cmp(current_batch) = sqrt(ONE/ np * temp) 
+      cmfd % src_cmp_openmc(current_batch) = sqrt(ONE/ np * temp3)
+      cmfd % src_cmp_cmfd(current_batch) = sqrt(ONE/ np * temp4)
     end if
 
 #ifdef MPI

@@ -12,6 +12,17 @@
 dist/
 openmc.egg-info/
 
+# OpenMC executable
+src/openmc
+src/bin
+
+# generated files?
+src/CMakeFiles/
+src/CMakeCache.txt
+src/CTestTestfile.cmake
+src/DartConfiguration.tcl
+src/cmake_install.cmake
+
 # Inputs generated from Python API
 examples/python/**/*.xml
 
@@ -26,6 +37,7 @@ docs/build
 docs/source/_images/*.pdf
 
 # Source build
+src/build
 build
 
 # build from src/utils/setup.py
@@ -33,6 +45,7 @@ src/utils/build
 
 # xml-fortran reader
 src/xml-fortran/xmlreader
+src/xml/fox
 
 # Test results error file
 results_error.dat
@@ -53,6 +66,11 @@ src/install_manifest.txt
 
 # Data downloaded from NNDC
 data/nndc
+data/293.6K
+data/tsl
+
+# Makefile
+src/Makefile
 
 #Images
 *.ppm

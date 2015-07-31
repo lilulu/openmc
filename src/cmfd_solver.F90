@@ -7,7 +7,8 @@ module cmfd_solver
   use cmfd_prod_operator, only: init_prod_matrix, build_prod_matrix
   use matrix_header,      only: Matrix
   use vector_header,      only: Vector
-
+  use loo_pass_data,      only: pass_data_into_loo
+  
   implicit none
   private
   public :: cmfd_solver_execute
@@ -136,6 +137,9 @@ contains
     k_ln = ONE/(ONE/k_n - ONE/k_s)
     k_lo = k_ln
 
+    ! FIXME: pass data for LOO and calls C++ codes
+    call pass_data_into_loo()
+    
     ! Fill in loss matrix
     call build_loss_matrix(loss, adjoint=adjoint)
 
@@ -153,6 +157,16 @@ contains
     ! Set norms to 0
     norm_n = ZERO
     norm_o = ZERO
+    
+    ! Set up solver
+    select case(cmfd % indices(4))
+      case(1)
+        cmfd_linsolver => cmfd_linsolver_1g
+      case(2)
+        cmfd_linsolver => cmfd_linsolver_2g
+      case default
+        cmfd_linsolver => cmfd_linsolver_ng
+    end select
 
     ! Set tolerances
     ktol = cmfd_ktol
@@ -187,19 +201,27 @@ contains
 !===============================================================================
 
   subroutine execute_power_iter()
-
+    use, intrinsic :: ISO_FORTRAN_ENV
+    
     use constants,  only: ONE
     use error,      only: fatal_error
     use global,     only: cmfd, cmfd_atoli, cmfd_rtoli
+    use string,     only: to_str
 
     integer :: i ! iteration counter
+    integer :: imax ! maximum iteration counter
     integer :: innerits ! # of inner iterations
     integer :: totalits ! total number of inners
     logical :: iconv ! did the problem converged
     real(8) :: atoli ! absolute minimum tolerance
     real(8) :: rtoli ! relative tolerance based on source conv
     real(8) :: toli ! the current tolerance of inners
+    real(8) :: dr
+    real(8) :: k_oo ! (n-2) iteration's eigenvalue. 
 
+    k_oo = 1.0
+    k_o = 1.0
+    k_n = 1.0
     ! Reset convergence flag
     iconv = .false.
 
@@ -211,14 +233,17 @@ contains
     ! Perform shift
     call wielandt_shift()
     totalits = 0
-
+    imax = 20000
+    
     ! Begin power iteration
-    do i = 1, 10000
+    do i = 1, imax
 
       ! Check if reached iteration 10000
-      if (i == 10000) then
-        call fatal_error('Reached maximum iterations in CMFD power iteration &
-             &solver.')
+      if (i == imax) then
+         call fatal_error("Reached maximum iterations of "// trim(to_str(i)) //&
+              &" in CMFD power iteration solver, kerr, ktol = "//&
+              & trim(to_str(kerr))//" " // trim(to_str(ktol)) // &
+              & " ,serr, stol = "// trim(to_str(serr))//" "//trim(to_str(stol)))
       end if
 
       ! Compute source vector
@@ -246,6 +271,13 @@ contains
       ! Compute new eigenvalue
       k_n = ONE/(ONE/k_ln + ONE/k_s)
 
+      ! Debug block: compute and print out estimate for dominance rate
+      ! (dr) by comparing successive iteration eigenvalue: 
+      if (.false. .and. (abs(k_oo - k_o) > 1e-10)) then
+         dr = (k_o - k_n) / (k_oo - k_o)
+         write(OUTPUT_UNIT,*) i, innerits, k_oo, k_o, k_n, dr
+      endif
+
       ! Renormalize the old source
       s_o % val = s_o % val * k_lo
 
@@ -258,6 +290,7 @@ contains
 
       ! Record old values
       phi_o % val = phi_n % val
+      k_oo = k_o
       k_o = k_n
       k_lo = k_ln
       norm_o = norm_n

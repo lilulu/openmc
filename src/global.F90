@@ -188,6 +188,8 @@ module global
   logical :: entropy_on = .false.
   real(8), allocatable :: entropy(:)         ! shannon entropy at each generation
   real(8), allocatable :: entropy_p(:,:,:,:) ! % of source sites in each cell
+  real(8) :: entropy_average = ONE           ! average entropy over active batches
+  real(8) :: entropy_std                     ! standard deviation of average entropy
   type(StructuredMesh), pointer :: entropy_mesh
 
   ! Uniform fission source weighting
@@ -351,6 +353,9 @@ module global
   ! Compute effective downscatter cross section
   logical :: cmfd_downscatter = .false.
 
+  ! Rebalance: adjust thermal parameters such that neutron is balanced in each cell
+  logical :: cmfd_rebalance = .false. 
+  
   ! Convergence monitoring
   logical :: cmfd_power_monitor = .false.
 
@@ -365,7 +370,11 @@ module global
 
   ! CMFD display info
   character(len=25) :: cmfd_display = 'balance'
+  character(len=25) :: cmfd_second_display = 'source'
 
+  ! CMFD display RMS deviation of openmc and cmfd sources from 1.0
+  logical :: cmfd_cmp_flat       = .false.
+  
   ! Estimate of spectral radius of CMFD matrices and tolerances
   real(8) :: cmfd_spectral = ZERO
   real(8) :: cmfd_shift = 1.e6
