@@ -1,5 +1,7 @@
 module geometry_header
 
+  use constants, only: HALF, TWO, THREE
+
   implicit none
 
 !===============================================================================
@@ -7,13 +9,13 @@ module geometry_header
 !===============================================================================
 
   type Universe
-     integer :: id                    ! Unique ID
-     integer :: type                  ! Type
-     integer :: n_cells               ! # of cells within
-     integer, allocatable :: cells(:) ! List of cells within
-     real(8) :: x0                    ! Translation in x-coordinate
-     real(8) :: y0                    ! Translation in y-coordinate
-     real(8) :: z0                    ! Translation in z-coordinate
+     integer :: id                     ! Unique ID
+     integer :: type                   ! Type
+     integer :: n_cells                ! # of cells within
+     integer, allocatable :: cells(:)  ! List of cells within
+     real(8) :: x0                     ! Translation in x-coordinate
+     real(8) :: y0                     ! Translation in y-coordinate
+     real(8) :: z0                     ! Translation in z-coordinate
   end type Universe
 
 !===============================================================================
@@ -28,7 +30,8 @@ module geometry_header
     integer              :: outside          ! Material to fill area outside
     integer              :: outer            ! universe to tile outside the lat
     logical              :: is_3d            ! Lattice has cells on z axis
-    
+    integer, allocatable :: offset(:,:,:,:)  ! Distribcell offsets
+
     contains
 
     procedure(are_valid_indices_), deferred :: are_valid_indices
@@ -120,7 +123,7 @@ module geometry_header
      character(len=52) :: name = ""   ! User-defined name
      integer :: type                   ! Type of surface
      real(8), allocatable :: coeffs(:) ! Definition of surface
-     integer, allocatable :: & 
+     integer, allocatable :: &
           neighbor_pos(:), &           ! List of cells on positive side
           neighbor_neg(:)              ! List of cells on negative side
      integer :: bc                     ! Boundary condition
@@ -131,17 +134,19 @@ module geometry_header
 !===============================================================================
 
   type Cell
-     integer :: id         ! Unique ID
+     integer :: id                          ! Unique ID
      character(len=52) :: name = ""          ! User-defined name
-     integer :: type       ! Type of cell (normal, universe, lattice)
-     integer :: universe   ! universe # this cell is in
-     integer :: fill       ! universe # filling this cell
-     integer :: material   ! Material within cell (0 for universe)
-     integer :: n_surfaces ! Number of surfaces within
-     integer, allocatable :: & 
-          & surfaces(:)    ! List of surfaces bounding cell -- note that
-                           ! parentheses, union, etc operators will be listed
-                           ! here too
+     integer :: type                        ! Type of cell (normal, universe, lattice)
+     integer :: universe                    ! universe # this cell is in
+     integer :: fill                        ! universe # filling this cell
+     integer :: instances                   ! number of instances of this cell in the geom
+     integer :: material                    ! Material within cell (0 for universe)
+     integer :: n_surfaces                  ! Number of surfaces within
+     integer, allocatable :: offset (:)     ! Distribcell offset for tally counter
+     integer, allocatable :: &
+          & surfaces(:)                     ! List of surfaces bounding cell -- note that
+                                            ! parentheses, union, etc operators will be listed
+                                            ! here too
 
      ! Rotation matrix and translation vector
      real(8), allocatable :: translation(:)
@@ -186,7 +191,7 @@ contains
     real(8),            intent(in) :: global_xyz(3)
     integer                        :: i_xyz(3)
 
-    real(8) :: xyz(3)  ! global_xyz alias 
+    real(8) :: xyz(3)  ! global_xyz alias
 
     xyz = global_xyz
 
@@ -206,7 +211,7 @@ contains
     real(8),           intent(in) :: global_xyz(3)
     integer                       :: i_xyz(3)
 
-    real(8) :: xyz(3)    ! global_xyz alias 
+    real(8) :: xyz(3)    ! global_xyz alias
     real(8) :: alpha     ! Skewed coord axis
     real(8) :: xyz_t(3)  ! Local xyz
     real(8) :: dists(4)  ! Squared distances from cell centers
@@ -217,16 +222,16 @@ contains
 
     ! Index z direction.
     if (this % is_3d) then
-      i_xyz(3) = ceiling((xyz(3) - this % center(3))/this % pitch(2) + 0.5_8)&
-           &+ this % n_axial/2
+      i_xyz(3) = ceiling((xyz(3) - this % center(3))/this % pitch(2) + HALF)&
+           + this % n_axial/2
     else
       i_xyz(3) = 1
     end if
 
     ! Convert coordinates into skewed bases.  The (x, alpha) basis is used to
     ! find the index of the global coordinates to within 4 cells.
-    alpha = xyz(2) - xyz(1) / sqrt(3.0_8)
-    i_xyz(1) = floor(xyz(1) / (sqrt(3.0_8) / 2.0_8 * this % pitch(1)))
+    alpha = xyz(2) - xyz(1) / sqrt(THREE)
+    i_xyz(1) = floor(xyz(1) / (sqrt(THREE) / TWO * this % pitch(1)))
     i_xyz(2) = floor(alpha / this % pitch(1))
 
     ! Add offset to indices (the center cell is (i_x, i_alpha) = (0, 0) but
@@ -276,12 +281,12 @@ contains
     xyz = global_xyz
 
     local_xyz(1) = xyz(1) - (this % lower_left(1) + &
-         &(i_xyz(1) - 0.5_8)*this % pitch(1))
+         (i_xyz(1) - HALF)*this % pitch(1))
     local_xyz(2) = xyz(2) - (this % lower_left(2) + &
-         &(i_xyz(2) - 0.5_8)*this % pitch(2))
+         (i_xyz(2) - HALF)*this % pitch(2))
     if (this % is_3d) then
       local_xyz(3) = xyz(3) - (this % lower_left(3) + &
-           &(i_xyz(3) - 0.5_8)*this % pitch(3))
+           (i_xyz(3) - HALF)*this % pitch(3))
     else
       local_xyz(3) = xyz(3)
     end if
@@ -301,14 +306,14 @@ contains
 
     ! x_l = x_g - (center + pitch_x*cos(30)*index_x)
     local_xyz(1) = xyz(1) - (this % center(1) + &
-         &sqrt(3.0_8) / 2.0_8 * (i_xyz(1) - this % n_rings) * this % pitch(1))
+         sqrt(THREE) / TWO * (i_xyz(1) - this % n_rings) * this % pitch(1))
     ! y_l = y_g - (center + pitch_x*index_x + pitch_y*sin(30)*index_y)
     local_xyz(2) = xyz(2) - (this % center(2) + &
-         &(i_xyz(2) - this % n_rings) * this % pitch(1) + &
-         &(i_xyz(1) - this % n_rings) * this % pitch(1) / 2.0_8)
+         (i_xyz(2) - this % n_rings) * this % pitch(1) + &
+         (i_xyz(1) - this % n_rings) * this % pitch(1) / TWO)
     if (this % is_3d) then
       local_xyz(3) = xyz(3) - this % center(3) &
-           &+ (this % n_axial/2 - i_xyz(3) + 1) * this % pitch(2)
+           + (this % n_axial/2 - i_xyz(3) + 1) * this % pitch(2)
     else
       local_xyz(3) = xyz(3)
     end if
