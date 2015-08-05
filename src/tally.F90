@@ -1513,7 +1513,7 @@ contains
     TALLY_LOOP: do i = 1, active_current_tallies % size()
       ! Copy starting and ending location of particle
       xyz0 = p % last_xyz
-      xyz1 = p % coord0 % xyz
+      xyz1 = p % coord(1) % xyz
 
       ! Get pointer to tally
       i_tally = active_current_tallies % get_item(i)
@@ -1546,7 +1546,7 @@ contains
       end if
 
       ! Copy particle's direction
-      uvw = p % coord0 % uvw
+      uvw = p % coord(1) % uvw
 
       ! determine incoming energy bin
       j = t % find_filter(FILTER_ENERGYIN)

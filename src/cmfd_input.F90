@@ -248,22 +248,9 @@ contains
     if (check_for_node(doc, "display")) &
          call get_node_value(doc, "display", cmfd_display)
 
-    if (trim(cmfd_display) == 'dominance' .and. &
-         trim(cmfd_solver_type) /= 'power') then
-       if (master) call warning('Dominance Ratio only aviable with power &
-           &iteration solver')
-       cmfd_display = ''
-    end if
-    
     ! Get second display
     if (check_for_node(doc, "second_display")) &
          call get_node_value(doc, "second_display", cmfd_second_display)
-    if (trim(cmfd_second_display) == 'dominance' .and. &
-         trim(cmfd_solver_type) /= 'power') then
-       if (master) call warning('Dominance Ratio only aviable with power &
-           &iteration solver')
-       cmfd_second_display = ''
-    end if
 
     ! Get whether to compare openmc and cmfd sources to flat source
     if (check_for_node(doc, "cmp_flat")) then
@@ -271,8 +258,8 @@ contains
        temp_str = to_lower(temp_str)
        if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') &
             cmfd_cmp_flat = .true.
-    end if
-    
+    end if 
+
     ! Read in spectral radius estimate and tolerances
     if (check_for_node(doc, "spectral")) &
          call get_node_value(doc, "spectral", cmfd_spectral)
