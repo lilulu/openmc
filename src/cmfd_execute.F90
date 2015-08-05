@@ -26,26 +26,30 @@ contains
     use error,                  only: warning, fatal_error
 
     ! CMFD single processor on master
-    if (master) then
+    if (master) then 
 
-      ! Start cmfd timer
-      call time_cmfd % start()
+      if (current_batch == cmfd_begin - 1) then 
+        call set_up_cmfd() 
+      else
+        ! Start cmfd timer
+        call time_cmfd % start()
 
-      ! Create cmfd data from OpenMC tallies
-      call set_up_cmfd()
+        ! Create cmfd data from OpenMC tallies
+        call set_up_cmfd()
 
-      ! FIXME: pass data for LOO and calls C++ codes
-      call pass_data_into_loo()
+        ! FIXME: pass data for LOO and calls C++ codes
+        call pass_data_into_loo()
 
-      ! Call solver
-      call cmfd_solver_execute()
+        ! Call solver
+        call cmfd_solver_execute()
 
-      ! Save k-effective
-      cmfd % k_cmfd(current_batch) = cmfd % keff
+        ! Save k-effective
+        cmfd % k_cmfd(current_batch) = cmfd % keff
 
-      ! check to perform adjoint on last batch
-      if (current_batch == n_batches .and. cmfd_run_adjoint) then
-        call cmfd_solver_execute(adjoint=.true.)
+        ! check to perform adjoint on last batch
+        if (current_batch == n_batches .and. cmfd_run_adjoint) then
+          call cmfd_solver_execute(adjoint=.true.)
+        end if
       end if
     end if 
     
