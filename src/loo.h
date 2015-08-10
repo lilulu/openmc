@@ -56,6 +56,7 @@ public:
     void normalize(double ratio);
     void printElement(std::string string, FILE* pfile);
     void zero();
+    void copyTo(meshElement& destination);
     double sum();
 };
 
@@ -122,10 +123,10 @@ private:
     meshElement _total_xs;
     meshElement _abs_xs;
     meshElement _sum_quad_flux;
-    meshElement _fission_source;
+    meshElement _energy_integrated_fission_source;
     /* fission source at the end of last batch of MC, corresponding to
        the source before this batch of MC started) */
-    meshElement _old_source;
+    meshElement _previous_fission_source;
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     surfaceElement _length;
@@ -134,7 +135,7 @@ private:
     surfaceElement _quad_current;
     surfaceElement _quad_flux;
     surfaceElement _old_quad_flux;
-    surfaceElement _quad_src;
+    surfaceElement _quad_src_form_factor;
     FILE* _pfile;
 
 public:
@@ -146,7 +147,7 @@ public:
     // main methods
     /* open log file for printing */
     void openLogFile();
-    
+
     /* compute the surface areas and volume for each mesh cell */
     void computeAreaVolume();
 
@@ -167,41 +168,31 @@ public:
     /* compute absorption xs */
     void processXs();
 
+    /* normalize tallies to remove the effect that
+     * _previous_fission_source is accumulated from one less batch
+     * compared with other tallies */
+    void normalizeTallies();
+
     /* computes quad fluxes from quad currents, also save an old copy */
     void computeQuadFlux();
 
-    /* computes source term for every track from neutron balance using
-     * quad fluxes and mesh-cell averaged cross-sections tallied
-     * during MC. */
-    void computeQuadSourceFromClosure();
+    /* computes the scattering quad source form factor associated with
+     * each track and the sum of the eight quadrature fluxes in each
+     * mesh cell */ 
+    void computeQuadSourceFormFactor();
 
     /* iteratively solve the low-order problem using MOC (LOO) */
     void executeLoo();
 
-    /* compute and store mesh cell energy-integrated fission source:
+    /* compute and store mesh cell _energy_integrated_fission_source:
      * nu_sigma_f * flux * vol, compute and set _rms which is the
      * computed fission sources' deviation from a flat source
-     * distribution, and return the normalization factor that would
-     * scale this current fission source distribution to have an
-     * average of old_avg */
-    double computeFissionSource(double old_avg);
+     * distribution, and return the average of the mesh cell
+     * _energy_integrated_fission_source */
+    double computeEnergyIntegratedFissionSource();
 
-    /* save the internal _fission_source (which represents the
-     * most-up-to-date copy of mesh-cell energy-integrated fission
-     * source) into passed in fission_source */
-    void saveFissionSource(meshElement& fission_source);
-
-    /* compute mesh cell energy-dependent total source (fission +
-     * scattering) and update the source term passed in by
-     * reference */
-    void computeTotalSource(meshElement& source,
-                            meshElement& old_source);
-
-    /* compute quad_src using the current total_source and class member
-     * _old_source and _quad_src */
-    void computeQuadSource(surfaceElement& quad_src,
-                           meshElement& total_source,
-                           meshElement& old_total_source);
+    /* compute quad_src */
+    void computeQuadSource(surfaceElement& quad_src);
 
     /* the main sweeping routine, updating _quad_flux, sum_quad_flux,
      * net_current */
@@ -235,11 +226,12 @@ public:
     /* normalize fission source, scalar flux, quad flux and leakage
      * such that the average of mesh-cell energy-integrated fission
      * source is old_avg */
-    void normalization(double old_avg);
+    void normalizationByEnergyIntegratedFissionSourceAvg(double old_avg);
 
     /* compute the L2 norm of relative change between the passed in
-     * fission_source variable (old fs from last iteration) and the
-     * stored _fission_source (current fs from this iteration) */
+     * energy_integrated_fission_source variable (old fs from last
+     * iteration) and the stored _energy_integrated_fission_source
+     * (current fs from this iteration) */
     double computeL2Norm(meshElement fission_source);
 
     /* compute keff using updated scalar fluxes and leakage */
