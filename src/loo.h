@@ -159,6 +159,8 @@ public:
 
     /* generate track laydown */
     void generate2dTrack();
+    void generate2dTracknxn();
+    void generate2dTracknx1();
 
     /* process _scalar_flux and _current: the openmc generated
      * _scalar_flux and c_current are volume-integrated and

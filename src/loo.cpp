@@ -269,8 +269,9 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _num_dimension(2),
       _ns_2d(16),
       _ns_3d(12),
-      _num_loop(_nx),
-      _num_track(4*_nx),
+      // FIXME:_num_loop, _num_track may not general for all mesh layouts
+      _num_loop(_ny),
+      _num_track(4 * _nx),
       _loo_iter(0),
       _i_array(new int[_num_loop * _num_track]),
       _j_array(new int[_num_loop * _num_track]),
@@ -392,6 +393,108 @@ void Loo::computeTrackLength() {
  *
  */
 void Loo::generate2dTrack() {
+    if (_nx == _ny) generate2dTracknxn();
+    else if (_ny == 1) generate2dTracknx1();
+    else printf("mesh of %d x %d might not be supported.\n", _nx, _ny);
+    return;
+}
+
+/* this routine handles track generation for nx1 mesh cells. In this
+ * case there is only one loop (regardless of whether the number of
+ * cells is even or odd) */
+void Loo::generate2dTracknx1() {
+    /* nl = index of the loop (a loop is when tracks form a complete cycle) */
+    /* nt = local index of track within a loop. */
+    /* i = global index of track, taking into account nl and nt  */
+    /* i_index, j_index = x, y index of cell that the current track is in */
+    int nl, nt, i, i_index, j_index;
+
+    /* len1 is the number of tracks from start point (left-most cell's
+     * track 0) to when it first hits the right most cell's
+     * boundary. This formula is the same for nxn and nx1 cases. */
+    int len1 = _num_track / 2 - 1;
+
+    for (nl = 0; nl < _num_loop; nl++) {
+        /* when we start the nl-th loop, initialize the cell
+         * indexes. We assume that the loop starts from the bottom
+         * boundary in this plane. */
+        i_index = nl;
+        j_index = _ny - 1;
+
+        for (nt = 0; nt < _num_track; nt++) {
+            /* update global counter for track index */
+            i = nl * _num_track + nt;
+
+            /* First side: has len1 number of tracks, start with 0
+             * index, goes like 0,5,3,6,... */
+            if (nt < len1) {
+                /* every odd track enters the cell to the right */
+                if (nt % 2 == 1)
+                    i_index += 1;
+
+                /* we know the track index goes like 0,5,3,6 */
+                if (nt % 4 == 0) {
+                    _t_array[i] = 0;
+                    _t_arrayb[i] = 1;
+                }
+                else if (nt % 4 == 1) {
+                    _t_array[i] = 5;
+                    _t_arrayb[i] = 4;
+                }
+                else if (nt % 4 == 2) {
+                    _t_array[i] = 3;
+                    _t_arrayb[i] = 2;
+                }
+                else {
+                    _t_array[i] = 6;
+                    _t_arrayb[i] = 7;
+                }
+            }
+            /* 2nd side: has len1 + 1 number of tracks (two tracks per
+             * cell), start with 2 or 1, goes like 2,4,1,7,2,4,... */
+            else if (nt <= 2 * len1) {
+                /* the first track has index len1 which is an odd
+                 * number; except this first track, every odd track
+                 * enters the cell to the left */
+                if ((nt % 2 == 1) && (nt > len1))
+                    i_index -= 1;
+
+                if (nt % 4 == 0) {
+                    _t_array[i] = 7;
+                    _t_arrayb[i] = 6;
+                }
+                else if (nt % 4 == 1) {
+                    _t_array[i] = 2;
+                    _t_arrayb[i] = 3;
+                }
+                else if (nt % 4 == 2) {
+                    _t_array[i] = 4;
+                    _t_arrayb[i] = 5;
+                }
+                else {
+                    _t_array[i] = 1;
+                    _t_arrayb[i] = 0;
+                }
+            }
+            /* last index: 6*/
+            else {
+                _t_array[i] = 6;
+                _t_arrayb[i] = 7;
+            }
+
+            /* store the x, y cell indexes into the corresponding arrays */
+            assert(i_index >= 0);
+            assert(i_index < _nx);
+            assert(j_index >= 0);
+            assert(j_index < _ny);
+            _i_array[i] = i_index;
+            _j_array[i] = j_index;
+        }
+    }
+    return;
+}
+
+void Loo::generate2dTracknxn() {
     /* nl = index of the loop (a loop is when tracks form a complete cycle) */
     /* nt = local index of track within a loop. */
     /* i = global index of track, taking into account nl and nt  */
