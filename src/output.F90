@@ -1347,47 +1347,47 @@ contains
   subroutine print_columns()
 
     write(UNIT=ou, FMT='(2X,A9,3X)', ADVANCE='NO') "Bat./Gen."
-    write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "   k    "
-    if (entropy_on) write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Entropy "
+    write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "    k     "
+    if (entropy_on) write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "Entropy "
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "     Average k      "
     if (entropy_on) write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') &
          "     Average Ent    "
     if (cmfd_run) then
-      write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') " CMFD k "
+      write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "  CMFD k  "
       select case(trim(cmfd_display))
         case('entropy')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "CMFD Ent"
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "CMFD Ent"
         case('balance')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Bal "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Bal "
         case('source')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Src "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Src "
         case('dominance')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Dom Rat "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " Dom Rat "
        end select
       select case(trim(cmfd_second_display))
         case('entropy')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "CMFD Ent"
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "CMFD Ent"
         case('balance')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Bal "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Bal "
         case('source')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "RMS Src "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Src "
         case('dominance')
-          write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "Dom Rat "
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " Dom Rat "
        end select
     end if
     write(UNIT=ou, FMT=*)
 
     write(UNIT=ou, FMT='(2X,A9,3X)', ADVANCE='NO') "========="
-    write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
-    if (entropy_on) write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+    write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
+    if (entropy_on) write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "===================="
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "===================="
     if (cmfd_run) then
-      write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+      write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
       if (cmfd_display /= '') &
-           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
       if (cmfd_second_display /= '') &
-           write(UNIT=ou, FMT='(A8,3X)', ADVANCE='NO') "========"
+           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
     end if
     write(UNIT=ou, FMT=*)
 
