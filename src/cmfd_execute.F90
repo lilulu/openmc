@@ -110,6 +110,7 @@ contains
     use constants,  only: CMFD_NOACCEL, ZERO, TWO
     use global,     only: cmfd, cmfd_coremap, master, entropy_on, current_batch
     use string,     only: to_str
+    use error,            only: fatal_error
 
 #ifdef MPI
     use global,     only: mpi_err
@@ -151,10 +152,13 @@ contains
     np = nx * ny * nz
 
     avg = 1.0 
-    
+
     ! Allocate cmfd source if not already allocated and allocate buffer
-    if (.not. allocated(cmfd % cmfd_src)) &
-       allocate(cmfd % cmfd_src(ng,nx,ny,nz))
+    if (.not. allocated(cmfd % cmfd_src)) then
+    !   allocate(cmfd % cmfd_src(ng,nx,ny,nz))
+       call fatal_error("cmfd_src should be allocated by the time &
+            & it reaches calc_fission_source")
+    end if
 
     ! Reset cmfd source to 0
     cmfd % cmfd_src = ZERO
@@ -472,20 +476,68 @@ contains
     use output,  only: write_message
     use tally,   only: reset_result
 
-    integer :: i ! loop counter
+    real(8), allocatable :: openmc_src(:,:,:,:)
+
+    integer :: n ! loop counter
+    integer :: i
+    integer :: j
+    integer :: k
+    integer :: h
+    integer :: nx
+    integer :: ny
+    integer :: nz
+    integer :: ng
+
+    ! Extract spatial and energy indices from object
+    nx = cmfd % indices(1)
+    ny = cmfd % indices(2)
+    nz = cmfd % indices(3)
+    ng = cmfd % indices(4)
+
+    allocate(openmc_src(ng,nx,ny,nz))
+    openmc_src = ZERO
 
     ! Print message
     call write_message("CMFD tallies reset", 7)
 
+    ! Save old fission source for LOO
+    do k = 1, nz
+       do j = 1, ny
+          do i = 1, nx
+             do h = 1, ng
+                openmc_src(h, i, j, k) = &
+                     cmfd % openmc_src(h, i, j, k)
+             end do
+          end do
+       end do
+    end do
+
     ! Begin loop around CMFD tallies
-    do i = 1, n_cmfd_tallies
+    do n = 1, n_cmfd_tallies
 
       ! Reset that tally
-      cmfd_tallies(i) % n_realizations = 0
-      call reset_result(cmfd_tallies(i) % results)
+      cmfd_tallies(n) % n_realizations = 0
+      call reset_result(cmfd_tallies(n) % results)
 
     end do
 
+    go to 100
+    ! Disable this feature for now; FIXME: look into starting a batch
+    ! right after a flush with  some fission source that's not just zero.
+    ! Restore old fission source for LOO
+    do k = 1, nz
+       do j = 1, ny
+          do i = 1, nx
+             do h = 1, ng
+                cmfd % openmc_src(h, i, j, k) = &
+                     openmc_src(h, i, j, k)
+             end do
+          end do
+       end do
+    end do
+100 continue
+
+    deallocate(openmc_src)
   end subroutine cmfd_tally_reset
 
 end module cmfd_execute
