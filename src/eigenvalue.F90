@@ -222,6 +222,7 @@ contains
 !===============================================================================
 
   subroutine finalize_batch()
+    use cmfd_data,                 only: set_up_cmfd
 
     ! Collect tallies
     call time_tallies % start()
@@ -234,10 +235,12 @@ contains
       n_realizations = 0
     end if
 
-    ! Enter the cmfd routine either because we just want to store a
-    ! copy of the data (one iteration before first CMFD is performed)
-    ! or that we are serious about doing CMFD (cmfd_on) 
-    if (loo_tally) call execute_cmfd()
+    ! Call the set_up_cmfd routine to store a copy of the data one
+    ! iteration before acceleration is requested to turn on
+    if (loo_tally) then
+       if (master) call set_up_cmfd()
+    end if
+    if (cmfd_on) call execute_cmfd()
 
     ! Display output
     if (master) call print_batch_keff()

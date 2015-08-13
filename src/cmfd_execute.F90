@@ -87,7 +87,8 @@ contains
       loo_tally = .true.
     end if
     if (cmfd_run .and. cmfd_begin == current_batch) then
-      cmfd_on = .true.
+       cmfd_on = .true.
+       loo_tally = .false.
     end if
 
     ! If this is a restart run and we are just replaying batches leave
