@@ -13,7 +13,7 @@ module loo_pass_data
      function new_loo(indices, k, albedo, hxyz, flux, &
           src_old, &
           totalxs, nfissxs, scattxs, &
-          current, quad_current) &
+          current, quad_current, loo_src) &
           result(rms) bind (C)
        use iso_c_binding
        real (c_double) :: rms
@@ -28,6 +28,7 @@ module loo_pass_data
        type (c_ptr), value :: scattxs
        type (c_ptr), value :: current
        type (c_ptr), value :: quad_current
+       type (c_ptr), value :: loo_src
      end function new_loo
   end interface
 
@@ -51,6 +52,7 @@ contains
     real (c_double), allocatable, target:: scattxs(:,:,:,:,:)
     real (c_double), allocatable, target:: current(:,:,:,:,:)
     real (c_double), allocatable, target:: quad_current(:,:,:,:,:)
+    real (c_double), allocatable, target:: loo_src(:,:,:,:)
     real (c_double) rms
 
     indices = cmfd % indices
@@ -64,14 +66,17 @@ contains
     scattxs = cmfd % scattxs
     current = cmfd % current
     quad_current = cmfd % quad_current
+    loo_src = cmfd % loo_src
 
     rms = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
          c_loc(hxyz), c_loc(flux(1,1,1,1)), &
          c_loc(src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
-         c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)))
+         c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)), &
+         c_loc(loo_src(1,1,1,1)))
     cmfd % src_cmp_loo(current_batch) = rms
+    cmfd % loo_src = loo_src
 
   end subroutine pass_data_into_loo
 end module loo_pass_data

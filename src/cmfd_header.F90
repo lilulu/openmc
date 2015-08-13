@@ -47,6 +47,7 @@ module cmfd_header
 
     ! Fission source distributions
     real(8), allocatable :: cmfd_src(:,:,:,:)
+    real(8), allocatable :: loo_src(:,:,:,:)
     real(8), allocatable :: openmc_src(:,:,:,:)
     real(8), allocatable :: openmc_src_old(:,:,:,:)
 
@@ -147,6 +148,8 @@ contains
     ! Allocate source distributions
     if (.not. allocated(this % cmfd_src)) &
          allocate(this % cmfd_src(ng,nx,ny,nz))
+    if (.not. allocated(this % loo_src)) &
+         allocate(this % loo_src(ng,nx,ny,nz))
     if (.not. allocated(this % openmc_src)) &
          allocate(this % openmc_src(ng,nx,ny,nz))
     if (.not. allocated(this % openmc_src_old)) &
@@ -181,6 +184,7 @@ contains
     this % current       = ZERO
     this % quad_current  = ZERO
     this % cmfd_src      = ZERO
+    this % loo_src       = ZERO
     this % openmc_src    = ZERO
     this % openmc_src_old &
                          = ZERO
@@ -225,6 +229,7 @@ contains
     if (allocated(this % sourcecounts))  deallocate(this % sourcecounts)
     if (allocated(this % weightfactors)) deallocate(this % weightfactors)
     if (allocated(this % cmfd_src))      deallocate(this % cmfd_src)
+    if (allocated(this % loo_src))       deallocate(this % loo_src)
     if (allocated(this % openmc_src))    deallocate(this % openmc_src)
     if (allocated(this % openmc_src_old)) &
                                          deallocate(this % openmc_src_old)

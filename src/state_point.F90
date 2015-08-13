@@ -130,6 +130,10 @@ contains
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
                group="cmfd")
+          call sp % write_data(cmfd % loo_src, "loo_src", &
+               length=(/cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2), cmfd % indices(3)/), &
+               group="cmfd")
           call sp % write_data(cmfd % openmc_src, "openmc_src", &
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
@@ -770,6 +774,8 @@ contains
              group="cmfd")
         length = cmfd % indices([4,1,2,3])
         call sp % read_data(cmfd % cmfd_src, "cmfd_src", &
+             length=length, group="cmfd")
+        call sp % read_data(cmfd % loo_src, "loo_src", &
              length=length, group="cmfd")
         call sp % read_data(cmfd % openmc_src, "openmc_src", &
              length=length, group="cmfd")

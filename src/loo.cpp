@@ -29,12 +29,12 @@
 #define WT 8.0
 
 double new_loo(int *indices, double *k, double *albedo,
-             void *phxyz, void *pflx, void *ptso,
-             void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
+               void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
+               void *psxs, void *pcur, void *pqcur, void *pfs)
 {
     /* set up loo object */
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
-                  ptxs, pfxs, psxs, pcur, pqcur);
+                  ptxs, pfxs, psxs, pcur, pqcur, pfs);
 
     /* computes _quad_flux from _quad_current */
     loo.computeQuadFlux();
@@ -258,7 +258,7 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
  */
 Loo::Loo(int *indices, double *k, double* albedo,
          void *phxyz, void *pflx, void *ptso,
-         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
+         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur, void *pfs)
     : _nx(indices[0]),
       _ny(indices[1]),
       _nz(indices[2]),
@@ -292,6 +292,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _sum_quad_flux(_ng, _nx, _ny, _nz),
       _energy_integrated_fission_source(1, _nx, _ny, _nz),
       _previous_fission_source(_ng, _nx, _ny, _nz, ptso),
+      _fission_source(_ng, _nx, _ny, _nz, pfs),
       /* energyElement */
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
@@ -742,12 +743,15 @@ void Loo::computeQuadSourceFormFactor(){
                          generated. -1e-5 is used as the cutoff
                          because it looks like at least early on there
                          were multiple slightly negative values. */
+                        // FIXME: turn off temporarily
+                        #if 0
                         if (src < -1e-5){
                             printf("A negative scattering quad src %e is "
                                    "generated for (%d %d %d) group %d "
                                    "track %d\n",
                                    src, i, j, k, g, t);
                         }
+                        #endif
                         src_form_factor = src / scattering_source;
                         _quad_src_form_factor.setValue(t, g, i, j, k,
                                                        src_form_factor);
@@ -917,6 +921,7 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                     scattering_source *= _volume.getValue(0, i, j, k);
                     fission_source *= _volume.getValue(0, i, j, k);
 
+                    _fission_source.setValue(g1, i, j, k, fission_source);
                     for (int t = 0; t < _nt; t++) {
                         total_source = fission_source / (WT * _k)
                             + scattering_source *
