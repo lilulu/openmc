@@ -351,10 +351,10 @@ contains
       ! move it back to its original position. 
 
       if (active_current_tallies % size() > 0) then
-        p % coord(1) % xyz = p % coord(1) % xyz - TINY_BIT * p % coord(1) % uvw
+        p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
         call score_surface_current(p)
         call score_surface_quad_current(p)
-        p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
+        p % coord(1) % xyz = p % coord(1) % xyz - TINY_BIT * p % coord(1) % uvw
       end if
 
       ! Copy particle's direction cosines
@@ -504,8 +504,8 @@ contains
       ! an incoming current on the reflective boundary. This is to be
       ! consistent with the earlier treatment of scoring the outgoing
       ! current on reflective boundary, such that the two would cancel
-      ! out in calculating net current. 
-      p % last_xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
+      ! out in calculating net current.
+      p % last_xyz = p % coord(1) % xyz - TINY_BIT * p % coord(1) % uvw
 
       ! Diagnostic message
       if (verbosity >= 10 .or. trace) then
