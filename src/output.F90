@@ -1375,6 +1375,16 @@ contains
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " Dom Rat "
        end select
     end if
+    if (loo_run) then
+      !write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "  CMFD k  "
+      select case(trim(cmfd_display))
+        case('entropy')
+          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "LOO Ent"
+        case('balance')
+        case('source')
+        case('dominance')
+       end select
+    end if
     write(UNIT=ou, FMT=*)
 
     write(UNIT=ou, FMT='(2X,A9,3X)', ADVANCE='NO') "========="
@@ -1388,6 +1398,9 @@ contains
            write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
       if (cmfd_second_display /= '') &
            write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
+   end if
+   if (loo_run) then
+      write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
     end if
     write(UNIT=ou, FMT=*)
 
@@ -1457,7 +1470,6 @@ contains
       write(UNIT=OUTPUT_UNIT, FMT='(23X)', ADVANCE='NO')
     end if
 
-
     ! write out cmfd keff if it is active and other display info
     if (cmfd_on) then
       write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
@@ -1500,9 +1512,21 @@ contains
       end select
     end if
 
+    ! write out cmfd keff if it is active and other display info
+    if (loo_run .and. cmfd_on) then
+      select case(trim(cmfd_display))
+        case('entropy')
+          write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
+            cmfd % loo_entropy(current_batch)
+        case('balance')
+        case('source')
+        case('dominance')
+       end select
+    end if
+
     ! next line
     write(UNIT=OUTPUT_UNIT, FMT=*)
-    
+
   end subroutine print_batch_keff
 
 !===============================================================================

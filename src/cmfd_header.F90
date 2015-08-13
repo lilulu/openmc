@@ -74,8 +74,9 @@ module cmfd_header
     ! Openmc source normalization factor
     real(8) :: norm = ONE
 
-    ! "Shannon entropy" from cmfd fission source
+    ! Shannon entropy from cmfd and loo fission source
     real(8), allocatable :: entropy(:)
+    real(8), allocatable :: loo_entropy(:)
 
     ! RMS of neutron balance equations
     real(8), allocatable :: balance(:)
@@ -163,6 +164,7 @@ contains
 
     ! Allocate batchwise parameters
     if (.not. allocated(this % entropy)) allocate(this % entropy(n_batches))
+    if (.not. allocated(this % loo_entropy)) allocate(this % loo_entropy(n_batches))
     if (.not. allocated(this % balance)) allocate(this % balance(n_batches))
     if (.not. allocated(this % src_cmp)) allocate(this % src_cmp(n_batches))
     if (.not. allocated(this % src_cmp_openmc)) allocate(this % src_cmp_openmc(n_batches))
@@ -200,6 +202,7 @@ contains
     this % dom           = ZERO
     this % k_cmfd        = ZERO
     this % entropy       = ZERO
+    this % loo_entropy   = ZERO
 
   end subroutine allocate_cmfd
 
@@ -243,6 +246,7 @@ contains
     if (allocated(this % dom))           deallocate(this % dom)
     if (allocated(this % k_cmfd))        deallocate(this % k_cmfd)
     if (allocated(this % entropy))       deallocate(this % entropy)
+    if (allocated(this % loo_entropy))   deallocate(this % loo_entropy)
     if (allocated(this % resnb))         deallocate(this % resnb)
 
   end subroutine deallocate_cmfd

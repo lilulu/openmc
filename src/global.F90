@@ -340,6 +340,9 @@ module global
   ! Is CMFD active
   logical :: cmfd_run = .false.
 
+  ! Is LOO active
+  logical :: loo_run = .false.
+
   ! Timing objects
   type(Timer) :: time_cmfd      ! timer for whole cmfd calculation
   type(Timer) :: time_cmfdbuild ! timer for matrix build

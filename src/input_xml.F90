@@ -863,6 +863,15 @@ contains
       end if
     end if
 
+    ! Check for cmfd run
+    if (check_for_node(doc, "run_loo")) then
+      call get_node_value(doc, "run_loo", temp_str)
+      temp_str = to_lower(temp_str)
+      if (trim(temp_str) == 'true' .or. trim(temp_str) == '1') then
+        loo_run = .true.
+      end if
+   end if
+
     ! Resonance scattering parameters
     if (check_for_node(doc, "resonance_scattering")) then
       call get_node_ptr(doc, "resonance_scattering", node_res_scat)

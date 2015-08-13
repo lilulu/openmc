@@ -150,6 +150,8 @@ contains
                group="cmfd")
           call sp % write_data(cmfd % entropy, "cmfd_entropy", &
                length=current_batch, group="cmfd")
+          call sp % write_data(cmfd % loo_entropy, "loo_entropy", &
+               length=current_batch, group="cmfd")
           call sp % write_data(cmfd % balance, "cmfd_balance", &
                length=current_batch, group="cmfd")
           call sp % write_data(cmfd % dom, "cmfd_dominance", &
@@ -786,6 +788,8 @@ contains
              "openmc_src_old", &
              length=length, group="cmfd")
         call sp % read_data(cmfd % entropy, "cmfd_entropy", &
+             length=restart_batch, group="cmfd")
+        call sp % read_data(cmfd % loo_entropy, "loo_entropy", &
              length=restart_batch, group="cmfd")
         call sp % read_data(cmfd % balance, "cmfd_balance", &
              length=restart_batch, group="cmfd")

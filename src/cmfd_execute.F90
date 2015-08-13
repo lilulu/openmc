@@ -34,8 +34,8 @@ contains
       ! Create cmfd data from OpenMC tallies
       call set_up_cmfd()
 
-      ! FIXME: pass data for LOO and calls C++ codes
-      call pass_data_into_loo()
+      ! Run loo routine here if it is requested
+      if (loo_run) call pass_data_into_loo()
 
       ! Call solver
       call cmfd_solver_execute()
@@ -129,7 +129,8 @@ contains
     integer :: idx     ! index in vector
     real(8) :: hxyz(3) ! cell dimensions of current ijk cell
     real(8) :: vol     ! volume of cell
-    real(8),allocatable :: source(:,:,:,:)  ! tmp source array for entropy
+    real(8), allocatable :: source(:,:,:,:)  ! tmp source array for entropy
+    real(8), allocatable :: loo_src(:,:,:,:)
     real(8) :: avg     ! avg source if it is flat
     real(8) :: temp   ! temporary counter
     real(8) :: temp1   ! temporary counter
@@ -200,31 +201,38 @@ contains
 
       ! Normalize source such that it sums to 1.0
       cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)
+      cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src)
 
       ! Compute entropy
       if (entropy_on) then
 
         ! Allocate tmp array
-        if (.not.allocated(source)) allocate(source(ng,nx,ny,nz))
+         if (.not.allocated(source)) allocate(source(ng,nx,ny,nz))
+         if (.not.allocated(loo_src)) allocate(loo_src(ng,nx,ny,nz))
 
         ! Initialize the source
         source = ZERO
+        loo_src = ZERO
 
         ! Compute log
         where (cmfd % cmfd_src > ZERO)
-          source = cmfd % cmfd_src*log(cmfd % cmfd_src)/log(TWO)
+           source = cmfd % cmfd_src*log(cmfd % cmfd_src)/log(TWO)
+           loo_src = cmfd % loo_src*log(cmfd % loo_src)/log(TWO)
         end where
 
         ! Sum that source
         cmfd % entropy(current_batch) = -sum(source)
+        cmfd % loo_entropy(current_batch) = -sum(loo_src)
 
         ! Deallocate tmp array
         if (allocated(source)) deallocate(source)
+        if (allocated(loo_src)) deallocate(loo_src)
 
       end if
 
       ! Normalize source so average is 1.0
       cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src) * cmfd % norm
+      cmfd % loo_src = cmfd % loo_src/sum(cmfd % loo_src) * cmfd % norm
 
       ! Calculate differences between normalized sources
       !cmfd % src_cmp(current_batch) = sqrt(ONE/cmfd % norm * &
@@ -366,10 +374,17 @@ contains
 
       ! Have master compute weight factors (watch for 0s)
       if (master) then
-        where(cmfd % cmfd_src > ZERO .and. cmfd % sourcecounts > ZERO)
-          cmfd % weightfactors = cmfd % cmfd_src/sum(cmfd % cmfd_src)* &
-                               sum(cmfd % sourcecounts) / cmfd % sourcecounts
-        end where
+         if (loo_run) then
+            where(cmfd % loo_src > ZERO .and. cmfd % sourcecounts > ZERO)
+               cmfd % weightfactors = cmfd % loo_src/sum(cmfd % loo_src)* &
+                    sum(cmfd % sourcecounts) / cmfd % sourcecounts
+            end where
+         else
+            where(cmfd % cmfd_src > ZERO .and. cmfd % sourcecounts > ZERO)
+               cmfd % weightfactors = cmfd % cmfd_src/sum(cmfd % cmfd_src)* &
+                    sum(cmfd % sourcecounts) / cmfd % sourcecounts
+            end where
+         end if
       end if
 
       if (.not. cmfd_feedback) return
