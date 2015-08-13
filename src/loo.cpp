@@ -33,24 +33,24 @@ double new_loo(int *indices, double *k, double *albedo,
              void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur)
 {
     /* set up loo object */
-    Loo* loo = new Loo(indices, k, albedo, phxyz, pflx, ptso,
-                       ptxs, pfxs, psxs, pcur, pqcur);
+    Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
+                  ptxs, pfxs, psxs, pcur, pqcur);
 
     /* computes _quad_flux from _quad_current */
-    loo->computeQuadFlux();
+    loo.computeQuadFlux();
 
     /* normalizes _previous_fission_source to have energy-integrated
      * FS average to be 1.0. similarly for the current terms:
      * _scalar_flux, _quad_flux, _leakage, _energy_integrated_fission_source */
-    loo->normalizeTallies();
+    loo.normalizeTallies();
 
     /* computes _quad_src from _quad_flux and total xs */
-    loo->computeQuadSourceFormFactor();
+    loo.computeQuadSourceFormFactor();
 
     /* execute loo iterative solver */
-    loo->executeLoo();
+    loo.executeLoo();
 
-    return loo->getRms();
+    return loo.getRms();
 }
 
 meshElement::meshElement(int ng, int nx, int ny, int nz, void *p)
@@ -315,6 +315,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
 
 /**
  *  Destructor: clear memory
+ *  FIXME: actually destroy stuff
  */
 Loo::~Loo(){
 }
