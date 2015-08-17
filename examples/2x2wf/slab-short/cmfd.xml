@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<cmfd>
+
+  <mesh>
+    <lower_left>-10 -0.5 -0.5</lower_left>
+    <upper_right>10 0.5 0.5</upper_right>
+    <dimension>10 1 1</dimension>
+    <energy> 0 100  </energy>
+  </mesh>
+
+  <feedback> false </feedback>
+  <begin> 40 </begin>
+
+  <downscatter> false </downscatter>
+  <rebalance> false </rebalance>
+  <dhat_reset> false </dhat_reset>
+
+  <display> entropy </display>
+  <solver> power </solver>
+</cmfd>
