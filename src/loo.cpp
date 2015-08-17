@@ -26,7 +26,7 @@
 * SOFTWARE.
 */
 #include "loo.h"
-#define WT 8.0
+#define WT 8.0 * 4.0 * 3.141592653589793
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
@@ -306,6 +306,15 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _quad_src_form_factor(_nt, _ng, _nx, _ny, _nz),
       _pfile(NULL)
 {
+    //printf("albedos: %d %d %d %d %d %d\n", _albedo[0], _albedo[1], _albedo[2],
+    //     _albedo[3], _albedo[4], _albedo[5]);
+    // FIXME: the following routine does not make any difference?
+    _albedo[0] = 0.0;
+    _albedo[1] = 0.0;
+    _albedo[2] = 1.0;
+    _albedo[3] = 1.0;
+    _albedo[4] = 1.0;
+    _albedo[5] = 1.0;
     openLogFile();
     computeAreaVolume();
     computeTrackLength();
@@ -743,15 +752,14 @@ void Loo::computeQuadSourceFormFactor(){
                          generated. -1e-5 is used as the cutoff
                          because it looks like at least early on there
                          were multiple slightly negative values. */
-                        // FIXME: turn off temporarily
-                        #if 0
                         if (src < -1e-5){
                             printf("A negative scattering quad src %e is "
                                    "generated for (%d %d %d) group %d "
-                                   "track %d\n",
-                                   src, i, j, k, g, t);
+                                   "track %d, out = %f, total src = %f, fs = %f\n",
+                                   src, i, j, k, g, t, out,
+                                   xs * (out - ex * in) / (1.0 - ex),
+                                   fs / (WT * _k));
                         }
-                        #endif
                         src_form_factor = src / scattering_source;
                         _quad_src_form_factor.setValue(t, g, i, j, k,
                                                        src_form_factor);
@@ -788,7 +796,8 @@ void Loo::executeLoo(){
 
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-8;
-    min_loo_iter = 10;
+    // FIXME
+    min_loo_iter = 0;
     max_loo_iter = 1000;
 
     /* save _fission_source into fission_source */
@@ -1033,26 +1042,51 @@ double Loo::sweepOneTrack(meshElement& sum_quad_flux,
  * geometry's specific surface, in the direction specified */
 bool Loo::startFromBoundary(int t, int i, int j, int k, int s, int dir) {
 
-    /* dir = 0 means forward:  t = 6, 2, 4, 0;
-     * dir = 1 means backward: t = 5, 1, 3, 7 */
+    if (_nx == _ny) {
+        /* dir = 0 means forward:  t = 6, 2, 4, 0;
+         * dir = 1 means backward: t = 5, 1, 3, 7 */
 
-    /* left geometry boundary in 2D */
-    if ((s == 0) && (t == 6 - dir) && (i == 0))
-        return true;
+        /* left geometry boundary in 2D */
+        if ((s == 0) && (t == 6 - dir) && (i == 0))
+            return true;
 
-    /* right geometry boundary in 2D */
-    if ((s == 1) && (t == 2 - dir) && (i == _nx - 1))
-        return true;
+        /* right geometry boundary in 2D */
+        if ((s == 1) && (t == 2 - dir) && (i == _nx - 1))
+            return true;
 
-    /* top geometry boundary in 2D */
-    if ((s == 2) && (t == 4 - dir) && (j == 0))
-        return true;
+        /* top geometry boundary in 2D */
+        if ((s == 2) && (t == 4 - dir) && (j == 0))
+            return true;
 
-    /* bottom geometry boundary in 2D */
-    if ((s == 3) && (t == dir * 7) && (j == _ny - 1))
-        return true;
+        /* bottom geometry boundary in 2D */
+        if ((s == 3) && (t == dir * 7) && (j == _ny - 1))
+            return true;
+        return false;
+    }
 
-    return false;
+    if (_ny == 1) {
+        /* dir = 0 means forward:  t = 6, 1, 4, 0;
+         * dir = 1 means backward: t = 5, 2, 3, 7 */
+
+        /* left geometry boundary in 2D */
+        if ((s == 0) && (t == 6 - dir) && (i == 0))
+            return true;
+
+        /* right geometry boundary in 2D */
+        if ((s == 1) && (t == dir + 1) && (i == _nx - 1))
+            return true;
+
+        // FIXME: top and bottom boundaries do not quite work for
+        // non-reflective BCs
+        /* top geometry boundary in 2D */
+        if ((s == 2) && (t == 4 - dir) && (j == 0))
+            return true;
+
+        /* bottom geometry boundary in 2D */
+        if ((s == 3) && (t == dir * 7) && (j == _ny - 1))
+            return true;
+        return false;
+    }
 }
 
 /* return bool representing whether a track starts from a vacuum
@@ -1060,8 +1094,11 @@ bool Loo::startFromBoundary(int t, int i, int j, int k, int s, int dir) {
 bool Loo::startFromAnyVacuumBoundary(int t, int i, int j, int k, int dir) {
     /* loop over the 2 * _num_dimension geometry boundary */
     for (int s = 0; s < 2 * _num_dimension; s++) {
-        if ((_albedo[s] < 1e-10) && (startFromBoundary(t, i, j, k, s, dir)))
+        if ((_albedo[s] < 1e-8) && (startFromBoundary(t, i, j, k, s, dir))) {
+            //printf("track %d direction %d in (%d %d) starts at vac\n",
+            //       t, dir, i, j);
             return true;
+        }
     }
     return false;
 }
