@@ -338,15 +338,19 @@ contains
 
     ! Open files
     inquire(file = "fs.dat", exist = exist)
+
     if (exist) then
-       ! If tihs is not the first batch acceleration is on, we append the file
-       if (cmfd_begin < current_batch) then
+       ! In two cases we replace the file: either this is the first of
+       ! a restart fun (which starts at restart_batch + 1), or that
+       ! this is the first of the acceleration run (which starts at cmfd_begin)
+       if (((.not. restart_run) .and. (current_batch == cmfd_begin)) &
+            .or. (restart_run .and. (current_batch == restart_batch + 1))) then
+          open(unit = 2, file = "fs.dat", status = "replace", action = "write")
+       ! If it is not one of the conditions where we replace, then we
+       ! consider append to the file if acceleration is on.
+       elseif (current_batch > cmfd_begin) then
           open(unit = 2, file = "fs.dat", status = "old", position = "append", &
                action = "write")
-       ! Otherwise the existing file must be left over from a previous
-       ! run, in which case we overrite the file
-       else
-          open(unit = 2, file = "fs.dat", status = "replace", action = "write")
        end if
     else
        open(unit = 2, file = "fs.dat", status = "new", action = "write")
