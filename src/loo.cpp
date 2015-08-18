@@ -771,8 +771,8 @@ void Loo::computeQuadSourceFormFactor(){
                     _sum_quad_flux.setValue(g, i, j, k, sum_quad_flux);
                 }}}}
 
-    _quad_src_form_factor.printElement("form factors", _pfile);
-    _sum_quad_flux.printElement("sum quad flux", _pfile);
+    _quad_src_form_factor.printElement("m+1/2 qs form factor", _pfile);
+    _sum_quad_flux.printElement("m+1/2 sum quad flux", _pfile);
 }
 
 /* iteratively solve the low-order problem using MOC (LOO) */
@@ -796,8 +796,7 @@ void Loo::executeLoo(){
 
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-8;
-    // FIXME
-    min_loo_iter = 0;
+    min_loo_iter = 10;
     max_loo_iter = 1000;
 
     /* save _fission_source into fission_source */
@@ -805,7 +804,6 @@ void Loo::executeLoo(){
 
     /* iteratively solve the LOO problem */
     for (_loo_iter = 0; _loo_iter < max_loo_iter; _loo_iter++) {
-        fprintf(_pfile, "loo iteration = %d\n", _loo_iter);
 
         /* reset net current, summmation of quad fluxes, leakage */
         net_current.zero();
@@ -832,7 +830,7 @@ void Loo::executeLoo(){
         eps = computeL2Norm(fission_source);
         computeK();
 
-        fprintf(_pfile, "k = %.7f, rms = %f \n", _k, _rms);
+        fprintf(_pfile, "k = %.7f, eps = %f \n", _k, eps);
 
         /* save _energy_integrated_fission_source into fission_source */
         _energy_integrated_fission_source.copyTo(fission_source);
@@ -849,8 +847,9 @@ void Loo::executeLoo(){
     _energy_integrated_fission_source.printElement(
         "converged energy integrated fission source", _pfile);
     fprintf(_pfile, "**********************************\n");
-    /* cleans up memory */
     fclose(_pfile);
+
+    /* FIXME: cleans up memory */
 
     return;
 }
@@ -1163,7 +1162,7 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg) {
     /* normalize fission source, scalar flux, quad flux, and leakage */
     _energy_integrated_fission_source.normalize(ratio);
     _scalar_flux.normalize(ratio);
-    _quad_flux.normalize(ratio);
+    //_quad_flux.normalize(ratio);
     _leakage *= ratio;
 }
 
