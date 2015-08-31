@@ -57,7 +57,7 @@ contains
     call print_fission_sources()
 
     ! calculate weight factors
-    call cmfd_reweight(.true.)
+    if (cmfd_feedback) call cmfd_reweight(.true.)
 
     ! stop cmfd timer
     if (master) call time_cmfd % stop()
@@ -330,34 +330,33 @@ contains
     integer :: g       ! iteration counter for groups
     logical :: exist
 
-    ! Get maximum of spatial and group indices
-    nx = cmfd % indices(1)
-    ny = cmfd % indices(2)
-    nz = cmfd % indices(3)
-    ng = cmfd % indices(4)
-
-    ! Open files
-    inquire(file = "fs.dat", exist = exist)
-
-    if (exist) then
-       ! In two cases we replace the file: either this is the first of
-       ! a restart fun (which starts at restart_batch + 1), or that
-       ! this is the first of the acceleration run (which starts at cmfd_begin)
-       if (((.not. restart_run) .and. (current_batch == cmfd_begin)) &
-            .or. (restart_run .and. (current_batch == restart_batch + 1))) then
-          open(unit = 2, file = "fs.dat", status = "replace", action = "write")
-       ! If it is not one of the conditions where we replace, then we
-       ! consider append to the file if acceleration is on.
-       elseif (current_batch > cmfd_begin) then
-          open(unit = 2, file = "fs.dat", status = "old", position = "append", &
-               action = "write")
-       end if
-    else
-       open(unit = 2, file = "fs.dat", status = "new", action = "write")
-    end if
-
     ! Only perform for master
     if (master) then
+       ! Get maximum of spatial and group indices
+       nx = cmfd % indices(1)
+       ny = cmfd % indices(2)
+       nz = cmfd % indices(3)
+       ng = cmfd % indices(4)
+
+       ! Open files
+       inquire(file = "fs.dat", exist = exist)
+
+       if (exist) then
+          ! In two cases we replace the file: either this is the first of
+          ! a restart fun (which starts at restart_batch + 1), or that
+          ! this is the first of the acceleration run (which starts at cmfd_begin)
+          if (((.not. restart_run) .and. (current_batch == cmfd_begin)) &
+               .or. (restart_run .and. (current_batch == restart_batch + 1))) then
+             open(unit = 2, file = "fs.dat", status = "replace", action = "write")
+             ! If it is not one of the conditions where we replace, then we
+             ! consider append to the file if acceleration is on.
+          elseif (current_batch > cmfd_begin) then
+             open(unit = 2, file = "fs.dat", status = "old", position = "append", &
+                  action = "write")
+          end if
+       else
+          open(unit = 2, file = "fs.dat", status = "new", action = "write")
+       end if
 
        ! Loop around indices to map to cmfd object
        ZLOOP: do k = 1, nz
@@ -383,10 +382,12 @@ contains
              end do XLOOP
           end do YLOOP
        end do ZLOOP
-    end if
 
     ! Close file
     close(2)
+    end if
+
+
 end subroutine print_fission_sources
 
 !===============================================================================
