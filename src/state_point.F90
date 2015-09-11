@@ -126,6 +126,8 @@ contains
           call sp % write_data(cmfd % indices, "indices", length=4, group="cmfd")
           call sp % write_data(cmfd % k_cmfd, "k_cmfd", length=current_batch, &
                group="cmfd")
+          call sp % write_data(cmfd % k_loo, "k_loo", length=current_batch, &
+               group="cmfd")
           call sp % write_data(cmfd % cmfd_src, "cmfd_src", &
                length=(/cmfd % indices(4), cmfd % indices(1), &
                cmfd % indices(2), cmfd % indices(3)/), &
@@ -773,6 +775,8 @@ contains
       if (int_array(1) == 1) then
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")
         call sp % read_data(cmfd % k_cmfd, "k_cmfd", length=restart_batch, &
+             group="cmfd")
+        call sp % read_data(cmfd % k_loo, "k_loo", length=restart_batch, &
              group="cmfd")
         length = cmfd % indices([4,1,2,3])
         call sp % read_data(cmfd % cmfd_src, "cmfd_src", &

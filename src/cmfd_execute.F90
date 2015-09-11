@@ -42,6 +42,7 @@ contains
 
       ! Save k-effective
       cmfd % k_cmfd(current_batch) = cmfd % keff
+      cmfd % k_loo(current_batch) = cmfd % loo_keff
 
       ! check to perform adjoint on last batch
       if (current_batch == n_batches .and. cmfd_run_adjoint) then

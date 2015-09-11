@@ -77,6 +77,7 @@ contains
          c_loc(loo_src(1,1,1,1)))
     cmfd % src_cmp_loo(current_batch) = rms
     cmfd % loo_src = loo_src
+    cmfd % loo_keff = k
 
   end subroutine pass_data_into_loo
 end module loo_pass_data

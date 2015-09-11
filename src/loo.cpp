@@ -26,7 +26,7 @@
 * SOFTWARE.
 */
 #include "loo.h"
-#define WT 8.0 * 4.0 * 3.141592653589793
+#define WT 4 * 3.141592653589793
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,

@@ -68,6 +68,9 @@ module cmfd_header
     real(8), allocatable :: adj_phi(:)
     real(8) :: adj_keff = ZERO
 
+    ! Eigenvalue for loo run
+    real(8) :: loo_keff = ZERO
+    
     ! Residual for neutron balance
     real(8), allocatable :: resnb(:,:,:,:)
 
@@ -96,8 +99,9 @@ module cmfd_header
     ! Dominance ratio
     real(8), allocatable :: dom(:)
 
-    ! List of CMFD k
+    ! List of CMFD and LOO k
     real(8), allocatable :: k_cmfd(:)
+    real(8), allocatable :: k_loo(:)
 
     ! Balance keff
     real(8) :: keff_bal
@@ -172,6 +176,7 @@ contains
     if (.not. allocated(this % src_cmp_loo)) allocate(this % src_cmp_loo(n_batches))
     if (.not. allocated(this % dom)) allocate(this % dom(n_batches))
     if (.not. allocated(this % k_cmfd)) allocate(this % k_cmfd(n_batches))
+    if (.not. allocated(this % k_loo)) allocate(this % k_loo(n_batches))
 
     ! Set everthing to 0 except weight multiply factors if feedback isnt on
     this % flux          = ZERO
@@ -201,6 +206,7 @@ contains
     this % src_cmp_loo  = ZERO
     this % dom           = ZERO
     this % k_cmfd        = ZERO
+    this % k_loo         = ZERO
     this % entropy       = ZERO
     this % loo_entropy   = ZERO
 
@@ -245,6 +251,7 @@ contains
     if (allocated(this % src_cmp_loo))   deallocate(this % src_cmp_loo)
     if (allocated(this % dom))           deallocate(this % dom)
     if (allocated(this % k_cmfd))        deallocate(this % k_cmfd)
+    if (allocated(this % k_loo))        deallocate(this % k_loo)
     if (allocated(this % entropy))       deallocate(this % entropy)
     if (allocated(this % loo_entropy))   deallocate(this % loo_entropy)
     if (allocated(this % resnb))         deallocate(this % resnb)
