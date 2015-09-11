@@ -51,10 +51,10 @@ contains
     end if
 
     ! calculate fission source
-    call calc_fission_source()
+    if (master) call calc_fission_source()
 
     ! print fission sources to file
-    call print_fission_sources()
+    if (master) call print_fission_sources()
 
     ! calculate weight factors
     if (cmfd_feedback) call cmfd_reweight(.true.)
@@ -302,10 +302,11 @@ contains
       cmfd % src_cmp_cmfd(current_batch) = sqrt(ONE/ np * temp4)
     end if
 
-#ifdef MPI
-    ! Broadcast full source to all procs
-    call MPI_BCAST(cmfd % cmfd_src, n, MPI_REAL8, 0, MPI_COMM_WORLD, mpi_err)
-#endif
+!#ifdef MPI
+!    ! Broadcast full source to all procs
+!    call MPI_BCAST(cmfd % cmfd_src, n, MPI_REAL8, 0, MPI_COMM_WORLD, mpi_err)
+!    call MPI_BCAST(cmfd % loo_src, n, MPI_REAL8, 0, MPI_COMM_WORLD, mpi_err)
+!#endif
 
   end subroutine calc_fission_source
 
