@@ -2,13 +2,13 @@
 <cmfd>
 
   <mesh>
-    <lower_left>-100 -0.5 -0.5</lower_left>
-    <upper_right>100 0.5 0.5</upper_right>
-    <dimension>100 1 1</dimension>
+    <dimension>101 1 1</dimension>
+    <lower_left>-101 -0.5 -0.5</lower_left>
+    <upper_right>101 0.5 0.5</upper_right>
     <energy> 0 100  </energy>
   </mesh>
 
-  <feedback> true </feedback>
+  <feedback> false </feedback>
   <begin> 11 </begin>
 
   <downscatter> false </downscatter>
