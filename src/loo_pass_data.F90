@@ -68,14 +68,16 @@ contains
     quad_current = cmfd % quad_current
     loo_src = cmfd % loo_src
 
-    rms = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
+    k = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
          c_loc(hxyz), c_loc(flux(1,1,1,1)), &
          c_loc(src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), &
          c_loc(nfissxs(1,1,1,1,1)), c_loc(scattxs(1,1,1,1,1)), &
          c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)), &
          c_loc(loo_src(1,1,1,1)))
-    cmfd % src_cmp_loo(current_batch) = rms
+
+    !FIXME: fix the rms passing
+    !cmfd % src_cmp_loo(current_batch) = rms
     cmfd % loo_src = loo_src
     cmfd % loo_keff = k
 

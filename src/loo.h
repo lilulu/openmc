@@ -245,6 +245,7 @@ public:
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
 
     double getRms();
+    double getK();
 };
 
 extern "C" {

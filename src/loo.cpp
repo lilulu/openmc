@@ -50,7 +50,7 @@ double new_loo(int *indices, double *k, double *albedo,
     /* execute loo iterative solver */
     loo.executeLoo();
 
-    return loo.getRms();
+    return loo.getK();
 }
 
 meshElement::meshElement(int ng, int nx, int ny, int nz, void *p)
@@ -1233,4 +1233,8 @@ void Loo::verifyPartialCurrent(surfaceElement element1,
 
 double Loo::getRms() {
     return _rms;
+}
+
+double Loo::getK() {
+    return _k;
 }
