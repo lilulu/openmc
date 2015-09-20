@@ -214,7 +214,9 @@ contains
 
               else if (ital == 2) then
 
-                ! Begin loop to get energy out tallies
+                ! Begin loop to get energy out tallies, that is,
+                ! events (scattering and fission) that leads to a
+                ! neutron changing energy from group h to g.
                 INGROUP: do g = 1, ng
                   ! Reset all bins to 1
                   matching_bins(1:t%n_filters) = 1

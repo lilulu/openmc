@@ -88,7 +88,9 @@ contains
     ! should be replaced by loo_run because we only care about storing
     ! an old copy of the tallies for LOO.
     if (cmfd_run .and. cmfd_begin == current_batch + 1) then
-      loo_tally = .true.
+       loo_tally = .true.
+    else
+       loo_tally = .false.
     end if
     if (cmfd_run .and. cmfd_begin == current_batch) then
        cmfd_on = .true.

@@ -222,13 +222,15 @@ contains
           allocate(int_array(n_cmfd_resets))
           call get_node_array(doc, "tally_reset_interval", int_array)
 
-          ! If only one value is entered, this is the interval during all
-          ! inactive cycles. Assume: openmc processes settings.xml first
-          ! which reads in n_inactive
+          ! If only one value is entered, this is the interval during
+          ! all inactive cycles. Assume: openmc processes settings.xml
+          ! first which reads in n_inactive, and cmfd_begin has
+          ! already been set in cmfd.xml. Assume the reset occurs
+          ! interval-number of batches after acceleration is turned on. 
           if (n_cmfd_resets == 1) then
-             start_index = 1
-             end_index = n_inactive
              interval = int_array(1)
+             start_index = cmfd_begin + interval
+             end_index = n_inactive
           ! If three entries, then they specify the start, end and interval
           else if (n_cmfd_resets == 3) then
              start_index = int_array(1)
