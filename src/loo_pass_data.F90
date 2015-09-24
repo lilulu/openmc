@@ -1,6 +1,6 @@
 module loo_pass_data
 
-  use global,         only: cmfd, keff, current_batch
+  use global,         only: cmfd, keff, current_batch, entropy_s_old
   use iso_c_binding,  only: c_int, c_double, c_loc
   use, intrinsic :: ISO_FORTRAN_ENV
 
@@ -60,7 +60,8 @@ contains
     albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
-    src_old = cmfd % openmc_src_old
+    ! src_old = cmfd % openmc_src_old
+    src_old = entropy_s_old
     totalxs = cmfd % totalxs
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs

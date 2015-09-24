@@ -324,7 +324,8 @@ contains
                         cmfd % cmfd_src(g, i, j, k), &
                         cmfd % loo_src(g, i, j, k), &
                         entropy_p(g, i, j, k), &
-                        cmfd % openmc_src(g, i, j, k)
+                        cmfd % openmc_src(g, i, j, k), &
+                        entropy_s_old(g, i, j, k)
                 end do GROUP
              end do XLOOP
           end do YLOOP

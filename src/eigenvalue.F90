@@ -592,9 +592,25 @@ contains
            m % dimension(3)))
     end if
 
-    ! count number of fission sites over mesh
+    if (.not. allocated(entropy_s)) then
+       allocate(entropy_s(1, m % dimension(1), m % dimension(2), &
+           m % dimension(3)))
+    end if
+
+    ! count number of fission sites in fission_bank over mesh
     call count_bank_sites(m, fission_bank, entropy_p, &
          size_bank=n_bank, sites_outside=sites_outside)
+
+    ! display warning message if there were sites outside entropy box
+    if (sites_outside) then
+      if (master) call warning("Fission source site(s) outside of entropy box.")
+    end if
+
+    ! count number of fission sites in source_bank over mesh, storing
+    ! an old copy as well
+    entropy_s_old = entropy_s
+    call count_bank_sites(m, source_bank, entropy_s, &
+         size_bank=n_particles, sites_outside=sites_outside)
 
     ! display warning message if there were sites outside entropy box
     if (sites_outside) then
@@ -605,6 +621,7 @@ contains
     if (master) then
       ! Normalize to total weight of bank sites
       entropy_p = entropy_p / sum(entropy_p)
+      entropy_s = entropy_s / sum(entropy_s)
 
       ent_idx = current_gen + gen_per_batch*(current_batch - 1)
       entropy(ent_idx) = ZERO

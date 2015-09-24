@@ -203,7 +203,9 @@ module global
   ! Shannon entropy
   logical :: entropy_on = .false.
   real(8), allocatable :: entropy(:)         ! shannon entropy at each generation
-  real(8), allocatable :: entropy_p(:,:,:,:) ! % of source sites in each cell
+  real(8), allocatable :: entropy_p(:,:,:,:) ! % of sites from fission_bank in each cell
+  real(8), allocatable :: entropy_s(:,:,:,:) ! % of sites from source_bank in each cell
+  real(8), allocatable :: entropy_s_old(:,:,:,:) ! % of sites from source_bank in each cell, lagged
   real(8) :: entropy_average = ONE           ! average entropy over active batches
   real(8) :: entropy_std                     ! standard deviation of average entropy
   type(StructuredMesh), pointer :: entropy_mesh
@@ -484,6 +486,8 @@ contains
     if (allocated(k_generation)) deallocate(k_generation)
     if (allocated(entropy)) deallocate(entropy)
     if (allocated(entropy_p)) deallocate(entropy_p)
+    if (allocated(entropy_s)) deallocate(entropy_s)
+    if (allocated(entropy_s_old)) deallocate(entropy_s_old)
 
     ! Deallocate tally-related arrays
     if (allocated(global_tallies)) deallocate(global_tallies)
@@ -508,6 +512,8 @@ contains
 #endif
     if (allocated(source_bank)) deallocate(source_bank)
     if (allocated(entropy_p)) deallocate(entropy_p)
+    if (allocated(entropy_s)) deallocate(entropy_s)
+    if (allocated(entropy_s_old)) deallocate(entropy_s_old)
 
     ! Deallocate array of work indices
     if (allocated(work_index)) deallocate(work_index)
