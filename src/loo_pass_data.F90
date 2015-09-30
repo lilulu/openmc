@@ -1,6 +1,7 @@
 module loo_pass_data
 
-  use global,         only: cmfd, keff, current_batch, entropy_s_old
+  use global,         only: cmfd, keff, current_batch, entropy_s_old, &
+       overall_gen, gen_per_batch, k_generation
   use iso_c_binding,  only: c_int, c_double, c_loc
   use, intrinsic :: ISO_FORTRAN_ENV
 
@@ -56,7 +57,15 @@ contains
     real (c_double) rms
 
     indices = cmfd % indices
-    k = keff
+
+    ! If a previous batch exists, take that keff
+    if (overall_gen - gen_per_batch >= 0) then
+       k = k_generation(overall_gen - gen_per_batch)
+    ! If this is the first batch, then we have to use this keff
+    else
+       k = k_generation(overall_gen)
+    end if
+
     albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
