@@ -11,7 +11,7 @@ module cmfd_execute
 
   implicit none
   private
-  public :: execute_cmfd, cmfd_init_batch
+  public :: execute_cmfd, cmfd_init_batch, print_fission_sources
 
 contains
 
@@ -286,16 +286,17 @@ contains
        ! Open files
        inquire(file = "fs.dat", exist = exist)
 
+       ! temporary debug: replaced cmfd_begin with 1 (remember Fortran is 1 indexed)
        if (exist) then
           ! In two cases we replace the file: either this is the first of
           ! a restart fun (which starts at restart_batch + 1), or that
           ! this is the first of the acceleration run (which starts at cmfd_begin)
-          if (((.not. restart_run) .and. (current_batch == cmfd_begin)) &
+          if (((.not. restart_run) .and. (current_batch == 1)) &
                .or. (restart_run .and. (current_batch == restart_batch + 1))) then
              open(unit = 2, file = "fs.dat", status = "replace", action = "write")
              ! If it is not one of the conditions where we replace, then we
              ! consider append to the file if acceleration is on.
-          elseif (current_batch > cmfd_begin) then
+          elseif (current_batch > 0) then
              open(unit = 2, file = "fs.dat", status = "old", position = "append", &
                   action = "write")
           end if
