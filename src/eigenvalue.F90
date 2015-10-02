@@ -593,7 +593,25 @@ contains
     end if
 
     if (.not. allocated(entropy_s)) then
+      if (.not. allocated(m % dimension)) then
+      ! If the user did not specify how many mesh cells are to be used in
+        ! each direction, we automatically determine an appropriate number of
+	! cells
+        n = ceiling((n_particles/20)**(ONE/THREE))
+
+        ! copy dimensions
+        m % n_dimension = 3
+	allocate(m % dimension(3))
+	m % dimension = n
+
+        ! determine width
+        m % width = (m % upper_right - m % lower_left) / m % dimension
+
+      end if
+
        allocate(entropy_s(1, m % dimension(1), m % dimension(2), &
+           m % dimension(3)))
+       allocate(entropy_s_old(1, m % dimension(1), m % dimension(2), &
            m % dimension(3)))
     end if
 
@@ -606,16 +624,9 @@ contains
       if (master) call warning("Fission source site(s) outside of entropy box.")
     end if
 
-    ! count number of fission sites in source_bank over mesh, storing
-    ! an old copy as well
-    entropy_s_old = entropy_s
-    call count_bank_sites(m, source_bank, entropy_s, &
-         size_bank=n_particles, sites_outside=sites_outside)
-
-    ! display warning message if there were sites outside entropy box
-    if (sites_outside) then
-      if (master) call warning("Fission source site(s) outside of entropy box.")
-    end if
+    ! count number of fission sites in source_bank over mesh
+    if (master) entropy_s_old = entropy_s
+    call count_bank_sites(m, source_bank, entropy_s)
 
     ! sum values to obtain shannon entropy
     if (master) then
