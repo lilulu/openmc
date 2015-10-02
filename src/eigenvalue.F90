@@ -4,7 +4,7 @@ module eigenvalue
   use message_passing
 #endif
 
-  use cmfd_execute, only: cmfd_init_batch, execute_cmfd
+  use cmfd_execute, only: cmfd_init_batch, execute_cmfd, print_fission_sources
   use constants,    only: ZERO
   use error,        only: fatal_error, warning
   use global
@@ -240,7 +240,13 @@ contains
     if (loo_tally) then
        if (master) call set_up_cmfd()
     end if
-    if (cmfd_on) call execute_cmfd()
+
+    ! Debug
+    if (cmfd_on) then
+       call execute_cmfd()
+    else
+       call print_fission_sources()
+    end if
 
     ! Display output
     if (master) call print_batch_keff()
