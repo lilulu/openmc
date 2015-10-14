@@ -229,7 +229,7 @@ contains
           ! interval-number of batches after acceleration is turned on. 
           if (n_cmfd_resets == 1) then
              interval = int_array(1)
-             start_index = cmfd_begin + interval
+             start_index = cmfd_begin
              end_index = n_inactive
           ! If three entries, then they specify the start, end and interval
           else if (n_cmfd_resets == 3) then
