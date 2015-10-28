@@ -607,18 +607,29 @@ contains
 
         ! copy dimensions
         m % n_dimension = 3
-	allocate(m % dimension(3))
-	m % dimension = n
+        allocate(m % dimension(3))
+        m % dimension = n
 
         ! determine width
         m % width = (m % upper_right - m % lower_left) / m % dimension
 
       end if
 
-       allocate(entropy_s(1, m % dimension(1), m % dimension(2), &
+      allocate(entropy_s(1, m % dimension(1), m % dimension(2), & 
            m % dimension(3)))
-       allocate(entropy_s_old(1, m % dimension(1), m % dimension(2), &
+      allocate(entropy_s_old(1, m % dimension(1), m % dimension(2), &
            m % dimension(3)))
+
+      ! initialize entropy_s to 1.0
+      ! FIXME: need to handle MPI
+      do i = 1, m % dimension(1)
+        do j = 1, m % dimension(2)
+          do k = 1, m % dimension(3)
+            entropy_s(1,i,j,k) = 1.0
+            entropy_s_old(1,i,j,k) = 1.0
+          end do
+        end do
+      end do
     end if
 
     ! count number of fission sites in fission_bank over mesh
