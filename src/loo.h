@@ -56,6 +56,7 @@ public:
     void normalize(double ratio);
     void printElement(std::string string, FILE* pfile);
     void zero();
+    void one();
     void copyTo(meshElement& destination);
     double sum();
 };
