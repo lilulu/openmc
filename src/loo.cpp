@@ -30,11 +30,11 @@
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
-               void *psxs, void *pcur, void *pqcur, void *pfs)
+               void *psxs, void *pp1sxs, void *pcur, void *pqcur, void *pfs)
 {
     /* set up loo object */
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
-                  ptxs, pfxs, psxs, pcur, pqcur, pfs);
+                  ptxs, pfxs, psxs, pp1sxs, pcur, pqcur, pfs);
 
     /* computes _quad_flux from _quad_current */
     loo.computeQuadFlux();
@@ -268,7 +268,8 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
  */
 Loo::Loo(int *indices, double *k, double* albedo,
          void *phxyz, void *pflx, void *ptso,
-         void *ptxs, void *pfxs, void *psxs, void *pcur, void *pqcur, void *pfs)
+         void *ptxs, void *pfxs, void *psxs, void *pp1sxs,
+         void *pcur, void *pqcur, void *pfs)
     : _nx(indices[0]),
       _ny(indices[1]),
       _nz(indices[2]),
@@ -306,6 +307,8 @@ Loo::Loo(int *indices, double *k, double* albedo,
       /* energyElement */
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
+      /* meshElement */
+      _p1_scatt_xs(_ng, _nx, _ny, _nz, pp1sxs),
       /* surfaceElement */
       _length(3, 1, _nx, _ny, _nz, phxyz),
       _area(3, 1, _nx, _ny, _nz),
@@ -811,6 +814,7 @@ void Loo::executeLoo(){
     _scalar_flux.printElement("scalar flux", _pfile);
     _total_xs.printElement("total xs", _pfile);
     _scatt_xs.printElement("scat xs", _pfile);
+    _p1_scatt_xs.printElement("p1 scat xs", _pfile);
     _nfiss_xs.printElement("fission xs", _pfile);
 
     /* loo iteration control */
@@ -859,11 +863,11 @@ void Loo::executeLoo(){
         eps = computeL2Norm(fission_source);
         computeK();
 
-        fprintf(_pfile, "k = %.7f, eps = %e\n", _k, eps);
+        //fprintf(_pfile, "k = %.7f, eps = %e\n", _k, eps);
 
         /* save _energy_integrated_fission_source into fission_source */
 	//_scalar_flux.printElement("phi", _pfile);
-	_energy_integrated_fission_source.printElement("fs", _pfile);
+	//_energy_integrated_fission_source.printElement("fs", _pfile);
         _energy_integrated_fission_source.copyTo(fission_source);
 
         /* check on convergence criteria */
