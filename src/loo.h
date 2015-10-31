@@ -230,10 +230,12 @@ public:
     /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
     void computeScalarFlux(meshElement sum_quad_flux, meshElement net_current);
 
-    /* normalize fission source, scalar flux, quad flux and leakage
-     * such that the average of mesh-cell energy-integrated fission
-     * source is old_avg */
-    void normalizationByEnergyIntegratedFissionSourceAvg(double old_avg);
+    /* normalize fission source, scalar flux, quad current (if
+     * initialization is set to be true) and leakage such that the
+     * average of mesh-cell energy-integrated fission source is
+     * old_avg */
+    void normalizationByEnergyIntegratedFissionSourceAvg(double old_avg,
+                                                         bool initialization);
 
     /* compute the L2 norm of relative change between the passed in
      * energy_integrated_fission_source variable (old fs from last
