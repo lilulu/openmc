@@ -250,7 +250,8 @@ public:
 
     // helper routines
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
-
+    void checkBalance();
+    
     double getRms();
     double getK();
 };

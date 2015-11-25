@@ -814,18 +814,19 @@ void Loo::computeQuadSourceFormFactor(){
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
     fprintf(_pfile, "data passed into LOO from openmc:\n");
-    fprintf(_pfile, "_k = %f\n", _k);
-    _scalar_flux.printElement("scalar flux", _pfile);
-    _total_xs.printElement("total xs", _pfile);
-    _scatt_xs.printElement("scat xs", _pfile);
-    _p1_scatt_xs.printElement("p1 scat xs", _pfile);
-    _nfiss_xs.printElement("fission xs", _pfile);
-    _current.printElement("current", _pfile);
-    _quad_current.printElement("quad current", _pfile);
-    _previous_fission_source.printElement("m-th fission source", _pfile);
-    _energy_integrated_fission_source.printElement("m+1/2-th fission source",
+    fprintf(_pfile, " _k = %f\n", _k);
+    _scalar_flux.printElement(" scalar flux", _pfile);
+    _total_xs.printElement(" total xs", _pfile);
+    _scatt_xs.printElement(" scat xs", _pfile);
+    _abs_xs.printElement(" abs xs", _pfile);
+    _p1_scatt_xs.printElement(" p1 scat xs", _pfile);
+    _nfiss_xs.printElement(" fission xs", _pfile);
+    _quad_current.printElement(" quad current", _pfile);
+    _previous_fission_source.printElement(" m-th fission source", _pfile);
+    _energy_integrated_fission_source.printElement(" m+1/2-th fission source",
                                                    _pfile);
-
+    checkBalance();
+    
     /* loo iteration control */
     int min_loo_iter, max_loo_iter;
     double eps, eps_converged;
@@ -1256,6 +1257,56 @@ void Loo::computeK(){
 
     _leakage *= SIN_THETA_45;
     _k = fission_total / (absorption_total + _leakage);
+
+    return;
+}
+
+void Loo::checkBalance(){
+    double fission, absorption, leakage, residual;
+
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                fission = _energy_integrated_fission_source.getValue(0, i, j, k);
+                absorption = 0;
+                leakage = 0;
+                for (int g = 0; g < _ng; g++) {
+                    absorption += _abs_xs.getValue(g, i, j, k)
+                        * _scalar_flux.getValue(g, i, j, k)
+                        * _volume.getValue(0, i, j, k);
+
+                    // computation of leakage from
+                    // _quad_current. Convention: _quad_current
+                    // leaving the cell is count as positive: 0,1,
+                    // 6,7, 8,9, 14,15
+                    leakage += _area.getValue(0, 0, i, j, k) *
+                        (_quad_current.getValue(0, g, i, j, k)
+                         + _quad_current.getValue(1, g, i, j, k)
+                         - _quad_current.getValue(2, g, i, j, k)
+                         - _quad_current.getValue(3, g, i, j, k)
+                         - _quad_current.getValue(4, g, i, j, k)
+                         - _quad_current.getValue(5, g, i, j, k)
+                         + _quad_current.getValue(6, g, i, j, k)
+                         + _quad_current.getValue(7, g, i, j, k));
+                    leakage += _area.getValue(1, 0, i, j, k) *
+                        (_quad_current.getValue(8, g, i, j, k)
+                         + _quad_current.getValue(9, g, i, j, k)
+                         - _quad_current.getValue(10, g, i, j, k)
+                         - _quad_current.getValue(11, g, i, j, k)
+                         - _quad_current.getValue(12, g, i, j, k)
+                         - _quad_current.getValue(13, g, i, j, k)
+                         + _quad_current.getValue(14, g, i, j, k)
+                         + _quad_current.getValue(15, g, i, j, k));
+
+                    residual = leakage + absorption - fission / _k;
+
+                    /* if residual is larger than a certain threshold,
+                     * print to screen */
+                    if (residual / absorption > 1e-4) {
+                        printf("warning: residual in cell (%d %d %d) is"
+                               " %e = %e + %e - %e. \n", i, j, k,
+                               residual, leakage, absorption, fission / _k);
+                    }}}}}
 
     return;
 }
