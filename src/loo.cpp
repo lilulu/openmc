@@ -143,14 +143,14 @@ void meshElement::normalize(double ratio) {
 
 /* print out every values in this data structure */
 void meshElement::printElement(std::string string, FILE* pfile){
-    fprintf(pfile, "%s \n", string.c_str());
+    fprintf(pfile, "%s, printed k, j, i, g \n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    fprintf(pfile, "(%d %d %d) g = %d: %13.8e \n",
-                            i, j, k, g, getValue(g, i, j, k));
-                        }}}}
+                    fprintf(pfile, "%13.8e, ", getValue(g, i, j, k));
+                }}}}
+    fprintf(pfile, "\n");
     return;
 
 }
@@ -172,17 +172,28 @@ double energyElement::getValue(int g2, int g1, int i, int j, int k) {
     return _value[index_f];
 }
 
+void energyElement::setValue(int g2, int g1, int i, int j, int k, double value) {
+    assert(i < _nx);
+    assert(j < _ny);
+    assert(k < _nz);
+    assert(g1 < _ng);
+    assert(g2 < _ng);
+    int index_f = g2 + g1 * _ng + i * _ng * _ng + j * _ng *  _ng * _nx
+        + k * _ng * _ng * _nx * _ny;
+    _value[index_f] = value;
+    return;
+}
+
 void energyElement::printElement(std::string string, FILE* pfile){
-    fprintf(pfile, "%s \n", string.c_str());
+    fprintf(pfile, "%s, printed in order of k, j, k, g1, g2\n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g1 = 0; g1 < _ng; g1++) {
                     for (int g2 = 0; g2 < _ng; g2++) {
-                        fprintf(pfile, "(%d %d %d) g1 = %d -> g2 = %d: %f \n",
-                                i, j, k, g1, g2,
-                                getValue(g1, g2, i, j, k));
+                        fprintf(pfile, "%f, ", getValue(g1, g2, i, j, k));
                     }}}}}
+    fprintf(pfile, "\n");
     return;
 
 }
@@ -247,20 +258,19 @@ void surfaceElement::normalize(double ratio) {
     return;
 }
 
-
 void surfaceElement::printElement(std::string string, FILE* pfile){
-    fprintf(pfile, "%s \n", string.c_str());
+    fprintf(pfile, "%s in the order k, j, i, g, s\n", string.c_str());
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        fprintf(pfile, "(%d %d %d) g = %d, s = %d: %f \n",
-                                i, j, k, g, s, getValue(s, g, i, j, k));
-                    }}}}}
+                        fprintf(pfile, "%f, ", getValue(s, g, i, j, k));
+                    }
+                    fprintf(pfile, "\n");
+                }}}}
     return;
 }
-
 
 /**
  * Constructor
@@ -364,7 +374,6 @@ void Loo::openLogFile() {
 
     return;
 }
-
 
 /* compute _area and _volume using _length */
 void Loo::computeAreaVolume() {
