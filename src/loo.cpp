@@ -861,7 +861,7 @@ void Loo::executeLoo(){
 
         /* compute new mesh-cell averaged scalar flux _scalar_flux
          * using LOO1 */
-        computeScalarFlux(sum_quad_flux, net_current);
+        computeScalarFlux(sum_quad_flux);
 
         /* normalize scalar fluxes, quad fluxes, and leakage, by
          * calling computeEnergyIntegratedFissionSource */
@@ -1179,7 +1179,7 @@ double Loo::getSurfaceArea(int t, int i, int j, int k, int e) {
 }
 
 /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
-void Loo::computeScalarFlux(meshElement sum_quad_flux, meshElement net_current){
+void Loo::computeScalarFlux(meshElement sum_quad_flux){
     double phi_ratio, phi;
 
     for (int k = 0; k < _nz; k++) {
@@ -1188,7 +1188,6 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux, meshElement net_current){
                 for (int g = 0; g < _ng; g++) {
                     phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
                         _sum_quad_flux.getValue(g, i, j, k);
-
                     phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
                     _scalar_flux.setValue(g, i, j, k, phi);
                 }}}}
