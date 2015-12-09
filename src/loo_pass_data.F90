@@ -60,17 +60,17 @@ contains
     indices = cmfd % indices
 
     ! If a previous batch exists, take that keff
-    if (overall_gen - gen_per_batch >= 0) then
-       k = k_generation(overall_gen - gen_per_batch)
+    !if (overall_gen - gen_per_batch >= 0) then
+    !   k = k_generation(overall_gen - gen_per_batch + 1)
     ! If this is the first batch, then we have to use this keff
-    else
+    !else
        k = k_generation(overall_gen)
-    end if
+    !end if
 
     albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
-    ! src_old = cmfd % openmc_src_old
+    !src_old = cmfd % openmc_src_old
     src_old = entropy_s_old
     totalxs = cmfd % totalxs
     nfissxs = cmfd % nfissxs
