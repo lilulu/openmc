@@ -26,7 +26,10 @@
 * SOFTWARE.
 */
 #include "loo.h"
-#define WT 4 * 3.141592653589793
+#define SIN_THETA_45 0.70710678118654746
+#define P0 0.798184
+#define WT 1.0
+#define REFERENCE 0
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
@@ -36,10 +39,22 @@ double new_loo(int *indices, double *k, double *albedo,
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
                   ptxs, pfxs, psxs, pp1sxs, pcur, pqcur, pfs);
 
+    /* Debug option: we can run the reference solution by reading in
+     * parameters */
+    if (REFERENCE) {
+        loo.readInReferenceParameters();
+    }
+    else {
+        /* divides scalar fluxes by volume, and currents by area */
+        loo.processFluxCurrent();
+    }
+
     /* normalizes all the tallied terms such that the
-     * energy-integrated FS average to be 1.0: _scalar_flux,
-     * _quad_current, _leakage, _energy_integrated_fission_source */
+     * energy-integrated FS average to be 1.0 */
     loo.normalizeTallies();
+
+    /* computes _abs_xs from _total_xs and _scatt_xs */
+    loo.processXs();
 
     /* computes _quad_flux from _quad_current */
     loo.computeQuadFlux();
@@ -342,8 +357,6 @@ Loo::Loo(int *indices, double *k, double* albedo,
     computeAreaVolume();
     computeTrackLength();
     generate2dTrack();
-    processFluxCurrent();
-    processXs();
 }
 
 /**
@@ -406,7 +419,7 @@ void Loo::computeTrackLength() {
                 y = _length.getValue(1, 0, i, j, k);
                 z = _length.getValue(2, 0, i, j, k);
                 _volume.setValue(0, i, j, k, x * y * z);
-                l = 0.5 * sqrt(x * x + y * y);
+                l = 0.5 * sqrt(x * x + y * y) / P0;
                 _track_length.setValue(0, i, j, k, l);
             }}}
 
@@ -635,6 +648,146 @@ void Loo::generate2dTracknxn() {
     return;
 }
 
+// Current parameters are from 1600 batches (200 inactive, 1400
+// actives), 1 million neutrons/batch.
+void Loo::readInReferenceParameters() {
+    //_k = 1.603247;
+    // use accumulative k:
+    _k = 1.6010266;
+    double scalar_flux[] = {2.75178692e-01, 6.87910606e-01, 8.47764532e-01,
+                            6.90994671e-01, 2.76188778e-01};
+    double total_xs[] = {7.27537498e-01, 7.27697558e-01, 7.27687836e-01,
+                         7.27697565e-01, 7.27557193e-01};
+    double p1_scatt_xs[] =  {8.65954974e-02, 8.65366952e-02, 8.65328784e-02,
+                             8.65346863e-02, 8.65831183e-02};
+    double scatt_xs[] = {0.699861, 0.700009,  0.700001, 0.700011,  0.699883};
+    double nfiss_xs[] = {0.044551, 0.044549, 0.044551, 0.044553, 0.044543};
+    double quad_current[] = {0.003936,
+                             0.003936,
+                             0.000000, 
+                             0.000000, 
+                             0.065730, 
+                             0.065730, 
+                             0.062639, 
+                             0.062614, 
+                             0.035554, 
+                             0.033243,
+                             0.035554, 
+                             0.033243, 
+                             0.035552, 
+                             0.033244, 
+                             0.035552, 
+                             0.033244, 
+                             0.065730, 
+                             0.065730, 
+                             0.062639, 
+                             0.062614, 
+                             0.102986, 
+                             0.102953, 
+                             0.101759, 
+                             0.101755, 
+                             0.086709, 
+                             0.085277, 
+                             0.086709, 
+                             0.085277, 
+                             0.086710, 
+                             0.085282, 
+                             0.086710, 
+                             0.085282, 
+                             0.102986, 
+                             0.102953, 
+                             0.101759, 
+                             0.101755, 
+                             0.102056, 
+                             0.102072, 
+                             0.103235, 
+                             0.103249, 
+                             0.105979, 
+                             0.105968, 
+                             0.105979, 
+                             0.105968, 
+                             0.105978, 
+                             0.105969, 
+                             0.105978, 
+                             0.105969, 
+                             0.102056, 
+                             0.102072, 
+                             0.103235, 
+                             0.103249, 
+                             0.062907, 
+                             0.062899, 
+                             0.066029, 
+                             0.066041, 
+                             0.085673, 
+                             0.087094, 
+                             0.085673, 
+                             0.087094, 
+                             0.085670, 
+                             0.087093, 
+                             0.085670, 
+                             0.087093, 
+                             0.062907, 
+                             0.062899, 
+                             0.066029, 
+                             0.066041, 
+                             0.000000, 
+                             0.000000, 
+                             0.003950, 
+                             0.003951, 
+                             0.033361, 
+                             0.035684, 
+                             0.033361, 
+                             0.035684, 
+                             0.033361, 
+                             0.035684, 
+                             0.033361, 
+                             0.035684};
+
+    double previous_fission_source[] =
+    // 1600
+    //{4.95283906e-01, 1.23809773e+00,1.52587146e+00, 1.24374032e+00, 4.97006583e-01};
+    // 1599
+    { 4.97615000e-01,1.24246500e+00,1.52140500e+00,1.24319000e+00,4.95325000e-01};
+
+    int c1 = 0, c2 = 0;
+    for (int k = 0; k < _nz; ++k) {
+        for (int j = 0; j < _ny; ++j) {
+            for (int i = 0; i < _nx; ++i) {
+                for (int g = 0; g < _ng; ++g) {
+                    _total_xs.setValue(g, i, j, k, total_xs[c1]);
+                    _p1_scatt_xs.setValue(g, i, j, k, p1_scatt_xs[c1]);
+                    _nfiss_xs.setValue(g, g, i, j, k, nfiss_xs[c1]);
+                    _scatt_xs.setValue(g, g, i, j, k, scatt_xs[c1]);
+                    _previous_fission_source.setValue(g, i, j, k,
+                                                      previous_fission_source[c1]);
+                    _scalar_flux.setValue(g, i, j, k, scalar_flux[c1]);
+                    _old_scalar_flux.setValue(g, i, j, k, scalar_flux[c1]);
+                    c1++;
+                    for (int s = 0; s < _ns_2d; ++s) {
+                        _quad_current.setValue(s, g, i, j, k, quad_current[c2]);
+                        c2++;
+                    }}}}}
+
+
+    // for generating CMFD parameters
+    double area, current, diffcof[_ng * _nx * _ny * _nz];
+    c1 = 0;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    diffcof[c1] = 1.0/ 3.0 /
+                        (_total_xs.getValue(g, i, j, k)
+                         - _p1_scatt_xs.getValue(g, i, j, k));
+                    //printf("%f, ", diffcof[c1]);
+                    c1++;
+                }}}}
+    //_area.printElement("area", _pfile);
+    return;
+}
+
+
+
 /* process _scalar_flux and _current: the openmc generated
  * _scalar_flux and _current are volume-integrated and
  * area-integrated respectively */
@@ -680,7 +833,7 @@ void Loo::processFluxCurrent() {
 
 /* compute absorption xs */
 void Loo::processXs() {
-    double abs_xs, scatt_xs;
+    double tot_xs, abs_xs, scatt_xs;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
@@ -689,8 +842,14 @@ void Loo::processXs() {
                     for (int g2 = 0; g2 < _ng; g2++) {
                         scatt_xs += _scatt_xs.getValue(g1, g2, i, j, k);
                     }
-                    abs_xs = _total_xs.getValue(g1, i, j, k) - scatt_xs;
+                    tot_xs = _total_xs.getValue(g1, i, j, k);
+                    abs_xs = tot_xs - scatt_xs;
                     _abs_xs.setValue(g1, i, j, k, abs_xs);
+                    /* DEBUG: attempted to subtract p1 scattering from
+                     * total, did not seem to make a difference for
+                     * small sample case */
+                    //_total_xs.setValue(g1, i, j,
+                    //k, tot_xs - _p1_scatt_xs.getValue(g1, i, j, k));
                 }}}}
     return;
 }
@@ -715,8 +874,10 @@ void Loo::normalizeTallies() {
     }
     else {
       sum = _previous_fission_source.sum();
-      factor = (double) (_nx * _ny * _nz) / sum;
+      factor = (double) ( _nx * _ny * _nz) / sum;
       _previous_fission_source.normalize(factor);
+      // DEBUG
+      for (int i = 0; i < 5; i++) _previous_fission_source.setValue(0, i, 0, 0, 1.0);
     }
 
     /* compute fission source generated by MC. */
@@ -736,7 +897,7 @@ void Loo::computeQuadFlux(){
                             /* FIXME: change sin 45 to reflect
                              * rectangular cell */
                             _quad_current.getValue(s, g, i, j, k) /
-                            SIN_THETA_45);
+                            SIN_THETA_45 * P0);
 
                         /* store _quad_flux into _old_quad_flux. This
                          * is because we need a copy of the _quad_flux
@@ -751,10 +912,13 @@ void Loo::computeQuadFlux(){
  * track and the sum of the eight quadrature fluxes in each mesh
  * cell */
 void Loo::computeQuadSourceFormFactor(){
-    double xs, l, ex, src, src_form_factor, sum_quad_flux, out, in, fs;
+    double xs, l, ex, src, src_form_factor, sum_quad_flux, out, in, fs, quad_src_total;
     double scattering_source;
     int in_index[] = {13, 5, 4, 11, 10, 2, 3, 12};
     int out_index[] = {6, 14, 8, 7, 1, 9, 15, 0};
+
+    // debug
+    computeEnergyIntegratedFissionSource();
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -768,7 +932,9 @@ void Loo::computeQuadSourceFormFactor(){
                     if (xs < 1e-5) {
                         printf("(%d %d %d) g = %d has tiny xs %f,"
                                "this would cause infinite src.\n",
-                               i, j, k, g, xs);}
+                               i, j, k, g, xs);
+                    }
+
                     ex = exp(-xs * l);
 
                     /* computes m+1/2 scattering source */
@@ -1206,10 +1372,15 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
     /* compute normalization factor such that the energy-integrated
      * fission source average is avg */
     ratio = avg / computeEnergyIntegratedFissionSource();
-
+    // FIXME: this ratio is consistently 0.999017 for some reason 
+    
     /* normalize fission source, scalar flux, quad flux, and leakage */
     _energy_integrated_fission_source.normalize(ratio);
     _scalar_flux.normalize(ratio);
+
+    // FIXME: this seems to make a small difference
+    _quad_flux.normalize(ratio);
+    
     if (initialization) {
         _quad_current.normalize(ratio);
         _current.normalize(ratio);
@@ -1255,7 +1426,7 @@ void Loo::computeK(){
                             * _volume.getValue(0, i, j, k);
                 }}}}
 
-    _leakage *= SIN_THETA_45;
+    _leakage *= SIN_THETA_45 * P0;
     _k = fission_total / (absorption_total + _leakage);
 
     return;
@@ -1304,8 +1475,8 @@ void Loo::checkBalance(){
                      * print to screen */
                     if (residual / absorption > 1e-4) {
                         printf("warning: residual in cell (%d %d %d) is"
-                               " %e = %e + %e - %e. \n", i, j, k,
-                               residual, leakage, absorption, fission / _k);
+                               " %e = %e + %e - %e / %e. \n", i, j, k,
+                               residual, leakage, absorption, fission,  _k);
                     }}}}}
 
     return;

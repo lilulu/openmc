@@ -35,8 +35,6 @@
 #include <math.h>
 #include <time.h>       /* time_t, time, ctime */
 
-#define SIN_THETA_45 0.70710678118654746
-#define P0 0.798184
 #define FOUR_PI 12.566370614359172
 #define TWO_PI 6.283185307179586
 #define ONE_OVER_FOUR_PI 0.07957747154594767
@@ -142,6 +140,7 @@ private:
     surfaceElement _quad_flux;
     surfaceElement _old_quad_flux;
     surfaceElement _quad_src_form_factor;
+    surfaceElement _quad_src_total;
     FILE* _pfile;
 
 public:
@@ -249,6 +248,7 @@ public:
     void computeK();
 
     // helper routines
+    void readInReferenceParameters();
     void verifyPartialCurrent(surfaceElement element1, surfaceElement element2);
     void checkBalance();
     
