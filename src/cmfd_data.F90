@@ -31,6 +31,9 @@ contains
     ! Calculate all cross sections based on reaction rates from last batch
     call compute_xs()
 
+    ! DEBUG: read in reference parameter
+    !call read_in_reference_parameters()
+    
     ! Compute effective downscatter cross section
     if (cmfd_downscatter) call compute_effective_downscatter()
 
@@ -419,6 +422,153 @@ contains
   end subroutine compute_xs
 
 !===============================================================================
+! READ_IN_REFERENCE_PARAMETERS overrite the cross sections by compute_xs()
+!===============================================================================
+
+  subroutine read_in_reference_parameters()
+
+    use constants,    only: FILTER_MESH, FILTER_ENERGYIN, FILTER_ENERGYOUT,     &
+         FILTER_SURFACE, IN_RIGHT, OUT_RIGHT, IN_FRONT,      &
+         OUT_FRONT, IN_TOP, OUT_TOP, CMFD_NOACCEL, ZERO,     &
+         ONE, TINY_BIT
+    use error,        only: fatal_error
+    use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,&
+         matching_bins, keff, k_generation, overall_gen
+    use string,       only: to_str
+    use output,       only: write_message
+
+    integer :: nx            ! number of mesh cells in x direction
+    integer :: ny            ! number of mesh cells in y direction
+    integer :: nz            ! number of mesh cells in z direction
+    integer :: ng            ! number of energy groups
+    integer :: i             ! iteration counter for x
+    integer :: j             ! iteration counter for y
+    integer :: k             ! iteration counter for z
+    integer :: h             ! iteration counter for energy group
+    integer :: s             ! iteration counter for surfaces
+    integer :: index, index2
+
+    real(8), dimension(5) :: flux, totalxs, diffcof, p1scattxs, scattxs, nfissxs, openmc_src_old
+    real, dimension(60) :: current
+    real, dimension(80) :: quad_current
+
+    ! Extract spatial and energy indices from object
+    nx = cmfd % indices(1)
+    ny = cmfd % indices(2)
+    nz = cmfd % indices(3)
+    ng = cmfd % indices(4)
+
+    ! 1600 accumulative
+    !openmc_src_old = (/20.00946978,50.01914821,61.6452071,  50.24710895,20.07906596/)
+    ! 1599 accumulative
+    !openmc_src_old = (/20.00938615,50.01906419,61.64531903, 50.24722875,20.07900187/)
+    ! 1600 instantaneous
+    openmc_src_old = (/20.12822465,50.13844508,61.48626686, 50.07699843,20.17006497/)
+    ! 1599 instantaneous
+    !openmc_src_old = (/20.103646,  50.195586,  61.464762,   50.224876,  20.01113/)
+
+    flux = (/11.11721916, 27.79158848,  34.24968709,  27.91618471,  11.15802663 /)
+    totalxs = (/ 7.27537498d-01, 7.27697558d-01, 7.27687836d-01, 7.27697565d-01, 7.27557193d-01/)
+    p1scattxs = (/8.65954974d-02, 8.65366952d-02, 8.65328784d-02, 8.65346863d-02, 8.65831183d-02/)
+    scattxs = (/ 0.699861, 0.700009,  0.700001, 0.700011,  0.699883 /)
+    nfissxs = (/0.044551, 0.044549, 0.044551, 0.044553, 0.044543/)
+    current = (/7.87300000d-03,   0.00000000d+00,   1.31460000d-01, &
+         1.25253000d-01,   2.77939880d+00,   2.77939880d+00, &
+         2.77931800d+00,   2.77931800d+00,   2.77919680d+00, &
+         2.77919680d+00,   2.77923720d+00,   2.77923720d+00, &
+         1.31460000d-01,   1.25253000d-01,   2.05939000d-01, &
+         2.03514000d-01,   6.94823440d+00,   6.94823440d+00, &
+         6.94847680d+00,   6.94847680d+00,   6.94831520d+00, &
+         6.94831520d+00,   6.94851720d+00,   6.94851720d+00, &
+         2.05939000d-01,   2.03514000d-01,   2.04128000d-01, &
+         2.06484000d-01,   8.56265880d+00,   8.56265880d+00, &
+         8.56265880d+00,   8.56265880d+00,   8.56290120d+00, &
+         8.56290120d+00,   8.56310320d+00,   8.56310320d+00, &
+         2.04128000d-01,   2.06484000d-01,   1.25805000d-01, &
+         1.32071000d-01,   6.97982720d+00,   6.97982720d+00, &
+         6.97962520d+00,   6.97962520d+00,   6.97962520d+00, &
+         6.97962520d+00,   6.97958480d+00,   6.97958480d+00, &
+         1.25805000d-01,   1.32071000d-01,   0.00000000d+00, &
+         7.90100000d-03,   2.78937760d+00,   2.78937760d+00, &
+         2.78941800d+00,   2.78941800d+00,   2.78945840d+00, &
+         2.78945840d+00,   2.78949880d+00,   2.78949880d+00/)
+    quad_current = (/3.93600000d-03,   3.93600000d-03,   0.00000000d+00,&
+         0.00000000d+00,   6.57300000d-02,   6.57300000d-02, &
+         6.26390000d-02,   6.26140000d-02,   1.43638160d+00, &
+         1.34301720d+00,   1.43638160d+00,   1.34301720d+00, &
+         1.43630080d+00,   1.34305760d+00,   1.43630080d+00, &
+         1.34305760d+00,   6.57300000d-02,   6.57300000d-02, &
+         6.26390000d-02,   6.26140000d-02,   1.02986000d-01, &
+         1.02953000d-01,   1.01759000d-01,   1.01755000d-01, &
+         3.50304360d+00,   3.44519080d+00,   3.50304360d+00, &
+         3.44519080d+00,   3.50308400d+00,   3.44539280d+00, &
+         3.50308400d+00,   3.44539280d+00,   1.02986000d-01, &
+         1.02953000d-01,   1.01759000d-01,   1.01755000d-01, &
+         1.02056000d-01,   1.02072000d-01,   1.03235000d-01, &
+         1.03249000d-01,   4.28155160d+00,   4.28110720d+00, &
+         4.28155160d+00,   4.28110720d+00,   4.28151120d+00, &
+         4.28114760d+00,   4.28151120d+00,   4.28114760d+00, &
+         1.02056000d-01,   1.02072000d-01,   1.03235000d-01, &
+         1.03249000d-01,   6.29070000d-02,   6.28990000d-02, &
+         6.60290000d-02,   6.60410000d-02,   3.46118920d+00, &
+         3.51859760d+00,   3.46118920d+00,   3.51859760d+00, &
+         3.46106800d+00,   3.51855720d+00,   3.46106800d+00, &
+         3.51855720d+00,   6.29070000d-02,   6.28990000d-02, &
+         6.60290000d-02,   6.60410000d-02,   0.00000000d+00, &
+         0.00000000d+00,   3.95000000d-03,   3.95100000d-03, &
+         1.34778440d+00,   1.44163360d+00,   1.34778440d+00, &
+         1.44163360d+00,   1.34778440d+00,   1.44163360d+00, &
+         1.34778440d+00,   1.44163360d+00/)
+
+    ! cmfd % keff_bal =  1.6010266
+    k_generation(overall_gen) =  1.6010266
+
+    ! Begin loop around space
+    ZLOOP: do k = 1,nz
+
+       YLOOP: do j = 1,ny
+
+          XLOOP: do i = 1,nx
+
+             ! Check for active mesh cell
+             if (allocated(cmfd%coremap)) then
+                if (cmfd%coremap(i,j,k) == CMFD_NOACCEL) then
+                   cycle
+                end if
+             end if
+
+             ! Loop around energy groups
+             OUTGROUP: do h = 1,ng
+
+                index = i;
+                cmfd % flux(h, i, j, k) = flux(index);
+                cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(totalxs(index) - p1scattxs(index)))
+                cmfd % totalxs(h, i, j, k) = totalxs(index);
+                cmfd % p1scattxs(h, i, j, k) = p1scattxs(index);
+                cmfd % scattxs(h, h, i, j, k) = scattxs(index);
+                cmfd % nfissxs(h, h, i, j, k) = nfissxs(index);
+                cmfd % openmc_src_old(h, i, j, k) = openmc_src_old(index);
+                do s = 1, 12
+                   index2 = (index - 1) * 12 + s;
+                   cmfd % current(s, h, i, j, k) = current(index2);
+                end do
+                do s = 1, 16
+                   index2 = (index - 1) * 16 + s;
+                   cmfd % quad_current(s, h, i, j, k) = quad_current(index2)
+                end do
+             end do OUTGROUP
+
+          end do XLOOP
+
+       end do YLOOP
+
+    end do ZLOOP
+
+    cmfd % openmc_src_old = cmfd % openmc_src_old / sum (cmfd % openmc_src_old) * (nx * ny * nz)
+
+  end subroutine read_in_reference_parameters
+
+!===============================================================================
 ! SET_COREMAP is a routine that sets the core mapping information
 !===============================================================================
 
@@ -486,7 +636,8 @@ contains
   subroutine neutron_balance()
 
     use constants,    only: ONE, ZERO, CMFD_NOACCEL, CMFD_NORES
-    use global,       only: cmfd, keff, k_generation, current_batch, cmfd_rebalance
+    use global,       only: cmfd, keff, k_generation, current_batch, &
+         cmfd_rebalance, overall_gen
 
     integer :: nx           ! number of mesh cells in x direction
     integer :: ny           ! number of mesh cells in y direction
@@ -505,6 +656,7 @@ contains
     real(8) :: scattering   ! scattering term in neutron balance
     real(8), allocatable :: fission(:)      ! fission term in neutron balance
     real(8) :: total_fission
+    real(8) :: construction, destruction
     real(8) :: res          ! residual of neutron balance for whole geometry
     real(8) :: rms          ! RMS of the residual
     real(8) :: flux1             ! group 1 volume int flux
@@ -537,6 +689,9 @@ contains
     rms = ZERO
     cnt = 0
 
+    construction = 0
+    destruction = 0
+    
     ! Begin loop around space and energy groups
     ZLOOP: do k = 1, nz
 
@@ -607,17 +762,19 @@ contains
 
              ! Get scattering and fission
              scattering = ZERO
-             GROUPH2: do h = 1, ng
+             GROUPH3: do h = 1, ng
 
                 scattering = scattering + cmfd % scattxs(h,g,i,j,k) * &
                      cmfd % flux(h,i,j,k)
-
-             end do GROUPH2
-
+             end do GROUPH3
+             
              ! Compute residual
              res = leakage(g) + interactions - scattering - &
-                  & (ONE / keff) * fission(g)
-             ! write(OUTPUT_UNIT, FMT='(" res_bef =", ES9.2  )') res
+                  & (ONE /   k_generation(overall_gen)) * fission(g)
+             ! DEBUG
+             !write(OUTPUT_UNIT, FMT='(" res_bef =",ES14.6,ES14.6,ES14.6,ES14.6,ES14.6)') &
+             !     res, leakage(g), interactions- scattering, fission(g), &
+             !     k_generation(overall_gen)
              ! Normalize by flux
              res = res / cmfd % flux(g,i,j,k)
              
@@ -628,6 +785,10 @@ contains
              rms = rms + res ** 2
              cnt = cnt + 1
              ! write(OUTPUT_UNIT, FMT='("res_aft =", ES9.2  )') res
+
+             ! accumulate into total counters
+             destruction = destruction + leakage(g) + interactions - scattering
+             construction = construction + fission(g)
           end do GROUPG2
 
         end do XLOOP
@@ -635,6 +796,10 @@ contains
       end do YLOOP
 
     end do ZLOOP
+
+    ! DEBUG: print out k constructed from given NDA parameters
+    !write(OUTPUT_UNIT, FMT='(" NDA parameters produce k = ",ES14.6)') &
+    !     construction / destruction
 
     ! Calculate RMS and record in vector for this batch
     cmfd % balance(current_batch) = sqrt(ONE/dble(cnt)*rms)
