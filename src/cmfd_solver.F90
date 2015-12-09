@@ -191,7 +191,7 @@ contains
     
     use constants,  only: ONE
     use error,      only: fatal_error
-    use global,     only: cmfd, cmfd_atoli, cmfd_rtoli
+    use global,     only: cmfd, cmfd_atoli, cmfd_rtoli, k_generation, overall_gen
     use string,     only: to_str
 
     integer :: i ! iteration counter
@@ -208,6 +208,14 @@ contains
     k_oo = 1.0
     k_o = 1.0
     k_n = 1.0
+
+    ! Debug: start with reference k:
+    !k_lo = k_generation(overall_gen)
+    !do i = 1, cmfd % indices(1)
+    !   phi_o % val(i) = cmfd % flux(1, i, 1, 1)
+    !   s_o % val(i) = cmfd % openmc_src_old(1, i, 1, 1)
+    !end do
+
     ! Reset convergence flag
     iconv = .false.
 
@@ -219,8 +227,8 @@ contains
     ! Perform shift
     call wielandt_shift()
     totalits = 0
-    imax = 20000
-    
+
+    imax = 10000
     ! Begin power iteration
     do i = 1, imax
 
@@ -233,7 +241,15 @@ contains
       end if
 
       ! Compute source vector
+      ! DEBUG: comment out if we want to take in a b^0
       call prod % vector_multiply(phi_o, s_o)
+
+      ! FIXME: added normalization
+      s_o % val = s_o % val / (sum(s_o % val)) &
+           * cmfd % indices(1) * cmfd % indices(2) * cmfd % indices(3)
+
+      ! DEBUG: print out s_o for examination
+      ! write(OUTPUT_UNIT,*) s_o%val(1), s_o%val(2), s_o%val(3), s_o%val(4), s_o%val(5)
 
       ! Normalize source vector
       s_o % val = s_o % val / k_lo
@@ -258,7 +274,7 @@ contains
       k_n = ONE/(ONE/k_ln + ONE/k_s)
 
       ! Debug block: compute and print out estimate for dominance rate
-      ! (dr) by comparing successive iteration eigenvalue: 
+      ! (dr) by comparing successive iteration eigenvalue:
       if (.false. .and. (abs(k_oo - k_o) > 1e-10)) then
          dr = (k_o - k_n) / (k_oo - k_o)
          write(OUTPUT_UNIT,*) i, innerits, k_oo, k_o, k_n, dr
@@ -360,6 +376,7 @@ contains
 !===============================================================================
 
   subroutine cmfd_linsolver_1g(A, b, x, tol, its)
+    use, intrinsic :: ISO_FORTRAN_ENV
 
     use constants,  only: ONE, ZERO
     use error,      only: fatal_error
