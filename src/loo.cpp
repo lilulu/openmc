@@ -342,6 +342,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _quad_src_form_factor(_nt, _ng, _nx, _ny, _nz),
+      _quad_src_total(_nt, _ng, _nx, _ny, _nz),
       _pfile(NULL)
 {
     //printf("albedos: %d %d %d %d %d %d\n", _albedo[0], _albedo[1], _albedo[2],
@@ -949,7 +950,17 @@ void Loo::computeQuadSourceFormFactor(){
                     for (int t = 0; t < _nt; t++) {
                         in = _quad_flux.getValue(in_index[t], g, i, j, k);
                         out = _quad_flux.getValue(out_index[t], g, i, j, k);
-                        src = xs * (out - ex * in) / (1.0 - ex) - fs / (WT * _k);
+                        quad_src_total = xs * (out - ex * in) / (1.0 - ex);
+                        src = quad_src_total * _volume.getValue(0, i, j, k)  - fs / ( WT * _k);
+                        src_form_factor = src / scattering_source;
+                        //src = quad_src_total * _volume.getValue(0, i, j, k);
+                        //src_form_factor = src / (scattering_source +
+                        //     _energy_integrated_fission_source.getValue(0, i, j, k)
+                        //                         / (WT *_k));
+                        
+                        _quad_src_form_factor.setValue(t, g, i, j, k,
+                                                       src_form_factor);
+
                         /* Debug: print out if negative quad src is *
                          generated. -1e-5 is used as the cutoff
                          because it looks like at least early on there
@@ -958,17 +969,12 @@ void Loo::computeQuadSourceFormFactor(){
                             printf("A negative scattering quad src %e is "
                                    "generated for (%d %d %d) group %d "
                                    "track %d, out = %f, total src = %f, fs = %f, k = %f\n",
-                                   src, i, j, k, g, t, out,
-                                   xs * (out - ex * in) / (1.0 - ex),
-                                   fs, _k);
+                                   src, i, j, k, g, t, out, quad_src_total, fs, _k);
                         }
-                        src_form_factor = src / scattering_source;
-                        _quad_src_form_factor.setValue(t, g, i, j, k,
-                                                       src_form_factor);
 
                         /* sum of quad flux uses lagged fission source */
-                        sum_quad_flux += (src + fs / (WT * _k)) / xs
-                            + (in - out) / (xs * l);
+                        sum_quad_flux += quad_src_total / xs + (in - out) / (xs * l);
+                        _quad_src_total.setValue(t,g, i, j, k, quad_src_total);
                     }
                     _sum_quad_flux.setValue(g, i, j, k, sum_quad_flux);
                 }}}}
@@ -1151,10 +1157,12 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                     fission_source *= _volume.getValue(0, i, j, k);
 
                     _fission_source.setValue(g1, i, j, k, fission_source);
+                    
                     for (int t = 0; t < _nt; t++) {
-                        total_source = fission_source / (WT * _k)
-                            + scattering_source *
-                            _quad_src_form_factor.getValue(t, g1, i, j, k);
+                        total_source = (scattering_source *
+                                        _quad_src_form_factor.getValue(t, g1, i, j, k) 
+                                        + fission_source / (WT * _k) )
+                            / _volume.getValue(0, i, j, k);
                         quad_src.setValue(t, g1, i, j, k, total_source);
                     }}}}}
     return;
