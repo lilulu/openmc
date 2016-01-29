@@ -251,7 +251,9 @@ contains
     end if
 
 #else
-    sites_outside = outside
+    if (present(sites_outside)) then
+       sites_outside = outside
+    end if
 #endif
 
   end subroutine count_bank_sites
