@@ -15,13 +15,19 @@ openmc.egg-info/
 # OpenMC executable
 src/openmc
 src/bin
+bin/
 
-# generated files?
+# generated files
 src/CMakeFiles/
 src/CMakeCache.txt
 src/CTestTestfile.cmake
 src/DartConfiguration.tcl
 src/cmake_install.cmake
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+DartConfiguration.tcl
+cmake_install.cmake
 
 # Inputs generated from Python API
 examples/python/**/*.xml
@@ -57,13 +63,6 @@ tests/ctestscript.run
 # HDF5 files
 *.h5
 
-# Build files
-src/CMakeCache.txt
-src/CMakeFiles/
-src/bin/
-src/cmake_install.cmake
-src/install_manifest.txt
-
 # Data downloaded from NNDC
 data/nndc
 data/293.6K
@@ -71,6 +70,7 @@ data/tsl
 
 # Makefile
 src/Makefile
+Makefile
 
 #Images
 *.ppm
