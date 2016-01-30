@@ -210,9 +210,13 @@ contains
       end do ZLOOP
 
       ! Normalize source such that it sums to 1.0
-      cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)
-      cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src)
-
+      if (sum(cmfd % cmfd_src) > 1e-5) then 
+         cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)
+      end if
+      if (sum(cmfd % loo_src) > 1e-5) then 
+         cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src)
+      end if
+      
       ! Compute entropy
       if (entropy_on) then
 
@@ -227,6 +231,8 @@ contains
         ! Compute log
         where (cmfd % cmfd_src > ZERO)
            source = cmfd % cmfd_src*log(cmfd % cmfd_src)/log(TWO)
+        end where
+        where (cmfd % loo_src > ZERO)
            loo_src = cmfd % loo_src*log(cmfd % loo_src)/log(TWO)
         end where
 
