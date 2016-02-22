@@ -26,9 +26,8 @@
 * SOFTWARE.
 */
 #include "loo.h"
-#define SIN_THETA_45 1.0//0.70710678118654746
+#define SIN_THETA_45 1.0//0.9996937981813316//0.70710678118654746
 #define P0 1.0//0.798184
-#define WT 1.0
 #define WT_Q 8.0
 #define REFERENCE 0
 
@@ -950,7 +949,7 @@ void Loo::computeQuadFlux(){
  * cell */
 void Loo::computeQuadSourceFormFactor(){
     double xs, l, ex, src, src_form_factor, sum_quad_flux, out, in, fs, quad_src_total;
-    double scattering_source;
+    double scattering_source, fission_source;
     int in_index[] = {13, 5, 4, 11, 10, 2, 3, 12};
     int out_index[] = {6, 14, 8, 7, 1, 9, 15, 0};
 
@@ -963,7 +962,8 @@ void Loo::computeQuadSourceFormFactor(){
                 for (int g = 0; g < _ng; g++) {
                     sum_quad_flux = 0;
                     l = _track_length.getValue(0, i, j, k);
-                    fs = _previous_fission_source.getValue(g, i, j, k);
+                    fs = _previous_fission_source.getValue(g, i, j, k)
+                        / _volume.getValue(0, i, j, k);
                     xs = _total_xs.getValue(g, i, j, k);
                     /* Debug */
                     if (xs < 1e-5) {
@@ -976,19 +976,16 @@ void Loo::computeQuadSourceFormFactor(){
 
                     /* computes m+1/2 scattering source */
                     scattering_source = 0;
+                    fission_source = 0;
                     for (int g2 = 0; g2 < _ng; g2++) {
                         scattering_source +=
                             _scatt_xs.getValue(g2, g, i, j, k)
                             * _scalar_flux.getValue(g2, i, j, k);
+                        fission_source += _nfiss_xs.getValue(g2, g, i, j, k)
+                            * _scalar_flux.getValue(g2, i, j, k);
                     }
-                    scattering_source *= _volume.getValue(0, i, j, k);
 
-                    //src = fs * (_scatt_xs.getValue(g, g, i, j, k) /
-                    //            _nfiss_xs.getValue(g, g, i, j, k));
-                    //printf("scattering source %f\n", src / scattering_source);
-                    src = scattering_source;
-
-                    src = (src + fs * 1 / _k) / _volume.getValue(0, i, j, k);
+                    src = scattering_source + fs / _k;
 
                     double total = 0;
                     for (int t = 0; t < _nt; t++) {
@@ -1017,9 +1014,12 @@ void Loo::computeQuadSourceFormFactor(){
                         sum_quad_flux += quad_src_total / xs + (in - out) / (xs * l);
                         _quad_src_total.setValue(t,g, i, j, k, quad_src_total);
                     }
-                    printf(" total = %f\n", total);
+
                     _sum_quad_flux.setValue(g, i, j, k, sum_quad_flux);
-                }}}}
+                }
+            }
+        }
+    }
 
     _quad_src_form_factor.printElement("m+1/2 qs form factor", _pfile);
     _sum_quad_flux.printElement("m+1/2 sum quad flux", _pfile);
@@ -1183,13 +1183,13 @@ double Loo::computeEnergyIntegratedFissionSource() {
 
 /* compute quad_src for low-order iteration $l$ */
 void Loo::computeQuadSource(surfaceElement& quad_src) {
-    double scattering_source, fission_source, total_source;
+    double scattering_source, fission_source, total_source, quad_source;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                //printf("cell %d: ", i);
                 for (int g1 = 0; g1 < _ng; g1++) {
                     /* initialize source for this mesh this energy to be zero */
+                    /* notice the two sources are not volume-integrated */
                     scattering_source = 0;
                     fission_source = 0;
 
@@ -1202,22 +1202,18 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
 
-                    scattering_source *= _volume.getValue(0, i, j, k);
-                    fission_source *= _volume.getValue(0, i, j, k);
-
-                    _fission_source.setValue(g1, i, j, k, fission_source);
-
+                    total_source = scattering_source + fission_source / _k;
+                    /* _fission_source contains volume, _total_source
+                     * does not contain volume */
+                    _fission_source.setValue(g1, i, j, k, fission_source
+                                             * _volume.getValue(0, i, j, k));
+                    _total_source.setValue(g1, i, j, k, total_source);
+                        
                     for (int t = 0; t < _nt; t++) {
-                        //total_source = (scattering_source *
-                        //               _quad_src_form_factor.getValue(t, g1, i, j, k) 
-                        //               + fission_source /  _k )
-                        //   / _volume.getValue(0, i, j, k);
-                        total_source = _quad_src_form_factor.getValue(t, g1, i, j, k)
-                            / WT_Q
-                            * (scattering_source + fission_source / _k)
-                            / _volume.getValue(0, i, j, k);
+                        quad_source = _quad_src_form_factor.getValue(t, g1, i, j, k)
+                            / WT_Q * total_source;
 
-                        quad_src.setValue(t, g1, i, j, k, total_source);
+                        quad_src.setValue(t, g1, i, j, k, quad_source);
 
                         //printf("%f ", quad_src.getValue(t, g1, i, j, k) /
                         //       _quad_src_total.getValue(t, g1, i, j, k));
@@ -1452,11 +1448,22 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
-                        _sum_quad_flux.getValue(g, i, j, k);
-                    phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
+                    // initial LOO1 formulation
+                    if (true) {
+                        phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
+                            _sum_quad_flux.getValue(g, i, j, k);
+                        phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
+                    }
+                    else {
+                        phi = 0.25 * PI * sum_quad_flux.getValue(g, i, j, k);
+                    }
+                    
+                    fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
+                           i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
                     _scalar_flux.setValue(g, i, j, k, phi);
                 }}}}
+    return;
+}
 
     return;
 }
