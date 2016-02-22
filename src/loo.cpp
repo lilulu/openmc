@@ -1481,6 +1481,7 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
      * current because quad flux has not been computed yet; after
      * initialization, we normalize quad flux */
     if (initialization) {
+        _old_scalar_flux.normalize(ratio);
         _quad_current.normalize(ratio);
         _current.normalize(ratio);
     }
