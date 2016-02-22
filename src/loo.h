@@ -246,8 +246,10 @@ public:
        start point (e = 0) or end point (e = 1) */
     double getSurfaceArea(int t, int i, int j, int k, int e);
 
-    /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO1 */
+    /* compute new mesh-cell averaged scalar flux _scalar_flux using
+     * LOO1, LOO2, respectively */
     void computeScalarFlux(meshElement sum_quad_flux);
+    void computeScalarFlux2(meshElement net_current);
 
     /* normalize fission source, scalar flux, quad current (if
      * initialization is set to be true) and leakage such that the
