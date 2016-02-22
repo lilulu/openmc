@@ -157,6 +157,11 @@ void meshElement::normalize(double ratio) {
     return;
 }
 
+void meshElement::normalize(int g, int i, int j, int k, double ratio) {
+    setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
+    return;
+}
+
 /* print out every values in this data structure */
 void meshElement::printElement(std::string string, FILE* pfile){
     fprintf(pfile, "%s, printed k, j, i, g \n", string.c_str());
@@ -267,6 +272,23 @@ void surfaceElement::setValue(int s, int g, int i, int j, int k, double value) {
     return;
 }
 
+void surfaceElement::normalize(double ratio) {
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                    for (int s = 0; s < _ns; s++) {
+                        if (getValue(s, g, i, j, k) > 1e-15) {
+                            setValue(s, g, i, j, k, getValue(s, g, i, j, k) * ratio);
+                        }}}}}}
+    return;
+}
+
+void surfaceElement::normalize(int s, int g, int i, int j, int k, double ratio) {
+    setValue(s, g, i, j, k, getValue(s, g, i, j, k) * ratio);
+    return;
+}
+
 void surfaceElement::zero() {
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -278,14 +300,14 @@ void surfaceElement::zero() {
     return;
 }
 
-void surfaceElement::normalize(double ratio) {
+
+void surfaceElement::one(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        setValue(s, g, i, j, k,
-                                 getValue(s, g, i, j, k) * ratio);
+                        setValue(s, g, i, j, k, 1.0);
                     }}}}}
     return;
 }
@@ -343,9 +365,10 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _total_xs(_ng, _nx, _ny, _nz, ptxs),
       _abs_xs(_ng, _nx, _ny, _nz),
       _sum_quad_flux(_ng, _nx, _ny, _nz),
-      _energy_integrated_fission_source(1, _nx, _ny, _nz),
       _previous_fission_source(_ng, _nx, _ny, _nz, ptso),
       _fission_source(_ng, _nx, _ny, _nz, pfs),
+      _energy_integrated_fission_source(1, _nx, _ny, _nz),
+      _total_source(_ng, _nx, _ny, _nz),
       /* energyElement */
       _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
@@ -849,7 +872,8 @@ void Loo::processFluxCurrent() {
     return;
 }
 
-/* compute absorption xs */
+/* compute absorption xs: $\Sigma_{a,g} = \Sigma_{t,g} - \Sum_{g'}
+ * \Sigma_{s, g\to g'} */
 void Loo::processXs() {
     double tot_xs, abs_xs, scatt_xs;
     for (int k = 0; k < _nz; k++) {
