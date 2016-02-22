@@ -4,8 +4,6 @@ module cmfd_execute
 ! CMFD_EXECUTE -- This module is the highest level cmfd module that controls the
 ! cross section generation, diffusion calculation, and source re-weighting
 !==============================================================================
-  use loo_pass_data,      only: pass_data_into_loo
-
   use, intrinsic :: ISO_FORTRAN_ENV
   use global
 
@@ -23,6 +21,7 @@ contains
 
     use cmfd_data,              only: set_up_cmfd
     use cmfd_solver,            only: cmfd_solver_execute
+    use loo_solver,             only: loo_solver_execute
     use error,                  only: warning, fatal_error
 
     ! CMFD single processor on master
@@ -33,9 +32,6 @@ contains
 
       ! Create cmfd data from OpenMC tallies
       call set_up_cmfd()
-
-      ! Run loo routine here if it is requested
-      if (loo_run) call pass_data_into_loo()
 
       ! Call solver
       call cmfd_solver_execute()
@@ -49,14 +45,16 @@ contains
         call cmfd_solver_execute(adjoint=.true.)
       end if
 
+      ! calculate fission source
+      call calc_fission_source()
+
+      ! print fission sources to file
+      call print_fission_sources()
+
+      ! Run loo routine here if it is requested
+      if (loo_run) call loo_solver_execute()      
     end if
-
-    ! calculate fission source
-    if (master) call calc_fission_source()
-
-    ! print fission sources to file
-    if (master) call print_fission_sources()
-
+    
     ! calculate weight factors
     if (cmfd_feedback) call cmfd_reweight(.true.)
 
@@ -139,16 +137,6 @@ contains
     real(8), allocatable :: source(:,:,:,:)  ! tmp source array for entropy
     real(8), allocatable :: loo_src(:,:,:,:)
     real(8) :: avg     ! avg source if it is flat
-    real(8) :: temp   ! temporary counter
-    real(8) :: temp1   ! temporary counter
-    real(8) :: temp2   ! temporary counter
-    real(8) :: temp3   ! temporary counter
-    real(8) :: temp4   ! temporary counter 
-    real(8) :: siga1
-    real(8) :: siga2
-    real(8) :: nusigf1
-    real(8) :: nusigf2
-    real(8) :: sigs12
     ! Get maximum of spatial and group indices
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
@@ -269,7 +257,7 @@ contains
   subroutine print_fission_sources()
 
     use constants,  only: CMFD_NOACCEL, ZERO, TWO
-    use global,     only: cmfd, cmfd_coremap, master, cmfd_begin, current_batch
+    use global,     only: cmfd, cmfd_coremap, master, current_batch
 
     integer :: nx      ! maximum number of cells in x direction
     integer :: ny      ! maximum number of cells in y direction
@@ -292,11 +280,10 @@ contains
        ! Open files
        inquire(file = "fs.dat", exist = exist)
 
-       ! temporary debug: replaced cmfd_begin with 1 (remember Fortran is 1 indexed)
        if (exist) then
           ! In two cases we replace the file: either this is the first of
           ! a restart fun (which starts at restart_batch + 1), or that
-          ! this is the first of the acceleration run (which starts at cmfd_begin)
+          ! this is the first run
           if (((.not. restart_run) .and. (current_batch == 1)) &
                .or. (restart_run .and. (current_batch == restart_batch + 1))) then
              open(unit = 2, file = "fs.dat", status = "replace", action = "write")

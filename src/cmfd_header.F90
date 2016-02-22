@@ -84,18 +84,6 @@ module cmfd_header
     ! RMS of neutron balance equations
     real(8), allocatable :: balance(:)
 
-    ! RMS deviation of OpenMC and CMFD normalized source
-    real(8), allocatable :: src_cmp(:)
-
-    ! RMS deviation of OpenMC normalized source from flat 
-    real(8), allocatable :: src_cmp_openmc(:)
-    
-    ! RMS deviation of CMFD normalized source from flat 
-    real(8), allocatable :: src_cmp_cmfd(:)
-
-    ! RMS deviation of LOO normalized source from flat 
-    real(8), allocatable :: src_cmp_loo(:)
-
     ! Dominance ratio
     real(8), allocatable :: dom(:)
 
@@ -170,10 +158,6 @@ contains
     if (.not. allocated(this % entropy)) allocate(this % entropy(n_batches))
     if (.not. allocated(this % loo_entropy)) allocate(this % loo_entropy(n_batches))
     if (.not. allocated(this % balance)) allocate(this % balance(n_batches))
-    if (.not. allocated(this % src_cmp)) allocate(this % src_cmp(n_batches))
-    if (.not. allocated(this % src_cmp_openmc)) allocate(this % src_cmp_openmc(n_batches))
-    if (.not. allocated(this % src_cmp_cmfd)) allocate(this % src_cmp_cmfd(n_batches))
-    if (.not. allocated(this % src_cmp_loo)) allocate(this % src_cmp_loo(n_batches))
     if (.not. allocated(this % dom)) allocate(this % dom(n_batches))
     if (.not. allocated(this % k_cmfd)) allocate(this % k_cmfd(n_batches))
     if (.not. allocated(this % k_loo)) allocate(this % k_loo(n_batches))
@@ -200,10 +184,6 @@ contains
     this % sourcecounts  = ZERO
     this % weightfactors = ONE
     this % balance       = ZERO
-    this % src_cmp       = ZERO
-    this % src_cmp_openmc= ZERO
-    this % src_cmp_cmfd  = ZERO
-    this % src_cmp_loo  = ZERO
     this % dom           = ZERO
     this % k_cmfd        = ZERO
     this % k_loo         = ZERO
@@ -245,10 +225,6 @@ contains
     if (allocated(this % openmc_total_src)) &
                                          deallocate(this % openmc_total_src)
     if (allocated(this % balance))       deallocate(this % balance)
-    if (allocated(this % src_cmp))       deallocate(this % src_cmp)
-    if (allocated(this % src_cmp_openmc))deallocate(this % src_cmp_openmc)
-    if (allocated(this % src_cmp_cmfd))  deallocate(this % src_cmp_cmfd)
-    if (allocated(this % src_cmp_loo))   deallocate(this % src_cmp_loo)
     if (allocated(this % dom))           deallocate(this % dom)
     if (allocated(this % k_cmfd))        deallocate(this % k_cmfd)
     if (allocated(this % k_loo))        deallocate(this % k_loo)

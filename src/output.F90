@@ -1359,8 +1359,6 @@ contains
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "CMFD Ent"
         case('balance')
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Bal "
-        case('source')
-          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Src "
         case('dominance')
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " Dom Rat "
        end select
@@ -1369,19 +1367,16 @@ contains
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "CMFD Ent"
         case('balance')
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Bal "
-        case('source')
-          write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " RMS Src "
         case('dominance')
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') " Dom Rat "
        end select
     end if
     if (loo_run) then
-      write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "LOO k  "
+      write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "LOO k "
       select case(trim(cmfd_display))
         case('entropy')
           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "LOO Ent"
         case('balance')
-        case('source')
         case('dominance')
        end select
     end if
@@ -1394,10 +1389,12 @@ contains
     write(UNIT=ou, FMT='(A20,3X)', ADVANCE='NO') "===================="
     if (cmfd_run) then
       write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
-      if (cmfd_display /= '') &
-           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
-      if (cmfd_second_display /= '') &
-           write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
+      if (cmfd_display /= '') then
+         write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
+      end if
+      if (cmfd_second_display /= '') then
+         write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
+      end if
    end if
    if (loo_run) then
       write(UNIT=ou, FMT='(A10,3X)', ADVANCE='NO') "=========="
@@ -1482,9 +1479,6 @@ contains
         case('balance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
             cmfd % balance(current_batch)
-        case('source')
-          write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
-            cmfd % src_cmp(current_batch)
         case('dominance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % dom(current_batch)
@@ -1498,15 +1492,6 @@ contains
         case('balance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % balance(current_batch)
-        case('source')
-           write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
-                cmfd % src_cmp_openmc(current_batch)
-           if (cmfd_cmp_flat) then
-              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
-                   cmfd % src_cmp_cmfd(current_batch)
-              write(UNIT=OUTPUT_UNIT, FMT='(3X, ES10.3)', ADVANCE='NO') &
-                   cmfd % src_cmp_loo(current_batch)
-           end if
         case('dominance')
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F8.5)', ADVANCE='NO') &
             cmfd % dom(current_batch)
@@ -1522,7 +1507,6 @@ contains
           write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
             cmfd % loo_entropy(current_batch)
         case('balance')
-        case('source')
         case('dominance')
        end select
     end if

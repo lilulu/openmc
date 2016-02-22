@@ -397,9 +397,9 @@ module global
   logical :: loo_tally          = .false.
   logical :: cmfd_on            = .false.
 
-  ! CMFD display info
+  ! CMFD display options, with default values
   character(len=25) :: cmfd_display = 'balance'
-  character(len=25) :: cmfd_second_display = 'source'
+  character(len=25) :: cmfd_second_display = ''
 
   ! CMFD display RMS deviation of openmc and cmfd sources from 1.0
   logical :: cmfd_cmp_flat       = .false.

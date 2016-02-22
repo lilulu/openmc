@@ -158,14 +158,6 @@ contains
                length=current_batch, group="cmfd")
           call sp % write_data(cmfd % dom, "cmfd_dominance", &
                length = current_batch, group="cmfd")
-          call sp % write_data(cmfd % src_cmp, "cmfd_srccmp", &
-               length = current_batch, group="cmfd")
-          call sp % write_data(cmfd % src_cmp_openmc, "cmfd_srccmpmc", &
-               length = current_batch, group="cmfd")
-          call sp % write_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
-               length = current_batch, group="cmfd")
-          call sp % write_data(cmfd % src_cmp_loo, "cmfd_srccmploo", &
-               length = current_batch, group="cmfd")
        else
           call sp % write_data(0, "cmfd_on")
         end if
@@ -798,14 +790,6 @@ contains
         call sp % read_data(cmfd % balance, "cmfd_balance", &
              length=restart_batch, group="cmfd")
         call sp % read_data(cmfd % dom, "cmfd_dominance", &
-             length = restart_batch, group="cmfd")
-        call sp % read_data(cmfd % src_cmp, "cmfd_srccmp", &
-             length = restart_batch, group="cmfd")
-        call sp % read_data(cmfd % src_cmp_openmc, "cmfd_srccmpmc", &
-             length = restart_batch, group="cmfd")
-        call sp % read_data(cmfd % src_cmp_cmfd, "cmfd_srccmpcmfd", &
-             length = restart_batch, group="cmfd")
-        call sp % read_data(cmfd % src_cmp_loo, "cmfd_srccmploo", &
              length = restart_batch, group="cmfd")
       end if
     end if
