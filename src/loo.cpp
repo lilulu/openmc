@@ -169,23 +169,34 @@ void meshElement::printElement(std::string string, FILE* pfile){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    fprintf(pfile, "%13.5f, ", getValue(g, i, j, k));
-                    //printf("%.5f, ", getValue(g, i, j, k));
+                    fprintf(pfile, "%.8f, ", getValue(g, i, j, k));
                 }}}}
 
-    if (string == "fs") {
-        double reference[] = {0.4960975,1.2414036,1.5249978,1.2414036,0.4960975};
+    if ((string == "fs") || (string == " m-th fission source")) {
+        // D = 0.72
+        double reference[] = {0.49661414, 1.24116506, 1.52444159, 1.24116506, 0.49661414};
         double rms = 0;
+        int counter = 0;
         for (int k = 0; k < _nz; k++) {
             for (int j = 0; j < _ny; j++) {
                 for (int i = 0; i < _nx; i++) {
-                    rms += pow(getValue(0, i, j, k) - reference[i], 2.0);
-                }}}
-        rms = sqrt(rms / 5.0);
-        fprintf(pfile, " => rms: %13.8e ", 100 * rms);
-        //printf(" => rms: %.4f\n", 100 * rms);
+                    if (reference[i] > 1e-5) {
+                        counter += 1;
+                        rms += pow(getValue(0, i, j, k) / reference[i] - 1.0, 2.0);
+                    }
+                }
+            }
+        }
+        rms = sqrt(rms / (double) counter);
+        fprintf(pfile, " => %f, %f, %f, %f, %f => rms: %.5f%% ",
+                getValue(0, 0, 0, 0) - reference[0],
+                getValue(0, 1, 0, 0) - reference[1],
+                getValue(0, 2, 0, 0) - reference[2],
+                getValue(0, 3, 0, 0) - reference[3],
+                getValue(0, 4, 0, 0) - reference[4],
+                100 * rms);
     }
-
+    
     fprintf(pfile, "\n");
     return;
 
@@ -385,15 +396,9 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _quad_src_total(_nt, _ng, _nx, _ny, _nz),
       _pfile(NULL)
 {
-    //printf("albedos: %d %d %d %d %d %d\n", _albedo[0], _albedo[1], _albedo[2],
+    // FIXME: need to make sure the albedoes computed from cmfd are physical
+    //printf("albedos: %f %f %f %f %f %f\n", _albedo[0], _albedo[1], _albedo[2],
     //     _albedo[3], _albedo[4], _albedo[5]);
-    // FIXME: the following routine does not make any difference?
-    _albedo[0] = 0.0;
-    _albedo[1] = 0.0;
-    _albedo[2] = 1.0;
-    _albedo[3] = 1.0;
-    _albedo[4] = 1.0;
-    _albedo[5] = 1.0;
     openLogFile();
     computeAreaVolume();
     computeTrackLength();
@@ -808,22 +813,6 @@ void Loo::readInReferenceParameters() {
                         _quad_current.setValue(s, g, i, j, k, quad_current[c2]);
                         c2++;
                     }}}}}
-
-
-    // for generating CMFD parameters
-    double area, current, diffcof[_ng * _nx * _ny * _nz];
-    c1 = 0;
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    diffcof[c1] = 1.0/ 3.0 /
-                        (_total_xs.getValue(g, i, j, k)
-                         - _p1_scatt_xs.getValue(g, i, j, k));
-                    //printf("%f, ", diffcof[c1]);
-                    c1++;
-                }}}}
-    //_area.printElement("area", _pfile);
     return;
 }
 
@@ -884,14 +873,17 @@ void Loo::processXs() {
                     for (int g2 = 0; g2 < _ng; g2++) {
                         scatt_xs += _scatt_xs.getValue(g1, g2, i, j, k);
                     }
+
                     tot_xs = _total_xs.getValue(g1, i, j, k);
+                    
+                    /* DEBUG: attempted to subtract p1 scattering from
+                     * total, seem to cause a negative abs xs for 1D homogeneous
+                     * cosine shape */
+                    //tot_xs -= _p1_scatt_xs.getValue(g1, i, j, k);
+                    //_total_xs.setValue(g1, i, j, k, tot_xs);
+
                     abs_xs = tot_xs - scatt_xs;
                     _abs_xs.setValue(g1, i, j, k, abs_xs);
-                    /* DEBUG: attempted to subtract p1 scattering from
-                     * total, did not seem to make a difference for
-                     * small sample case */
-                    //_total_xs.setValue(g1, i, j,
-                    //k, tot_xs - _p1_scatt_xs.getValue(g1, i, j, k));
                 }}}}
     return;
 }
@@ -1002,7 +994,6 @@ void Loo::computeQuadSourceFormFactor(){
                         quad_src_total = xs * (out - ex * in) / (1.0 - ex);
 
                         src_form_factor = quad_src_total / src * WT_Q;
-                        printf("FF=%f\n", src_form_factor);
                         total +=  src_form_factor;
 
                         _quad_src_form_factor.setValue(t, g, i, j, k,
@@ -1043,8 +1034,7 @@ void Loo::executeLoo(){
     _nfiss_xs.printElement(" fission xs", _pfile);
     _quad_current.printElement(" quad current", _pfile);
     _previous_fission_source.printElement(" m-th fission source", _pfile);
-    _energy_integrated_fission_source.printElement(" m+1/2-th fission source",
-                                                   _pfile);
+    _energy_integrated_fission_source.printElement("fs", _pfile);
     checkBalance();
     
     /* loo iteration control */
@@ -1059,8 +1049,8 @@ void Loo::executeLoo(){
 
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-8;
-    min_loo_iter = 10;
-    max_loo_iter = 1000;
+    min_loo_iter = 5;
+    max_loo_iter = 10000;
 
     /* save _fission_source into fission_source */
     // debug:
@@ -1106,7 +1096,8 @@ void Loo::executeLoo(){
         }
         rms /= (double)(_nx * _ny * _nz);
         rms = pow(rms, 0.5);
-        fprintf(_pfile, "iter %d: k = %.7f, eps = %e, rms = %e\n", _loo_iter, _k, eps, rms);
+        fprintf(_pfile, "iter %d: k = %.7f, eps = %e, rms (phi) = %e\n",
+                _loo_iter, _k, eps, rms);
 
         /* save _energy_integrated_fission_source into fission_source */
         _energy_integrated_fission_source.copyTo(fission_source);
@@ -1115,8 +1106,7 @@ void Loo::executeLoo(){
         if ((eps < eps_converged) && (_loo_iter > min_loo_iter))
             break;
     }
-
-    _fission_source.printElement("converged FS", _pfile);
+    
     /* re-normalize _fission_source such that the average is 1.0, so
      * we can examine the solution generated by LOO */
     normalizationByEnergyIntegratedFissionSourceAvg(1.0, false);
@@ -1245,7 +1235,7 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
 void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
                 surfaceElement quad_src) {
     /* current angular flux */
-    double psi;
+    double psi, initial_psi;
 
     for (int g = 0; g < _ng; g++) {
 
@@ -1256,7 +1246,9 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
              * first track is mesh cell (nl, _ny - 1, 0)'s quad flux
              * 13 */
             psi = _quad_flux.getValue(13, g, nl, _ny - 1, 0) * _albedo[3];
-
+            // debug
+            initial_psi = psi;
+            
             /* sweeping through tracks in the forward order */
             for (int nt = _num_track * nl; nt < _num_track * (nl + 1); nt++) {
                 psi = sweepOneTrack(sum_quad_flux, net_current,
@@ -1268,13 +1260,22 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
             _quad_flux.setValue(13, g, nl, _ny - 1, 0, psi * _albedo[3]);
             _leakage += psi * getSurfaceArea(0, nl, _ny - 1, 0, 0)
                 * (1 - _albedo[3]);
-        }
 
+            // debug
+            if (false) { //fabs(initial_psi - psi) > 1e-5) {
+                printf(" forward loop %d boundary fluxes has not converged: "
+                       "%f -> %f\n", nl, initial_psi, psi);
+            }
+        }
+        
         /* backward */
         for (int nl = 0; nl < _num_loop; nl++) {
             /* similar to forward loop, except track 12 instead of 13 */
             psi = _quad_flux.getValue(12, g, nl, _ny - 1, 0) * _albedo[3];
 
+            // debug
+            initial_psi = psi;
+            
             /* sweeping through tracks in the forward order */
             for (int nt = _num_track * (nl + 1) - 1;
                  nt > _num_track * nl - 1; nt--) {
@@ -1287,6 +1288,12 @@ void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
             _quad_flux.setValue(12, g, nl, _ny - 1, 0, psi * _albedo[3]);
             _leakage += psi * getSurfaceArea(7, nl, _ny - 1, 0, 0)
                 * (1 - _albedo[3]);
+
+            // debug
+            if (false) {//initial_psi - psi > -1e-5) {
+                printf(" backward loop %d, boundary fluxes has not converged: "
+                       "%f -> %f\n", nl, initial_psi, psi);
+            }
         }
     }
 
@@ -1462,7 +1469,7 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
      * fission source average is avg */
     ratio = avg / computeEnergyIntegratedFissionSource();
     // FIXME: this ratio is consistently 0.999017 for some reason 
-    
+
     /* normalize fission source, scalar flux, quad flux, and leakage */
     _energy_integrated_fission_source.normalize(ratio);
     _scalar_flux.normalize(ratio);
@@ -1565,9 +1572,9 @@ void Loo::checkBalance(){
 
                     /* if residual is larger than a certain threshold,
                      * print to screen */
-                    if (residual / absorption > 1e-4) {
-                        printf("warning: residual in cell (%d %d %d) is"
-                               " %e = %e + %e - %e / %e. \n", i, j, k,
+                    if (false){ //fabs(residual / absorption) > 1e-4) {
+                        printf("warning: residual in (%d %d %d):"
+                               " %.2e = %.2e + %.2e - %.2e / %.2e\n", i, j, k,
                                residual, leakage, absorption, fission,  _k);
                     }}}}}
 
