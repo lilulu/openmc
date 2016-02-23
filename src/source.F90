@@ -101,6 +101,7 @@ contains
 
     integer :: i          ! dummy loop index
     real(8) :: r(3)       ! sampled coordinates
+    real(8) :: l          ! extrapolation distance
     real(8) :: phi        ! azimuthal angle
     real(8) :: mu         ! cosine of polar angle
     real(8) :: p_min(3)   ! minimum coordinates of source
@@ -182,6 +183,46 @@ contains
       end do
       call p % clear()
 
+    case (SRC_SPACE_COSINE)
+      ! Repeat sampling source location until a good site has been found
+      found = .false.
+      do while (.not.found)
+        ! Set particle defaults
+        call p % initialize()
+
+        ! Coordinates sampled uniformly over a box
+        p_min = external_source % params_space(1:3)
+        p_max = external_source % params_space(4:6)
+        l = external_source % params_space(7)
+        r = (/ (prn(), i = 1,3) /)
+        site % xyz = p_min + r*(p_max - p_min)
+
+        ! Sample from a cosine shape in x-direction
+        site % xyz(1) = p_min(1) - TWO * l + (p_max(1) - p_min(1) + TWO * TWO * l) / PI * &
+             & acos(ONE - TWO * r(1))
+        
+        ! Fill p with needed data
+        p % coord(1) % xyz = site % xyz
+        p % coord(1) % uvw = [ ONE, ZERO, ZERO ]
+
+        ! Now search to see if location exists in geometry
+        call find_cell(p, found)
+        if (.not. found) then
+          num_resamples = num_resamples + 1
+          if (num_resamples == MAX_EXTSRC_RESAMPLES) then
+            call fatal_error("Maximum number of external source spatial &
+                 &resamples reached!")
+          end if
+          cycle
+        end if
+        if (p % material == MATERIAL_VOID) then
+          found = .false.
+          cycle
+        end if
+        if (.not. materials(p % material) % fissionable) found = .false.
+      end do
+      call p % clear()
+      
     case (SRC_SPACE_POINT)
       ! Point source
       site % xyz = external_source % params_space

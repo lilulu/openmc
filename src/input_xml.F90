@@ -383,6 +383,9 @@ contains
         case ('fission')
           external_source % type_space = SRC_SPACE_FISSION
           coeffs_reqd = 6
+       case ('cosine')
+          external_source % type_space = SRC_SPACE_COSINE
+          coeffs_reqd = 7
         case ('point')
           external_source % type_space = SRC_SPACE_POINT
           coeffs_reqd = 3

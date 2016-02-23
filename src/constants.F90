@@ -350,7 +350,10 @@ module constants
   integer, parameter :: &
        SRC_SPACE_BOX     = 1, & ! Source in a rectangular prism
        SRC_SPACE_POINT   = 2, & ! Source at a single point
-       SRC_SPACE_FISSION = 3    ! Source in prism filtered by fissionable mats
+       SRC_SPACE_FISSION = 3, & ! Source in prism filtered by fissionable mats
+       SRC_SPACE_COSINE  = 4    ! Source in prism filtered by
+                                ! fissionable mats, chopped cosine
+                                ! shape.
 
   ! Source angular distribution types
   integer, parameter :: &
