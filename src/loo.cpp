@@ -26,8 +26,8 @@
 * SOFTWARE.
 */
 #include "loo.h"
-#define SIN_THETA_45 1.0//0.9996937981813316//0.70710678118654746
-#define P0 1.0//0.798184
+#define SIN_THETA_45 0.70710678118654746//1.0//0.9996937981813316//
+#define P0 0.798184
 #define WT_Q 8.0
 #define REFERENCE 0
 
@@ -1077,7 +1077,7 @@ void Loo::executeLoo(){
 
         /* compute new mesh-cell averaged scalar flux _scalar_flux
          * using LOO1 */
-        if (true) 
+        if (false) 
             computeScalarFlux(sum_quad_flux);
         else
             computeScalarFlux2(net_current);
@@ -1107,7 +1107,9 @@ void Loo::executeLoo(){
 
         /* save _energy_integrated_fission_source into fission_source */
         _energy_integrated_fission_source.copyTo(fission_source);
-        _energy_integrated_fission_source.printElement("fs", _pfile);
+	if (_loo_iter % 20 == 0) {
+	  _energy_integrated_fission_source.printElement("fs", _pfile);
+	}
         /* check on convergence criteria */
         if ((eps < eps_converged) && (_loo_iter > min_loo_iter))
             break;
@@ -1450,19 +1452,13 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    // initial LOO1 formulation
-                    if (true) {
-                        phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
-                            _sum_quad_flux.getValue(g, i, j, k);
-                        phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
-                    }
-                    else {
-                        phi = 0.25 * PI * sum_quad_flux.getValue(g, i, j, k);
-                    }
+	        for (int g = 0; g < _ng; g++) {
+                    phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
+		      _sum_quad_flux.getValue(g, i, j, k);
+                    phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
                     
-                    fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
-                           i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
+                    //fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
+                    //       i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
                     _scalar_flux.setValue(g, i, j, k, phi);
                 }}}}
     return;
@@ -1485,8 +1481,8 @@ void Loo::computeScalarFlux2(meshElement net_current){
                            - netcurrent / vol) /
                         _total_xs.getValue(g, i, j, k);
                     
-                    fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
-                            i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
+                    //fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
+                    //        i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
                     _scalar_flux.setValue(g, i, j, k, phi);
                 }}}}
     return;
