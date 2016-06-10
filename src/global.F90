@@ -407,10 +407,10 @@ module global
   ! Estimate of spectral radius of CMFD matrices and tolerances
   real(8) :: cmfd_spectral = ZERO
   real(8) :: cmfd_shift = 1.e6
-  real(8) :: cmfd_ktol = 1.e-8_8
-  real(8) :: cmfd_stol = 1.e-8_8
-  real(8) :: cmfd_atoli = 1.e-10_8
-  real(8) :: cmfd_rtoli = 1.e-5_8
+  real(8) :: cmfd_ktol = 1.e-10_8
+  real(8) :: cmfd_stol = 1.e-10_8
+  real(8) :: cmfd_atoli = 1.e-12_8
+  real(8) :: cmfd_rtoli = 1.e-7_8
 
   ! Information about state points to be written
   integer :: n_state_points = 0
@@ -511,9 +511,6 @@ contains
     if (allocated(master_fission_bank)) deallocate(master_fission_bank)
 #endif
     if (allocated(source_bank)) deallocate(source_bank)
-    if (allocated(entropy_p)) deallocate(entropy_p)
-    if (allocated(entropy_s)) deallocate(entropy_s)
-    if (allocated(entropy_s_old)) deallocate(entropy_s_old)
 
     ! Deallocate array of work indices
     if (allocated(work_index)) deallocate(work_index)

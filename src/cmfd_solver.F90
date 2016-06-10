@@ -166,7 +166,7 @@ contains
 
   subroutine compute_adjoint()
 
-    use error,   only: fatal_error
+    use error,   only: fatal_error, warning
     use global,  only: cmfd_write_matrices
 
     ! Transpose matrices
@@ -190,7 +190,7 @@ contains
     use, intrinsic :: ISO_FORTRAN_ENV
     
     use constants,  only: ONE
-    use error,      only: fatal_error
+    use error,      only: fatal_error, warning
     use global,     only: cmfd, cmfd_atoli, cmfd_rtoli, k_generation, overall_gen
     use string,     only: to_str
 
@@ -234,7 +234,7 @@ contains
 
       ! Check if reached iteration 10000
       if (i == imax) then
-         call fatal_error("Reached maximum iterations of "// trim(to_str(i)) //&
+         call warning("Reached maximum iterations of "// trim(to_str(i)) //&
               &" in CMFD power iteration solver, kerr, ktol = "//&
               & trim(to_str(kerr))//" " // trim(to_str(ktol)) // &
               & " ,serr, stol = "// trim(to_str(serr))//" "//trim(to_str(stol)))
@@ -379,7 +379,7 @@ contains
     use, intrinsic :: ISO_FORTRAN_ENV
 
     use constants,  only: ONE, ZERO
-    use error,      only: fatal_error
+    use error,      only: fatal_error, warning
     use global,     only: cmfd, cmfd_spectral
 
     type(Matrix), intent(inout) :: A ! coefficient matrix
@@ -424,7 +424,7 @@ contains
 
       ! Check for max iterations met
       if (igs == 10000) then
-        call fatal_error('Maximum Gauss-Seidel iterations encountered.')
+        call warning('Maximum Gauss-Seidel iterations encountered.')
       endif
 
       ! Copy over x vector
@@ -485,7 +485,7 @@ contains
   subroutine cmfd_linsolver_2g(A, b, x, tol, its)
 
     use constants,  only: ONE, ZERO
-    use error,      only: fatal_error
+    use error,      only: fatal_error, warning
     use global,     only: cmfd, cmfd_spectral
 
     type(Matrix), intent(inout) :: A ! coefficient matrix
@@ -542,7 +542,7 @@ contains
 
       ! Check for max iterations met
       if (igs == 10000) then
-        call fatal_error('Maximum Gauss-Seidel iterations encountered.')
+        call warning('Maximum Gauss-Seidel iterations encountered.')
       endif
 
       ! Copy over x vector

@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <math.h>
 #include <time.h>       /* time_t, time, ctime */
+#include <vector>
 
 #define FOUR_PI 12.566370614359172
 #define TWO_PI 6.283185307179586
@@ -147,6 +148,7 @@ private:
     energyElement _nfiss_xs;
     energyElement _scatt_xs;
     meshElement _p1_scatt_xs;
+    meshElement _d;
     surfaceElement _length;
     surfaceElement _area;
     surfaceElement _current;

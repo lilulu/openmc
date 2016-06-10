@@ -77,15 +77,11 @@ contains
     ! guarantees that when cmfd begins at least one batch of tallies
     ! are accumulated
     !
-    ! The flag loo_tally is turned on one iteration becfore
-    ! acceleration starts to. It would not trigger the actual CMFD
+    ! The flag loo_tally is turned on one iteration before
+    ! acceleration starts. It would not trigger the actual CMFD
     ! kernel. Instead it would parse the MC data and stores some
     ! values.
-    !
-    ! FIXME: after loo flag is implemented, the following cmfd_run
-    ! should be replaced by loo_run because we only care about storing
-    ! an old copy of the tallies for LOO.
-    if (cmfd_run .and. cmfd_begin == current_batch + 1) then
+    if (loo_run .and. cmfd_begin == current_batch + 1) then
        loo_tally = .true.
     else
        loo_tally = .false.
@@ -99,7 +95,7 @@ contains
     if (restart_run .and. current_batch <= restart_batch) return
 
     ! Check to reset tallies
-    if (cmfd_run .and. cmfd_reset % contains(current_batch)) then
+    if ((cmfd_run .or. loo_run) .and. cmfd_reset % contains(current_batch)) then
       call cmfd_tally_reset()
     end if
 
@@ -132,6 +128,7 @@ contains
     integer :: k       ! iteration counter for z
     integer :: g       ! iteration counter for groups
     integer :: idx     ! index in vector
+    integer :: cnt_cmfd, cnt_loo ! counter for number of non-zero entries
     real(8) :: hxyz(3) ! cell dimensions of current ijk cell
     real(8) :: vol     ! volume of cell
     real(8), allocatable :: source(:,:,:,:)  ! tmp source array for entropy
@@ -156,6 +153,8 @@ contains
 
     ! Reset cmfd source to 0
     cmfd % cmfd_src = ZERO
+    cnt_cmfd = 0
+    cnt_loo = 0
 
     ! Only perform for master
     if (master) then
@@ -189,6 +188,9 @@ contains
               cmfd % cmfd_src(g,i,j,k) = sum(cmfd % nfissxs(:,g,i,j,k) * &
                      cmfd % phi(idx:idx + (ng - 1)))*vol
 
+              if (cmfd % cmfd_src(g, i, j, k) > ZERO) cnt_cmfd = cnt_cmfd + 1
+              if (cmfd % loo_src(g, i, j, k) > ZERO) cnt_loo = cnt_loo + 1
+
             end do GROUP
 
           end do XLOOP
@@ -197,14 +199,6 @@ contains
 
       end do ZLOOP
 
-      ! Normalize source such that it sums to 1.0
-      if (sum(cmfd % cmfd_src) > 1e-5) then 
-         cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)
-      end if
-      if (sum(cmfd % loo_src) > 1e-5) then 
-         cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src)
-      end if
-      
       ! Compute entropy
       if (entropy_on) then
 
@@ -218,9 +212,11 @@ contains
 
         ! Compute log
         where (cmfd % cmfd_src > ZERO)
+           cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src)
            source = cmfd % cmfd_src*log(cmfd % cmfd_src)/log(TWO)
         end where
         where (cmfd % loo_src > ZERO)
+           cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src)
            loo_src = cmfd % loo_src*log(cmfd % loo_src)/log(TWO)
         end where
 
@@ -234,10 +230,14 @@ contains
 
       end if
 
-      ! Normalize source so average is 1.0
-      !cmfd % cmfd_src = cmfd % cmfd_src/sum(cmfd % cmfd_src) * cmfd % norm
-      !cmfd % loo_src = cmfd % loo_src/sum(cmfd % loo_src) * cmfd % norm
-
+      ! Normalize source such that it average to 1.0
+      if (sum(cmfd % cmfd_src) > 1e-5) then 
+         cmfd % cmfd_src = cmfd % cmfd_src / sum(cmfd % cmfd_src) * cnt_cmfd
+      end if
+      if (sum(cmfd % loo_src) > 1e-5) then 
+         cmfd % loo_src = cmfd % loo_src / sum(cmfd % loo_src) * cnt_loo
+      end if
+      
     end if
 
 !#ifdef MPI
@@ -314,13 +314,13 @@ contains
                    end if
 
                    write(2, *) current_batch, g, i, j, k, &
-                        cmfd % openmc_src_old(g, i, j, k), &
-                        cmfd % cmfd_src(g, i, j, k), &
-                        cmfd % loo_src(g, i, j, k), &
-                        entropy_p(g, i, j, k), &
-                        cmfd % openmc_src(g, i, j, k), &
-                        entropy_s_old(g, i, j, k)
-                end do GROUP
+                               cmfd % openmc_src_old(g, i, j, k), &
+                               cmfd % cmfd_src(g, i, j, k), &
+                               cmfd % loo_src(g, i, j, k), &
+                               entropy_p(g, i, j, k), &
+                               cmfd % openmc_src(g, i, j, k), &
+                               entropy_s_old(g, i, j, k)
+                 end do GROUP
              end do XLOOP
           end do YLOOP
        end do ZLOOP
@@ -341,7 +341,7 @@ end subroutine print_fission_sources
     use constants,   only: ZERO, ONE
     use error,       only: warning, fatal_error
     use global,      only: meshes, source_bank, work, n_user_meshes, cmfd, &
-                           master
+                           master, cmfd_begin, current_batch
     use mesh_header, only: StructuredMesh
     use mesh,        only: count_bank_sites, get_mesh_indices
     use search,      only: binary_search
@@ -366,6 +366,10 @@ end subroutine print_fission_sources
     logical :: in_mesh  ! source site is inside mesh
 
     type(StructuredMesh), pointer :: m ! point to mesh
+
+    ! no reason to proceed if this is the LOO run that turns on before
+    ! actual run
+    if ((loo_run) .and. (cmfd_begin == current_batch + 1)) return
 
     ! Associate pointer
     m => meshes(n_user_meshes + 1)
@@ -404,7 +408,8 @@ end subroutine print_fission_sources
 
       ! Have master compute weight factors (watch for 0s)
       if (master) then
-         if (loo_run) then
+         !if (loo_run) then
+         if (.false.) then
             where(cmfd % loo_src > ZERO .and. cmfd % sourcecounts > ZERO)
                cmfd % weightfactors = cmfd % loo_src/sum(cmfd % loo_src)* &
                     sum(cmfd % sourcecounts) / cmfd % sourcecounts
@@ -418,6 +423,7 @@ end subroutine print_fission_sources
       end if
 
       if (.not. cmfd_feedback) return
+
 
       ! Broadcast weight factors to all procs
 #ifdef MPI

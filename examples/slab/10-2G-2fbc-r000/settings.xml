@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<settings>
+
+  <!-- Parameters for k-eigenvalue calculation -->
+  <eigenvalue>
+    <batches>50</batches>
+    <inactive>5</inactive>
+    <particles>100000</particles>
+  </eigenvalue>
+
+  <!-- Starting source -->
+  <source>
+    <space type="fission">
+      <parameters>
+        -100 -10 -10 100 10 10
+      </parameters>
+    </space>
+  </source>
+
+  <state_point>
+    <batches>50 100 200 250 400 500 600 800 1000 1200 1400 1600 1800 2000</batches>
+  </state_point>
+
+  <run_cmfd> true </run_cmfd>
+  <run_loo> false </run_loo>
+
+  <entropy>
+    <lower_left>-100 -10 -10</lower_left>
+    <upper_right>100  10  10</upper_right>
+    <dimension>10 1 1</dimension>
+  </entropy>
+
+
+
+</settings>

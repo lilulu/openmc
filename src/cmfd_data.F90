@@ -31,8 +31,8 @@ contains
     ! Calculate all cross sections based on reaction rates from last batch
     call compute_xs()
 
-    ! DEBUG: read in reference parameter
-    !call read_in_reference_parameters()
+    ! DEBUG: read in Ds, cross-sections when requested
+    call read_in_reference_parameters()
     
     ! Compute effective downscatter cross section
     if (cmfd_downscatter) call compute_effective_downscatter()
@@ -86,6 +86,8 @@ contains
     integer :: i_filter_ein  ! index for incoming energy filter
     integer :: i_filter_eout ! index for outgoing energy filter
     integer :: i_filter_surf ! index for surface filter
+    integer :: cnt           ! counter for non-zero entripes in openmc_src
+    integer :: n             ! number of realizations
     real(8) :: flux          ! temp variable for flux
     type(TallyObject),    pointer :: t => null() ! pointer for tally object
     type(StructuredMesh), pointer :: m => null() ! pointer for mesh object
@@ -100,9 +102,6 @@ contains
     nz = cmfd % indices(3)
     ng = cmfd % indices(4)
 
-    ! Set flux object and source distribution to all zeros
-    cmfd % flux = ZERO
-
     ! Associate tallies and mesh
     t => cmfd_tallies(1)
     i_mesh = t % filters(t % find_filter(FILTER_MESH)) % int_bins(1)
@@ -113,23 +112,36 @@ contains
     cmfd % hxyz(2,:,:,:) = m % width(2) ! set y width
     cmfd % hxyz(3,:,:,:) = m % width(3) ! set z width
 
-    cmfd % keff_bal = ZERO
-
     ! Save a copy of the fission source from the previous batch,
     ! because LOO needs a copy of the fission source before this batch
     ! of MC is performed.
-    do k = 1, nz
-       do j = 1, ny
-          do i = 1, nx
-             do h = 1, ng
-                cmfd % openmc_src_old(h, i, j, k) = &
-                     cmfd % openmc_src(h, i, j, k)
+    if (sum(cmfd % openmc_src) > ZERO) then
+       do k = 1, nz
+          do j = 1, ny
+             do i = 1, nx
+                do h = 1, ng
+                   cmfd % openmc_src_old(h, i, j, k) = &
+                          cmfd % openmc_src(h, i, j, k)
+                end do
              end do
           end do
        end do
-    end do
+    else 
+       cmfd % openmc_src_old = ONE
+    end if
+
+    ! reset parameters before computation
     cmfd % openmc_src = ZERO
     cmfd % openmc_total_src = ZERO
+    cmfd % flux = ZERO
+    cmfd % keff_bal = ZERO
+    cmfd % totalxs = ZERO
+    cmfd % p1scattxs = ZERO
+    cmfd % diffcof = ZERO
+    cmfd % scattxs = ZERO
+    cmfd % nfissxs = ZERO
+    cmfd % current = ZERO
+    cmfd % quad_current = ZERO
 
    ! Begin loop around tallies
    TAL: do ital = 1, n_cmfd_tallies
@@ -138,6 +150,10 @@ contains
      t => cmfd_tallies(ital)
      i_mesh = t % filters(t % find_filter(FILTER_MESH)) % int_bins(1)
      m => meshes(i_mesh)
+
+     ! debug: pull out number of realizations
+     !n = dble(t % n_realizations)
+     n = 1
 
      i_filter_mesh = t % find_filter(FILTER_MESH)
      i_filter_ein  = t % find_filter(FILTER_ENERGYIN)
@@ -161,7 +177,8 @@ contains
             ! Loop around energy groups
             OUTGROUP: do h = 1,ng
 
-              ! Start tally 1
+              ! Start tally 1: reaction types that involve a single energy level: 
+              ! flux, total reaction, p1 scattering.
               TALLY: if (ital == 1) then
 
                 ! Reset all bins to 1
@@ -182,8 +199,8 @@ contains
                 score_index = sum((matching_bins(1:t%n_filters) - 1) * t%stride) + 1
 
                 ! Get flux
-                flux = t % results(1,score_index) % sum
-                cmfd % flux(h,i,j,k) = flux
+                flux = t % results(1,score_index) % sum / n
+                cmfd % flux(h,i,j,k) = flux 
 
                 ! Detect zero flux, abort if located
                 if ((flux - ZERO) < TINY_BIT) then
@@ -203,17 +220,14 @@ contains
                 end if
 
                 ! Get total rr and convert to total xs
-                cmfd % totalxs(h,i,j,k) = t % results(2,score_index) % sum / flux
+                cmfd % totalxs(h,i,j,k) = t % results(2,score_index) % sum / flux / n
 
                 ! Get p1 scatter rr and convert to p1 scatter xs
-                cmfd % p1scattxs(h,i,j,k) = t % results(3,score_index) % sum / flux
+                cmfd % p1scattxs(h,i,j,k) = t % results(3,score_index) % sum / flux / n
 
                 ! Calculate diffusion coefficient
                 cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(cmfd % totalxs(h,i,j,k) - &
                      cmfd % p1scattxs(h,i,j,k)))
-                ! FIXME
-                !cmfd % diffcof(1, i, j, k) = 1.4
-                !cmfd % diffcof(2, i, j, k) = 0.3
 
               else if (ital == 2) then
 
@@ -243,17 +257,18 @@ contains
 
                   ! Get scattering
                   cmfd % scattxs(h,g,i,j,k) = t % results(1,score_index) % sum /&
-                       cmfd % flux(h,i,j,k)
+                       cmfd % flux(h,i,j,k) / n
 
                   ! Get nu-fission
                   cmfd % nfissxs(h,g,i,j,k) = t % results(2,score_index) % sum /&
-                       cmfd % flux(h,i,j,k)
-
+                       cmfd % flux(h,i,j,k) / n
+ 
                   ! Bank fission source: any fission event from group
                   ! h (outgroup) to g (ingroup) is added to group g's
                   ! fission source counter openmc_src
                   cmfd % openmc_src(g,i,j,k) = cmfd % openmc_src(g,i,j,k) + &
-                       t % results(2,score_index) % sum
+                       t % results(2,score_index) % sum / n
+
                   cmfd % keff_bal = cmfd % keff_bal + &
                        t % results(2,score_index) % sum / &
                        dble(t % n_realizations)
@@ -287,7 +302,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Right surface
@@ -298,7 +313,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Back surface
@@ -309,7 +324,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Front surface
@@ -320,7 +335,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q+2*nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Bottom surface
@@ -331,7 +346,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q+2*nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Top surface
@@ -342,7 +357,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % current(q+3*nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Set number of quadrature to be 4 for LOO quad currents
@@ -362,7 +377,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % quad_current(q,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Right surface
@@ -373,7 +388,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % quad_current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! Back surface
@@ -384,8 +399,8 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % quad_current(q+nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
-                end do
+                        t % results(1,score_index) % sum / n
+                end do 
 
                 ! Front surface
                 matching_bins(i_filter_mesh) = mesh_indices_to_bin(m, &
@@ -395,7 +410,7 @@ contains
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
                    cmfd % quad_current(q+2*nq,h,i,j,k) = &
-                        t % results(1,score_index) % sum
+                        t % results(1,score_index) % sum / n
                 end do
 
                 ! FIXME: add top & bottom for 3D implementation
@@ -411,9 +426,28 @@ contains
 
     end do TAL
 
-    ! Normalize openmc source distribution to the sum being 1.0
-    cmfd % openmc_src = cmfd % openmc_src/sum(cmfd % openmc_src) * cmfd % norm
-    ! write(OUTPUT_UNIT,'(1X,A,F8.4)') '    cmfd norm = ', cmfd % norm
+    ! Normalize openmc source distribution such that the average is 1.0
+    cnt = ZERO
+
+    do k = 1,nz
+
+       do j = 1,ny
+
+          do i = 1,nx
+
+            do h = 1,ng
+            
+                if (cmfd % openmc_src(h, i, j, k) > ZERO) cnt = cnt + 1
+
+            end do
+
+          end do
+
+       end do 
+
+    end do
+
+    cmfd % openmc_src = cmfd % openmc_src / sum(cmfd % openmc_src) * cnt
 
     ! Nullify all pointers
     if (associated(t)) nullify(t)
@@ -444,12 +478,15 @@ contains
     integer :: j             ! iteration counter for y
     integer :: k             ! iteration counter for z
     integer :: h             ! iteration counter for energy group
+    integer :: g             ! iteration counter for energy group       
     integer :: s             ! iteration counter for surfaces
     integer :: index, index2
 
-    real(8), dimension(5) :: flux, totalxs, p1scattxs, scattxs, nfissxs, openmc_src_old
-    real, dimension(60) :: current
-    real, dimension(80) :: quad_current
+    !real, dimension(60) :: current
+    !real, dimension(80) :: quad_current
+    !real(8), dimension(5) :: openmc_src_old
+    real(8), allocatable :: totalxs(:), d(:), scattxs(:), nfissxs(:)
+    real(8), allocatable :: flux(:)
 
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
@@ -457,88 +494,40 @@ contains
     nz = cmfd % indices(3)
     ng = cmfd % indices(4)
 
-    ! 6000 accumulated
-    k_generation(overall_gen) =  1.6010261
-    ! 5999 instantaneous k:
-    !k_generation(overall_gen) = 1.6008997
-    ! 5999 accumulated k:
-    !k_generation(overall_gen) = 1.6010260
-    ! 6000 instantaneous k
-    !k_generation(overall_gen) = 1.6015428
+    allocate(totalxs(ng))
+    allocate(d(ng))
+    allocate(scattxs(ng*ng))
+    allocate(nfissxs(ng*ng))
+    allocate(flux(nx*ng))
 
+    !k_generation(overall_gen) =  1.6010261
 
     ! note: openmc_src_old, flux are volume-integrated, current, quad_currents are area-integrated
-    ! 6000 accumulated
-    !openmc_src_old = (/20.07898449829103, 50.160264528003204, 61.57547051967923, 50.130200475585525, 20.055079978440993/)
-    openmc_src_old = (/&
-         20.07898449829103, &
-         !20.1509544, &
-         50.160264528003204, &
-         !50.3328046, &
-         61.57547051967923, &
-         !61.6400778, &
-         50.130200475585525, &
-         !49.9352282, &
-         20.055079978440993/)
-         !19.940935/)
-    ! 5999 instantaneous
-    openmc_src_old = (/20.1509544, 50.3328046, 61.6400778, 49.9352282, 19.940935/)
-    ! 5999 accumulated
-    !openmc_src_old = (/20.07897425584275, 50.16025063124697, 61.575447550124935, 50.130227539989505, 20.05510002279584/)
-    ! 6000 instantaneous
-    openmc_src_old = (/20.14042317977581, 50.2436233458416, 61.71325194563345, 49.967856351496316, 19.934845177252825/)
+    if (ng == 1) then 
+       totalxs = (/0.927057/)
+       scattxs = (/0.8996023/)
+       nfissxs = (/0.0371365/)
+       d = (/1.19/)
+       flux(:) = 1.0 
+    else if (ng == 2) then
+       totalxs = (/0.64336155, 1.94585169/)
+       scattxs = (/0.608241, 0.02568, 0.0, 1.853706/)
+       nfissxs = (/0.005233, 0.0, 0.151707, 0.0/)
+       d = (/1.44, 0.284/)
+       flux = (/ 3.92672896,   1.02983295,   8.8257216 ,   2.45199824,&
+        13.40635594,   3.73209005,  17.66224929,   4.91811123,&
+        21.5082574 ,   5.98930568,  24.85776969,   6.92183052,&
+        27.6353359 ,   7.69520216,  29.77977404,   8.29268241,&
+        31.23987571,   8.6992619 ,  31.97863565,   8.90487998,&
+        31.98218281,   8.90611406,  31.24706938,   8.70134445,&
+        29.79362647,   8.29655209,  27.65130049,   7.70007488,&
+        24.87142261,   6.92575664,  21.52007272,   5.99232399,&
+        17.67133909,   4.92064943,  13.41131647,   3.73341871,&
+         8.8293219 ,   2.4530031 ,   3.92759676,   1.0300203 /)
+    else 
+       return
+    end if
 
-    flux = (/11.15646, 27.870344, 34.21274, 27.853376, 11.143532/)
-    totalxs = (/0.72755,0.72770,0.72770,0.72770,0.72755/)
-    p1scattxs = (/0.08659, 0.08653, 0.08653, 0.08653, 0.08659/)
-    scattxs = (/0.699875, 0.700015, 0.700013, 0.700013, 0.699875/)
-    nfissxs = (/0.044548, 0.044549, 0.044549, 0.044549, 0.044548/)
-
-    current = (/&
-         0.0079015648, 0.0000000000, 0.1319942196, &
-         0.1257532164, 2.7890888400, 2.7890888400, &
-         2.7891075780, 2.7891075780, 2.7890950860, &
-         2.7890950860, 2.7890888400, 2.7890888400, &
-         0.1319942196, 0.1257532164, 0.2060995743, &
-         0.2037285927, 6.9679751400, 6.9679751400, &
-         6.9679751400, 6.9679751400, 6.9679439100, &
-         6.9679439100, 6.9679439100, 6.9679439100, &
-         0.2060995743, 0.2037285927, 0.2036411487, &
-         0.2060165025, 8.5537408500, 8.5537408500, &
-         8.5537096200, 8.5537096200, 8.5537408500, &
-         8.5537408500, 8.5537096200, 8.5537096200, &
-         0.2036411487, 0.2060165025, 0.1256392269, &
-         0.1318842900, 6.9637590900, 6.9637590900, &
-         6.9637278600, 6.9637278600, 6.9637278600, &
-         6.9637278600, 6.9637278600, 6.9637278600, &
-         0.1256392269, 0.1318842900, 0.0000000000, &
-         0.0078924456, 2.7858284280, 2.7858284280, &
-         2.7858221820, 2.7858221820, 2.7858409200, &
-         2.7858409200, 2.7858284280, 2.7858284280&
-         /)
-    
-    quad_current = (/&
-         0.0039510, 0.0039510, 0.0000000, 0.0000000, &
-         0.0659980, 0.0659970, 0.0628770, 0.0628770, &
-         1.4414720, 1.3476228, 1.4414720, 1.3476228, &
-         1.4414720, 1.3476632, 1.4414720, 1.3476632, &
-         0.0659980, 0.0659970, 0.0628770, 0.0628770, &
-         0.1030500, 0.1030510, 0.1018670, 0.1018630, &
-         3.5126184, 3.4554524, 3.5126184, 3.4554524, &
-         3.5126184, 3.4554120, 3.5126184, 3.4554120, &
-         0.1030500, 0.1030510, 0.1018670, 0.1018630, &
-         0.1018230, 0.1018200, 0.1030060, 0.1030120, &
-         4.2768652, 4.2769056, 4.2768652, 4.2769056, &
-         4.2768652, 4.2769056, 4.2768652, 4.2769056, &
-         0.1018230, 0.1018200, 0.1030060, 0.1030120, &
-         0.0628190, 0.0628220, 0.0659440, 0.0659420, &
-         3.4532708, 3.5105580, 3.4532708, 3.5105580, &
-         3.4532304, 3.5105176, 3.4532304, 3.5105176, &
-         0.0628190, 0.0628220, 0.0659440, 0.0659420, &
-         0.0000000, 0.0000000, 0.0039460, 0.0039460, &
-         1.3460472, 1.4398156, 1.3460472, 1.4398156, &
-         1.3460472, 1.4397752, 1.3460472, 1.4397752/)
-    
     ! Begin loop around space
     ZLOOP: do k = 1,nz
 
@@ -556,22 +545,27 @@ contains
              ! Loop around energy groups
              OUTGROUP: do h = 1,ng
 
-                index = i;
-                cmfd % flux(h, i, j, k) = flux(index);
-                cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(totalxs(index) - p1scattxs(index)))
-                cmfd % totalxs(h, i, j, k) = totalxs(index);
-                cmfd % p1scattxs(h, i, j, k) = p1scattxs(index);
-                cmfd % scattxs(h, h, i, j, k) = scattxs(index);
-                cmfd % nfissxs(h, h, i, j, k) = nfissxs(index);
-                cmfd % openmc_src_old(h, i, j, k) = openmc_src_old(index);
-                do s = 1, 12
-                   index2 = (index - 1) * 12 + s;
-                   cmfd % current(s, h, i, j, k) = current(index2);
-                end do
-                do s = 1, 16
-                   index2 = (index - 1) * 16 + s;
-                   cmfd % quad_current(s, h, i, j, k) = quad_current(index2)
-                end do
+                index = h;
+                cmfd % diffcof(h,i,j,k) = d(index);
+
+                ! the rest of the cross-sections:
+                !cmfd % totalxs(h, i, j, k) = totalxs(index);
+                !do g = 1,ng
+                !   index2 = (h - 1) * ng + g;                
+                !   cmfd % scattxs(h, g, i, j, k) = scattxs(index2);
+                !   cmfd % nfissxs(h, g, i, j, k) = nfissxs(index2);
+                !end do
+
+                !cmfd % flux(h, i, j, k) = flux( (i - 1) * ng + h);
+                !cmfd % openmc_src_old(h, i, j, k) = openmc_src_old(index);
+                !do s = 1, 12
+                !   index2 = (index - 1) * 12 + s;
+                !   cmfd % current(s, h, i, j, k) = current(index2);
+                !end do
+                !do s = 1, 16
+                !   index2 = (index - 1) * 16 + s;
+                !   cmfd % quad_current(s, h, i, j, k) = quad_current(index2)
+                !end do
              end do OUTGROUP
 
           end do XLOOP

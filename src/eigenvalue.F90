@@ -237,9 +237,9 @@ contains
 
     ! Call the set_up_cmfd routine to store a copy of the data one
     ! iteration before acceleration is requested to turn on
-    if (loo_tally) then
-       if (master) call set_up_cmfd()
-    end if
+    !if (loo_tally) then
+    !   if (master) call set_up_cmfd()
+    !end if
 
     ! Debug
     if (cmfd_on) then
@@ -563,13 +563,19 @@ contains
   subroutine shannon_entropy()
 
     integer :: ent_idx        ! entropy index
-    integer :: i, j, k        ! index for bank sites
+    integer :: i, j, k, h     ! index for bank sites
     integer :: n              ! # of boxes in each dimension
+    integer :: ng             ! # of energy groups; 1 by default, otherwise number of 
+                              ! groups in acceleration methods
     logical :: sites_outside  ! were there sites outside entropy box?
     type(StructuredMesh), pointer :: m => null()
 
     ! Get pointer to entropy mesh
     m => entropy_mesh
+
+    ! Set decault number of groups to be 1
+    ng = 1
+    if (cmfd_on) ng = cmfd % indices(4)
 
     ! On the first pass through this subroutine, we need to determine how big
     ! the entropy mesh should be in each direction and then allocate a
@@ -594,8 +600,8 @@ contains
       end if
 
       ! allocate p
-      allocate(entropy_p(1, m % dimension(1), m % dimension(2), &
-           m % dimension(3)))
+      allocate(entropy_p(ng, m % dimension(1), m % dimension(2), &
+               m % dimension(3)))
     end if
 
     if (.not. allocated(entropy_s)) then
@@ -615,35 +621,51 @@ contains
 
       end if
 
-      allocate(entropy_s(1, m % dimension(1), m % dimension(2), & 
-           m % dimension(3)))
-      allocate(entropy_s_old(1, m % dimension(1), m % dimension(2), &
-           m % dimension(3)))
+      allocate(entropy_s(ng, m % dimension(1), m % dimension(2), &
+               m % dimension(3)))
+      allocate(entropy_s_old(ng, m % dimension(1), m % dimension(2), &
+               m % dimension(3)))     
 
       ! initialize entropy_s to 1.0
       ! FIXME: need to handle MPI
       do i = 1, m % dimension(1)
         do j = 1, m % dimension(2)
           do k = 1, m % dimension(3)
-            entropy_s(1,i,j,k) = 1.0
-            entropy_s_old(1,i,j,k) = 1.0
+             do h = 1, ng
+                entropy_s(h,i,j,k) = 1.0
+                entropy_s_old(h,i,j,k) = 1.0
+             end do
           end do
         end do
       end do
     end if
 
     ! count number of fission sites in fission_bank over mesh
-    call count_bank_sites(m, fission_bank, entropy_p, &
-         size_bank=n_bank, sites_outside=sites_outside)
+    if (cmfd_on) then 
+       call count_bank_sites(m, fission_bank, entropy_p, &
+            cmfd % egrid, size_bank=n_bank, sites_outside=sites_outside)
+       ! reverse due to the egrid structure
+       entropy_p = entropy_p(ng:1:-1,:,:,:)
+    else
+        call count_bank_sites(m, fission_bank, entropy_p, & 
+            size_bank=n_bank, sites_outside=sites_outside)
+    end if
 
     ! display warning message if there were sites outside entropy box
     if (sites_outside) then
       if (master) call warning("Fission source site(s) outside of entropy box.")
     end if
 
-    ! count number of fission sites in source_bank over mesh
     if (master) entropy_s_old = entropy_s
-    call count_bank_sites(m, source_bank, entropy_s)
+
+    ! count number of fission sites in source_bank over mesh
+    if (cmfd_on) then
+       call count_bank_sites(m, source_bank, entropy_s, cmfd % egrid)
+       ! reverse due to the egrid structure
+       entropy_s = entropy_s(ng:1:-1,:,:,:)
+    else
+       call count_bank_sites(m, source_bank, entropy_s)
+    end if
 
     ! sum values to obtain shannon entropy
     if (master) then
@@ -653,13 +675,16 @@ contains
 
       ent_idx = current_gen + gen_per_batch*(current_batch - 1)
       entropy(ent_idx) = ZERO
+      ! FIXME: how to handle when entropy_p is multi-group? 
       do i = 1, m % dimension(1)
         do j = 1, m % dimension(2)
           do k = 1, m % dimension(3)
-            if (entropy_p(1,i,j,k) > ZERO) then
-              entropy(ent_idx) = entropy(ent_idx) - &
-                   entropy_p(1,i,j,k) * log(entropy_p(1,i,j,k))/log(TWO)
-            end if
+            do h = 1, ng
+              if (entropy_p(h,i,j,k) > ZERO) then
+                entropy(ent_idx) = entropy(ent_idx) - &
+                   entropy_p(h,i,j,k) * log(entropy_p(h,i,j,k)) / log(TWO)
+              end if
+            end do
           end do
         end do
       end do
