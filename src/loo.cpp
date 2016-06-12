@@ -29,7 +29,9 @@
 #define SIN_THETA_45 0.70710678118654746//1.0//0.9996937981813316//
 #define P0 0.798184
 #define WT_Q 8.0
-#define REFERENCE 0
+#define REFERENCE 0          // control readInReferenceParameters
+#define REFERENCE_TRANS_XS 1 // control whether to force right trans xs in 2G
+#define DIVIDE 0             // divide by number of realizations in MC tallies
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
@@ -39,22 +41,23 @@ double new_loo(int *indices, double *k, double *albedo,
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
                   ptxs, pfxs, psxs, pp1sxs, pcur, pqcur, pfs);
 
-    /* Debug option: we can run the reference solution by reading in
-     * parameters */
-    if (REFERENCE) {
-        loo.readInReferenceParameters();
-    }
-    else {
-        /* divides scalar fluxes by volume, and currents by area */
-        loo.processFluxCurrent();
-    }
+    /* divides scalar fluxes by volume, and currents by area */
+    loo.processFluxCurrent();
 
     /* normalizes all the tallied terms such that the
      * energy-integrated FS average to be 1.0 */
-    loo.normalizeTallies();
+    // DEBUG: when divided by number of realizations, do not need to
+    // call normalizeTallies() but should normalize old FS when it's lagged MC
+    if (DIVIDE) loo.normalizationByEnergyIntegratedFissionSourceAvg(1.0, true);
+    else loo.normalizeTallies();
 
     /* computes _abs_xs from _total_xs and _scatt_xs */
     loo.processXs();
+
+    /* Debug option: we can run the reference solution by reading in
+     * parameters */
+    //if (REFERENCE) loo.readInReferenceParameters();
+    if (false) loo.readInReferenceParameters();
 
     /* computes _quad_flux from _quad_current */
     loo.computeQuadFlux();
@@ -151,8 +154,9 @@ void meshElement::normalize(double ratio) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
-                }}}}
+                    if (getValue(g, i, j, k) > 1e-15) {
+                        setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
+                    }}}}}
     return;
 }
 
@@ -172,8 +176,25 @@ void meshElement::printElement(std::string string, FILE* pfile){
                 }}}}
 
     if ((string == "fs") || (string == " m-th fission source")) {
-        // D = 0.72
-        double reference[] = {0.49661414, 1.24116506, 1.52444159, 1.24116506, 0.49661414};
+        std::vector<double> reference (_nx);
+
+        if (_nx == 5) { // D = 0.72
+            double ref_val[_nx] = {0.49661414, 1.24116506, 1.52444159, 1.24116506, 0.49661414};
+            reference.insert(reference.begin(), ref_val, ref_val+_nx);
+        }
+        else if (_nx == 45) {
+            double ref_val[_nx] = {0.085247,0.191610,0.297063,0.401107,0.503247,0.602999,0.699890,0.793460,0.883265,0.968879,
+                                   1.049894,1.125928,1.196620,1.261633,1.320659,1.373419,1.419661,1.459167,1.491749,1.517252,
+                                   1.535555,1.546572,1.550250,1.546572,1.535555,1.517252,1.491749,1.459167,1.419661,1.373419,
+                                   1.320659,1.261633,1.196620,1.125928,1.049894,0.968879,0.883265,0.793460,0.699890,0.602999,
+                                   0.503247,0.401107,0.297063,0.191610,0.085247};
+            reference.insert(reference.begin(), ref_val, ref_val+_nx);
+        }
+        else {
+            double ref_val[_nx] = {1.0};
+            reference.insert(reference.begin(), ref_val, ref_val+_nx);
+        }
+
         double rms = 0;
         int counter = 0;
         for (int k = 0; k < _nz; k++) {
@@ -187,13 +208,11 @@ void meshElement::printElement(std::string string, FILE* pfile){
             }
         }
         rms = sqrt(rms / (double) counter);
-        fprintf(pfile, " => %f, %f, %f, %f, %f => rms: %.5f%% ",
-                getValue(0, 0, 0, 0) - reference[0],
-                getValue(0, 1, 0, 0) - reference[1],
-                getValue(0, 2, 0, 0) - reference[2],
-                getValue(0, 3, 0, 0) - reference[3],
-                getValue(0, 4, 0, 0) - reference[4],
-                100 * rms);
+        fprintf(pfile, " => res:");
+        for (int i = 0; i < _nx; i++) {
+            fprintf(pfile, ", %f", getValue(0, i, 0, 0) - reference[i]);
+        }
+        fprintf(pfile, " => rms: %.5f%% ", 100 * rms);
     }
     
     fprintf(pfile, "\n");
@@ -384,6 +403,7 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       /* meshElement */
       _p1_scatt_xs(_ng, _nx, _ny, _nz, pp1sxs),
+      _d(_ng, _nx, _ny, _nz),
       /* surfaceElement */
       _length(3, 1, _nx, _ny, _nz, phxyz),
       _area(3, 1, _nx, _ny, _nz),
@@ -696,122 +716,82 @@ void Loo::generate2dTracknxn() {
 // Current parameters are from 1600 batches (200 inactive, 1400
 // actives), 1 million neutrons/batch.
 void Loo::readInReferenceParameters() {
-    //_k = 1.603247;
-    // use accumulative k:
-    _k = 1.6010266;
-    double scalar_flux[] = {2.75178692e-01, 6.87910606e-01, 8.47764532e-01,
-                            6.90994671e-01, 2.76188778e-01};
-    double total_xs[] = {7.27537498e-01, 7.27697558e-01, 7.27687836e-01,
-                         7.27697565e-01, 7.27557193e-01};
-    double p1_scatt_xs[] =  {8.65954974e-02, 8.65366952e-02, 8.65328784e-02,
-                             8.65346863e-02, 8.65831183e-02};
-    double scatt_xs[] = {0.699861, 0.700009,  0.700001, 0.700011,  0.699883};
-    double nfiss_xs[] = {0.044551, 0.044549, 0.044551, 0.044553, 0.044543};
-    double quad_current[] = {0.003936,
-                             0.003936,
-                             0.000000, 
-                             0.000000, 
-                             0.065730, 
-                             0.065730, 
-                             0.062639, 
-                             0.062614, 
-                             0.035554, 
-                             0.033243,
-                             0.035554, 
-                             0.033243, 
-                             0.035552, 
-                             0.033244, 
-                             0.035552, 
-                             0.033244, 
-                             0.065730, 
-                             0.065730, 
-                             0.062639, 
-                             0.062614, 
-                             0.102986, 
-                             0.102953, 
-                             0.101759, 
-                             0.101755, 
-                             0.086709, 
-                             0.085277, 
-                             0.086709, 
-                             0.085277, 
-                             0.086710, 
-                             0.085282, 
-                             0.086710, 
-                             0.085282, 
-                             0.102986, 
-                             0.102953, 
-                             0.101759, 
-                             0.101755, 
-                             0.102056, 
-                             0.102072, 
-                             0.103235, 
-                             0.103249, 
-                             0.105979, 
-                             0.105968, 
-                             0.105979, 
-                             0.105968, 
-                             0.105978, 
-                             0.105969, 
-                             0.105978, 
-                             0.105969, 
-                             0.102056, 
-                             0.102072, 
-                             0.103235, 
-                             0.103249, 
-                             0.062907, 
-                             0.062899, 
-                             0.066029, 
-                             0.066041, 
-                             0.085673, 
-                             0.087094, 
-                             0.085673, 
-                             0.087094, 
-                             0.085670, 
-                             0.087093, 
-                             0.085670, 
-                             0.087093, 
-                             0.062907, 
-                             0.062899, 
-                             0.066029, 
-                             0.066041, 
-                             0.000000, 
-                             0.000000, 
-                             0.003950, 
-                             0.003951, 
-                             0.033361, 
-                             0.035684, 
-                             0.033361, 
-                             0.035684, 
-                             0.033361, 
-                             0.035684, 
-                             0.033361, 
-                             0.035684};
+    //_k = 1.339184; //1.3370953;
 
+    double scalar_flux[] = 
+        {0.00394678, 0.00103536, 0.00885761, 0.00246136, 0.01344737, 0.00374248, 0.01769299, 0.00492759, 0.02150122, 
+         0.00598887, 0.02481962, 0.00691126, 0.02755156, 0.00767448, 0.02969247, 0.00826951, 0.03115085, 0.00867422, 
+         0.03187850, 0.00887885, 0.03188963, 0.00887595, 0.03118538, 0.00868684, 0.02978393, 0.00829210, 0.02765423, 
+         0.00769955, 0.02491412, 0.00694041, 0.02160858, 0.00601639, 0.01778203, 0.00495250, 0.01349390, 0.00375730, 
+         0.00887795, 0.00246688, 0.00394774, 0.00103582};
     double previous_fission_source[] =
-    // 1600
-    //{4.95283906e-01, 1.23809773e+00,1.52587146e+00, 1.24374032e+00, 4.97006583e-01};
-    // 1599
-    { 4.97615000e-01,1.24246500e+00,1.52140500e+00,1.24319000e+00,4.95325000e-01};
+        {0.00017678, 0.00000000, 0.00041817, 0.00000000, 0.00063634, 
+         0.00000000, 0.00083854, 0.00000000, 0.00102117, 0.00000000, 
+         0.00118017, 0.00000000, 0.00131203, 0.00000000, 0.00141390, 
+         0.00000000, 0.00148322, 0.00000000, 0.00151828, 0.00000000, 
+         0.00151848, 0.00000000, 0.00148357, 0.00000000, 0.00141456, 
+         0.00000000, 0.00131285, 0.00000000, 0.00118084, 0.00000000, 
+         0.00102169, 0.00000000, 0.00083897, 0.00000000, 0.00063657, 
+         0.00000000, 0.00041834, 0.00000000, 0.00017681, 0.00000000};
+
+    double quad_current[] = 
+        {0.000334, 0.000334, 0.000000, 0.000000, 0.000982, 0.000981, 0.000637, 0.000637, 0.000605, 0.000378, 0.000605, 0.000378, 0.000604, 0.000379, 0.000604, 0.000379, 
+         0.000033, 0.000033, 0.000000, 0.000000, 0.000234, 0.000234, 0.000214, 0.000214, 0.000137, 0.000122, 0.000137, 0.000122, 0.000137, 0.000122, 0.000137, 0.000122, 
+         0.000982, 0.000981, 0.000637, 0.000637, 0.001564, 0.001565, 0.001234, 0.001234, 0.001216, 0.001000, 0.001216, 0.001000, 0.001216, 0.000999, 0.001216, 0.000999, 
+         0.000234, 0.000234, 0.000214, 0.000214, 0.000398, 0.000398, 0.000381, 0.000380, 0.000315, 0.000303, 0.000315, 0.000303, 0.000313, 0.000302, 0.000313, 0.000302, 
+         0.001564, 0.001565, 0.001234, 0.001234, 0.002108, 0.002107, 0.001801, 0.001797, 0.001785, 0.001578, 0.001785, 0.001578, 0.001785, 0.001579, 0.001785, 0.001579, 
+         0.000398, 0.000398, 0.000381, 0.000380, 0.000553, 0.000552, 0.000536, 0.000535, 0.000474, 0.000462, 0.000474, 0.000462, 0.000473, 0.000464, 0.000473, 0.000464, 
+         0.002108, 0.002107, 0.001801, 0.001797, 0.002593, 0.002595, 0.002318, 0.002317, 0.002305, 0.002121, 0.002305, 0.002121, 0.002309, 0.002117, 0.002309, 0.002117, 
+         0.000553, 0.000552, 0.000536, 0.000535, 0.000693, 0.000693, 0.000678, 0.000677, 0.000621, 0.000610, 0.000621, 0.000610, 0.000619, 0.000609, 0.000619, 0.000609, 
+         0.002593, 0.002595, 0.002318, 0.002317, 0.003024, 0.003026, 0.002787, 0.002785, 0.002771, 0.002604, 0.002771, 0.002604, 0.002770, 0.002606, 0.002770, 0.002606, 
+         0.000693, 0.000693, 0.000678, 0.000677, 0.000816, 0.000816, 0.000805, 0.000802, 0.000754, 0.000744, 0.000754, 0.000744, 0.000753, 0.000743, 0.000753, 0.000743, 
+         0.003024, 0.003026, 0.002787, 0.002785, 0.003381, 0.003384, 0.003182, 0.003184, 0.003176, 0.003034, 0.003176, 0.003034, 0.003175, 0.003033, 0.003175, 0.003033, 
+         0.000816, 0.000816, 0.000805, 0.000802, 0.000918, 0.000921, 0.000909, 0.000910, 0.000869, 0.000861, 0.000869, 0.000861, 0.000867, 0.000859, 0.000867, 0.000859, 
+         0.003381, 0.003384, 0.003182, 0.003184, 0.003663, 0.003663, 0.003513, 0.003512, 0.003503, 0.003389, 0.003503, 0.003389, 0.003502, 0.003393, 0.003502, 0.003393, 
+         0.000918, 0.000921, 0.000909, 0.000910, 0.001003, 0.001005, 0.000996, 0.000995, 0.000965, 0.000958, 0.000965, 0.000958, 0.000962, 0.000957, 0.000962, 0.000957, 
+         0.003663, 0.003663, 0.003513, 0.003512, 0.003865, 0.003866, 0.003762, 0.003763, 0.003754, 0.003676, 0.003754, 0.003676, 0.003751, 0.003675, 0.003751, 0.003675, 
+         0.001003, 0.001005, 0.000996, 0.000995, 0.001068, 0.001066, 0.001062, 0.001060, 0.001036, 0.001031, 0.001036, 0.001031, 0.001038, 0.001031, 0.001038, 0.001031, 
+         0.003865, 0.003866, 0.003762, 0.003763, 0.003980, 0.003979, 0.003927, 0.003926, 0.003920, 0.003864, 0.003920, 0.003864, 0.003922, 0.003872, 0.003922, 0.003872, 
+         0.001068, 0.001066, 0.001062, 0.001060, 0.001102, 0.001103, 0.001100, 0.001099, 0.001082, 0.001080, 0.001082, 0.001080, 0.001089, 0.001082, 0.001089, 0.001082, 
+         0.003980, 0.003979, 0.003927, 0.003926, 0.003996, 0.003995, 0.003993, 0.003997, 0.003995, 0.003976, 0.003995, 0.003976, 0.003997, 0.003977, 0.003997, 0.003977, 
+         0.001102, 0.001103, 0.001100, 0.001099, 0.001114, 0.001114, 0.001113, 0.001115, 0.001109, 0.001108, 0.001109, 0.001108, 0.001110, 0.001108, 0.001110, 0.001108, 
+         0.003996, 0.003995, 0.003993, 0.003997, 0.003929, 0.003932, 0.003981, 0.003980, 0.003982, 0.003997, 0.003982, 0.003997, 0.003978, 0.003994, 0.003978, 0.003994, 
+         0.001114, 0.001114, 0.001113, 0.001115, 0.001100, 0.001101, 0.001102, 0.001104, 0.001109, 0.001110, 0.001109, 0.001110, 0.001109, 0.001109, 0.001109, 0.001109, 
+         0.003929, 0.003932, 0.003981, 0.003980, 0.003770, 0.003767, 0.003874, 0.003871, 0.003879, 0.003926, 0.003879, 0.003926, 0.003876, 0.003923, 0.003876, 0.003923, 
+         0.001100, 0.001101, 0.001102, 0.001104, 0.001060, 0.001061, 0.001066, 0.001066, 0.001084, 0.001086, 0.001084, 0.001086, 0.001084, 0.001086, 0.001084, 0.001086, 
+         0.003770, 0.003767, 0.003874, 0.003871, 0.003525, 0.003525, 0.003676, 0.003681, 0.003681, 0.003767, 0.003681, 0.003767, 0.003683, 0.003767, 0.003683, 0.003767, 
+         0.001060, 0.001061, 0.001066, 0.001066, 0.001000, 0.001001, 0.001008, 0.001009, 0.001033, 0.001039, 0.001033, 0.001039, 0.001036, 0.001042, 0.001036, 0.001042, 
+         0.003525, 0.003525, 0.003676, 0.003681, 0.003196, 0.003199, 0.003393, 0.003396, 0.003404, 0.003516, 0.003404, 0.003516, 0.003403, 0.003513, 0.003403, 0.003513, 
+         0.001000, 0.001001, 0.001008, 0.001009, 0.000913, 0.000912, 0.000925, 0.000923, 0.000959, 0.000964, 0.000959, 0.000964, 0.000957, 0.000965, 0.000957, 0.000965, 
+         0.003196, 0.003199, 0.003393, 0.003396, 0.002796, 0.002796, 0.003038, 0.003034, 0.003049, 0.003184, 0.003049, 0.003184, 0.003048, 0.003186, 0.003048, 0.003186, 
+         0.000913, 0.000912, 0.000925, 0.000923, 0.000807, 0.000808, 0.000818, 0.000822, 0.000863, 0.000871, 0.000863, 0.000871, 0.000863, 0.000871, 0.000863, 0.000871, 
+         0.002796, 0.002796, 0.003038, 0.003034, 0.002333, 0.002332, 0.002611, 0.002607, 0.002623, 0.002784, 0.002623, 0.002784, 0.002621, 0.002783, 0.002621, 0.002783, 
+         0.000807, 0.000808, 0.000818, 0.000822, 0.000681, 0.000681, 0.000696, 0.000696, 0.000747, 0.000756, 0.000747, 0.000756, 0.000748, 0.000757, 0.000748, 0.000757, 
+         0.002333, 0.002332, 0.002611, 0.002607, 0.001806, 0.001807, 0.002115, 0.002115, 0.002131, 0.002317, 0.002131, 0.002317, 0.002129, 0.002318, 0.002129, 0.002318, 
+         0.000681, 0.000681, 0.000696, 0.000696, 0.000540, 0.000538, 0.000555, 0.000556, 0.000614, 0.000625, 0.000614, 0.000625, 0.000615, 0.000624, 0.000615, 0.000624, 
+         0.001806, 0.001807, 0.002115, 0.002115, 0.001238, 0.001237, 0.001569, 0.001568, 0.001583, 0.001787, 0.001583, 0.001787, 0.001583, 0.001788, 0.001583, 0.001788, 
+         0.000540, 0.000538, 0.000555, 0.000556, 0.000381, 0.000381, 0.000400, 0.000399, 0.000463, 0.000475, 0.000463, 0.000475, 0.000463, 0.000475, 0.000463, 0.000475, 
+         0.001238, 0.001237, 0.001569, 0.001568, 0.000638, 0.000639, 0.000983, 0.000983, 0.001002, 0.001218, 0.001002, 0.001218, 0.001001, 0.001218, 0.001001, 0.001218, 
+         0.000381, 0.000381, 0.000400, 0.000399, 0.000214, 0.000214, 0.000234, 0.000234, 0.000303, 0.000316, 0.000303, 0.000316, 0.000302, 0.000313, 0.000302, 0.000313, 
+         0.000638, 0.000639, 0.000983, 0.000983, 0.000000, 0.000000, 0.000335, 0.000336, 0.000378, 0.000604, 0.000378, 0.000604, 0.000377, 0.000605, 0.000377, 0.000605, 
+         0.000214, 0.000214, 0.000234, 0.000234, 0.000000, 0.000000, 0.000033, 0.000032, 0.000122, 0.000137, 0.000122, 0.000137, 0.000123, 0.000138, 0.000123, 0.000138};
+
 
     int c1 = 0, c2 = 0;
     for (int k = 0; k < _nz; ++k) {
         for (int j = 0; j < _ny; ++j) {
             for (int i = 0; i < _nx; ++i) {
                 for (int g = 0; g < _ng; ++g) {
-                    _total_xs.setValue(g, i, j, k, total_xs[c1]);
-                    _p1_scatt_xs.setValue(g, i, j, k, p1_scatt_xs[c1]);
-                    _nfiss_xs.setValue(g, g, i, j, k, nfiss_xs[c1]);
-                    _scatt_xs.setValue(g, g, i, j, k, scatt_xs[c1]);
-                    _previous_fission_source.setValue(g, i, j, k,
-                                                      previous_fission_source[c1]);
+                    //_previous_fission_source.setValue(g, i, j, k,
+                    //                                  previous_fission_source[c1]);
                     _scalar_flux.setValue(g, i, j, k, scalar_flux[c1]);
                     _old_scalar_flux.setValue(g, i, j, k, scalar_flux[c1]);
                     c1++;
                     for (int s = 0; s < _ns_2d; ++s) {
                         _quad_current.setValue(s, g, i, j, k, quad_current[c2]);
                         c2++;
-                    }}}}}
+                    }
+                }}}}
     return;
 }
 
@@ -863,7 +843,7 @@ void Loo::processFluxCurrent() {
 /* compute absorption xs: $\Sigma_{a,g} = \Sigma_{t,g} - \Sum_{g'}
  * \Sigma_{s, g\to g'} */
 void Loo::processXs() {
-    double tot_xs, abs_xs, scatt_xs;
+    double tot_xs, trans_xs, abs_xs, scatt_xs, delta;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
@@ -874,15 +854,30 @@ void Loo::processXs() {
                     }
 
                     tot_xs = _total_xs.getValue(g1, i, j, k);
-                    
-                    /* DEBUG: attempted to subtract p1 scattering from
-                     * total, seem to cause a negative abs xs for 1D homogeneous
-                     * cosine shape */
-                    //tot_xs -= _p1_scatt_xs.getValue(g1, i, j, k);
-                    //_total_xs.setValue(g1, i, j, k, tot_xs);
+                    delta = _p1_scatt_xs.getValue(g1, i, j, k);
+                    trans_xs = tot_xs - delta;
+                    /* DEBUG: when reference parameters requested,
+                     * overwrite trans_xs and delta */
+                    if (REFERENCE_TRANS_XS) {
+                        if (_ng == 1) trans_xs = 0.28011;
+                        else if (_ng == 2) {
+                            if (g1 == 0) trans_xs = 0.23148;
+                            else trans_xs = 1.17371;
+                        }
+                        delta = tot_xs - trans_xs;
+                    }
+                    _total_xs.setValue(g1, i, j, k, trans_xs);
 
+                    // absorption depends on the original total xs
                     abs_xs = tot_xs - scatt_xs;
                     _abs_xs.setValue(g1, i, j, k, abs_xs);
+                    
+                    // adjust in-group scattering s/t abs and scatt
+                    // add up to trans xs
+                    _scatt_xs.setValue(g1, g1, i, j, k, 
+                                       _scatt_xs.getValue(g1, g1, i, j, k) - delta);
+
+                    _d.setValue(g1, i, j, k, 1.0/3.0/trans_xs);
                 }}}}
     return;
 }
@@ -890,6 +885,8 @@ void Loo::processXs() {
 /* normalize tallies to remove the effect that
  * _previous_fission_source is accumulated from one less batch
  * compared with other tallies */
+// DEBUG: making sure _previous_fission_source and fission source are
+// normalized in a consistent manner
 void Loo::normalizeTallies() {
     double sum, factor;
 
@@ -907,14 +904,11 @@ void Loo::normalizeTallies() {
     }
     else {
       sum = _previous_fission_source.sum();
-      if (sum < 1e-5) {
+      if ((sum < 1e-5) or (sum > 1e5)) {
           _previous_fission_source.one();
-      }
-      else {
-          factor = (double) ( _nx * _ny * _nz) / sum;
-          _previous_fission_source.normalize(factor);
-      }
-    }
+    }}
+    factor = (double) ( _nx * _ny * _nz) / _previous_fission_source.sum();
+    _previous_fission_source.normalize(factor);
 
     /* compute fission source generated by MC. */
     normalizationByEnergyIntegratedFissionSourceAvg(1.0, true);
@@ -1022,22 +1016,23 @@ void Loo::computeQuadSourceFormFactor(){
     }
 
     _quad_src_form_factor.printElement("m+1/2 qs form factor", _pfile);
-    _sum_quad_flux.printElement("m+1/2 sum quad flux", _pfile);
+    //_sum_quad_flux.printElement("m+1/2 sum quad flux", _pfile);
 }
 
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
     fprintf(_pfile, "data passed into LOO from openmc:\n");
     fprintf(_pfile, " _k = %f\n", _k);
-    _scalar_flux.printElement(" scalar flux", _pfile);
-    _total_xs.printElement(" total xs", _pfile);
-    _scatt_xs.printElement(" scat xs", _pfile);
-    _abs_xs.printElement(" abs xs", _pfile);
-    _p1_scatt_xs.printElement(" p1 scat xs", _pfile);
-    _nfiss_xs.printElement(" fission xs", _pfile);
-    _quad_current.printElement(" quad current", _pfile);
     _previous_fission_source.printElement(" m-th fission source", _pfile);
     _energy_integrated_fission_source.printElement("fs", _pfile);
+    _scalar_flux.printElement(" scalar flux", _pfile);
+    //_total_xs.printElement(" total xs", _pfile);
+    //_scatt_xs.printElement(" scat xs", _pfile);
+    //_abs_xs.printElement(" abs xs", _pfile);
+    //_p1_scatt_xs.printElement(" p1 scat xs", _pfile);
+    //_d.printElement(" D", _pfile);
+    //_nfiss_xs.printElement(" fission xs", _pfile);
+    //_quad_current.printElement(" quad current", _pfile);
     checkBalance();
     
     /* loo iteration control */
@@ -1051,12 +1046,15 @@ void Loo::executeLoo(){
     surfaceElement quad_src (_nt, _ng, _nx, _ny, _nz);
 
     /* loop control variables: min, max number of loo sweeps to be performed */
-    eps_converged = 1e-8;
-    min_loo_iter = 5;
+    eps_converged = 1e-9;
+    min_loo_iter = 10;
     max_loo_iter = 10000;
 
-    /* save _fission_source into fission_source */
-    // debug:
+    /* save an old copy of energy-integrated fission source into
+     * fission_source, so that when we update the term we can compute
+     * L2 norm of relative change */
+    // debug: call computequadsource an additional time here for debug
+    // purpose
     computeQuadSource(quad_src);
     _energy_integrated_fission_source.copyTo(fission_source);
 
@@ -1102,14 +1100,14 @@ void Loo::executeLoo(){
         }
         rms /= (double)(_nx * _ny * _nz);
         rms = pow(rms, 0.5);
-        fprintf(_pfile, "iter %d: k = %.7f, eps = %e, rms (phi) = %e\n",
-                _loo_iter, _k, eps, rms);
+        //fprintf(_pfile, "iter %d: k = %.7f, eps = %e, rms (phi) = %e\n",
+        //        _loo_iter, _k, eps, rms);
 
         /* save _energy_integrated_fission_source into fission_source */
         _energy_integrated_fission_source.copyTo(fission_source);
-	if (_loo_iter % 20 == 0) {
-	  _energy_integrated_fission_source.printElement("fs", _pfile);
-	}
+	//if (_loo_iter % 20 == 0) {
+	//  _energy_integrated_fission_source.printElement("fs", _pfile);
+	//}
         /* check on convergence criteria */
         if ((eps < eps_converged) && (_loo_iter > min_loo_iter))
             break;
@@ -1155,20 +1153,13 @@ double Loo::computeEnergyIntegratedFissionSource() {
                 if (fission_source > 0) counter++;
 
                 /* store the newly computed fission source into
-                 * _fission_source */
+                 * _energy_integrated_fission_source */
                 _energy_integrated_fission_source.setValue(0, i, j, k, fission_source);
             }}}
 
     /* compute average of the current fission source distribution */
     avg = _energy_integrated_fission_source.sum() / ((double) counter);
 
-    // debug
-    //printf("%f %f %f %f %f\n", _energy_integrated_fission_source.getValue(0, 0, 0, 0),
-    //      _energy_integrated_fission_source.getValue(0, 1, 0, 0),
-    //     _energy_integrated_fission_source.getValue(0, 2, 0, 0),
-    //    _energy_integrated_fission_source.getValue(0, 3, 0, 0),
-    //     _energy_integrated_fission_source.getValue(0, 4, 0, 0));
-    
     /* compute rms relative deviation from flat fission source
      * distribution */
     sum = 0;
@@ -1207,11 +1198,15 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
 
-                    total_source = scattering_source + fission_source / _k;
-                    /* _fission_source contains volume, _total_source
-                     * does not contain volume */
+
+                    /* purpsoe: _fission_source passes fission source
+                     * times volume to external files */
                     _fission_source.setValue(g1, i, j, k, fission_source
                                              * _volume.getValue(0, i, j, k));
+                    
+                    /* purpose: _total_source stores the current total
+                     * source without volume */
+                    total_source = scattering_source + fission_source / _k;
                     _total_source.setValue(g1, i, j, k, total_source);
                         
                     for (int t = 0; t < _nt; t++) {
@@ -1219,16 +1214,9 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                             / WT_Q * total_source;
 
                         quad_src.setValue(t, g1, i, j, k, quad_source);
-
-                        //printf("%f ", quad_src.getValue(t, g1, i, j, k) /
-                        //       _quad_src_total.getValue(t, g1, i, j, k));
-
-
                     }
                 }
-                //printf("\n");
             }
-            //printf("\n");
         }
     }
     return;
@@ -1498,9 +1486,9 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
     /* compute normalization factor such that the energy-integrated
      * fission source average is avg */
     ratio = avg / computeEnergyIntegratedFissionSource();
-    // FIXME: this ratio is consistently 0.999017 for some reason 
 
-    /* normalize fission source, scalar flux, quad flux, and leakage */
+    /* purpose: normalize fission source, scalar flux, quad flux, and
+     * leakage */
     _energy_integrated_fission_source.normalize(ratio);
     _scalar_flux.normalize(ratio);
 
@@ -1511,9 +1499,11 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
         _old_scalar_flux.normalize(ratio);
         _quad_current.normalize(ratio);
         _current.normalize(ratio);
+        if (DIVIDE) _previous_fission_source.normalize(ratio);
     }
-    else
+    else {
         _quad_flux.normalize(ratio);
+    }
 
     _leakage *= ratio;
 }
@@ -1603,8 +1593,8 @@ void Loo::checkBalance(){
 
                     /* if residual is larger than a certain threshold,
                      * print to screen */
-                    if (false){ //fabs(residual / absorption) > 1e-4) {
-                        printf("warning: residual in (%d %d %d):"
+                    if (true){ //fabs(residual / absorption) > 1e-4) {
+                        printf("residual in (%d %d %d):"
                                " %.2e = %.2e + %.2e - %.2e / %.2e\n", i, j, k,
                                residual, leakage, absorption, fission,  _k);
                     }}}}}

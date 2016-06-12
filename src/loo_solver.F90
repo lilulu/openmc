@@ -1,7 +1,7 @@
 module loo_solver
 
-  use global,         only: cmfd, keff, current_batch, entropy_s_old, &
-       overall_gen, gen_per_batch, k_generation
+  use global,         only: cmfd, keff, current_batch, entropy_s, entropy_p, &
+       entropy_s_old, overall_gen, gen_per_batch, k_generation
   use iso_c_binding,  only: c_int, c_double, c_loc
   use, intrinsic :: ISO_FORTRAN_ENV
 
@@ -62,6 +62,7 @@ contains
     albedo = cmfd % albedo
     hxyz = cmfd % hxyz
     flux = cmfd % flux
+    !src_old = cmfd % openmc_src
     src_old = cmfd % openmc_src_old
     !src_old = entropy_s_old
     totalxs = cmfd % totalxs
