@@ -36,7 +36,7 @@ contains
     call time_cmfdsolve % reset()
 
     ! Allocate cmfd object
-    call allocate_cmfd(cmfd, n_batches)
+    call allocate_cmfd(cmfd, n_batches, cmfd_n_save)
 
   end subroutine configure_cmfd
 
@@ -282,6 +282,11 @@ contains
       cmfd_rtoli = gs_tol(2)
     end if
 
+    if (check_for_node(doc, "n_save")) then
+       call get_node_value(doc, "n_save", cmfd_n_save)
+       cmfd_flush_every = .true.
+    end if
+    
     ! Create tally objects
     call create_cmfd_tally(doc)
 

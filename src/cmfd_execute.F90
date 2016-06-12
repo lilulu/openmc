@@ -94,9 +94,17 @@ contains
     ! If this is a restart run and we are just replaying batches leave
     if (restart_run .and. current_batch <= restart_batch) return
 
-    ! Check to reset tallies
+    ! Check to reset tallies when tally reset is requested
     if ((cmfd_run .or. loo_run) .and. cmfd_reset % contains(current_batch)) then
-      call cmfd_tally_reset()
+       call cmfd_tally_reset()
+    end if
+
+    ! Check to reset tallies during CMFD with moving window FIXME:
+    ! this might not be necessary because the parameters were
+    ! over-written anyway.
+    if ((cmfd_run .or. loo_run) .and. cmfd_flush_every .and. &
+         current_batch > cmfd_begin) then
+       call cmfd_tally_reset()
     end if
 
   end subroutine cmfd_init_batch
@@ -504,7 +512,7 @@ end subroutine print_fission_sources
 
   subroutine cmfd_tally_reset()
 
-    use global,  only: n_cmfd_tallies, cmfd_tallies
+    use global,  only: n_cmfd_tallies, cmfd_tallies, cmfd_flush_every
     use output,  only: write_message
     use tally,   only: reset_result
 
@@ -529,8 +537,12 @@ end subroutine print_fission_sources
     allocate(openmc_src(ng,nx,ny,nz))
     openmc_src = ZERO
 
-    ! Print message
-    call write_message("CMFD tallies reset", 7)
+    ! Print message. notice printing message is disalbed for rolling
+    ! windows case because it's too distracting to have it printed out
+    ! every batch
+    if (.not. cmfd_flush_every) then 
+       call write_message("CMFD tallies reset", 7)
+    end if
 
     ! Save old fission source for LOO
     do k = 1, nz

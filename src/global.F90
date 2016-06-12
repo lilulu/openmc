@@ -412,6 +412,10 @@ module global
   real(8) :: cmfd_atoli = 1.e-12_8
   real(8) :: cmfd_rtoli = 1.e-7_8
 
+  ! Number of batches to save for in CMFD moving/rolling window
+  integer :: cmfd_n_save = 1
+  logical :: cmfd_flush_every = .false.
+  
   ! Information about state points to be written
   integer :: n_state_points = 0
   type(SetInt) :: statepoint_batch

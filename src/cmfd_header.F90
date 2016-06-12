@@ -22,6 +22,17 @@ module cmfd_header
     ! Energy grid
     real(8), allocatable :: egrid(:)
 
+    ! Batch index and reaction rates for moving/rolling windows right now
+    integer :: idx
+    real(8), allocatable :: flux_rate(:,:,:,:,:)
+    real(8), allocatable :: total_rate(:,:,:,:,:)
+    real(8), allocatable :: p1scatt_rate(:,:,:,:,:)
+    real(8), allocatable :: scatt_rate(:,:,:,:,:,:)
+    real(8), allocatable :: nfiss_rate(:,:,:,:,:,:)
+    real(8), allocatable :: current_rate(:,:,:,:,:,:)
+    real(8), allocatable :: quad_current_rate(:,:,:,:,:,:)
+    real(8), allocatable :: openmc_src_rate(:,:,:,:,:)
+    
     ! Cross sections
     real(8), allocatable :: totalxs(:,:,:,:)
     real(8), allocatable :: p1scattxs(:,:,:,:)
@@ -102,9 +113,10 @@ contains
 ! ALLOCATE_CMFD allocates all data in of cmfd type
 !==============================================================================
 
-  subroutine allocate_cmfd(this, n_batches)
+  subroutine allocate_cmfd(this, n_batches, n_save)
 
     integer, intent(in)            :: n_batches ! number of batches in calc
+    integer, intent(in)            :: n_save    ! number of batches to save
     type(cmfd_type), intent(inout) :: this      ! cmfd instance
 
     integer :: nx  ! number of mesh cells in x direction
@@ -118,6 +130,17 @@ contains
     nz = this % indices(3)
     ng = this % indices(4)
 
+    ! Allocate reaction rate counters for moving/rolling window
+    if (.not. allocated(this % openmc_src_rate))allocate(this % openmc_src_rate(ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % flux_rate))   allocate(this % flux_rate(ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % total_rate))  allocate(this % total_rate(ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % p1scatt_rate))allocate(this % p1scatt_rate(ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % scatt_rate))  allocate(this % scatt_rate(ng,ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % nfiss_rate))  allocate(this % nfiss_rate(ng,ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % current_rate))allocate(this % current_rate(12,ng,nx,ny,nz,n_save))
+    if (.not. allocated(this % quad_current_rate)) &
+         allocate(this % quad_current_rate(16,ng,nx,ny,nz,n_save))
+    
     ! Allocate flux, cross sections and diffusion coefficient
     if (.not. allocated(this % flux))       allocate(this % flux(ng,nx,ny,nz))
     if (.not. allocated(this % totalxs))    allocate(this % totalxs(ng,nx,ny,nz))
@@ -168,12 +191,20 @@ contains
     this % p1scattxs     = ZERO
     this % scattxs       = ZERO
     this % nfissxs       = ZERO
+    this % openmc_src_rate= ZERO
+    this % flux_rate     = ZERO
+    this % total_rate    = ZERO
+    this % p1scatt_rate  = ZERO
+    this % scatt_rate    = ZERO
+    this % nfiss_rate    = ZERO
     this % diffcof       = ZERO
     this % dtilde        = ZERO
     this % dhat          = ZERO
     this % hxyz          = ZERO
     this % current       = ZERO
+    this % current_rate  = ZERO
     this % quad_current  = ZERO
+    this % quad_current_rate  = ZERO
     this % cmfd_src      = ZERO
     this % loo_src       = ZERO
     this % openmc_src    = ZERO
@@ -189,6 +220,9 @@ contains
     this % k_loo         = ZERO
     this % entropy       = ZERO
     this % loo_entropy   = ZERO
+
+    ! Set starting index to 1
+    this % idx           = 1
 
   end subroutine allocate_cmfd
 
@@ -209,6 +243,14 @@ contains
     if (allocated(this % current))       deallocate(this % current)
     if (allocated(this % quad_current))  deallocate(this % quad_current)
     if (allocated(this % flux))          deallocate(this % flux)
+    if (allocated(this % total_rate))    deallocate(this % total_rate)
+    if (allocated(this % p1scatt_rate))  deallocate(this % p1scatt_rate)
+    if (allocated(this % scatt_rate))    deallocate(this % scatt_rate)
+    if (allocated(this % nfiss_rate))    deallocate(this % nfiss_rate)
+    if (allocated(this % current_rate))  deallocate(this % current_rate)
+    if (allocated(this % quad_current_rate))  deallocate(this % quad_current_rate)
+    if (allocated(this % openmc_src_rate))deallocate(this % openmc_src_rate)    
+    if (allocated(this % flux_rate))     deallocate(this % flux_rate)    
     if (allocated(this % dtilde))        deallocate(this % dtilde)
     if (allocated(this % dhat))          deallocate(this % dhat)
     if (allocated(this % hxyz))          deallocate(this % hxyz)
