@@ -118,7 +118,24 @@ contains
     b = cmfd % idx
     
     ! reset parameters before computation
-    cmfd % openmc_src_rate = ZERO
+    do k = 1,nz
+       
+       do j = 1,ny
+
+          do i = 1,nx
+
+             do g = 1,ng
+    
+                cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
+
+             end do
+
+          end do
+
+       end do
+
+    end do
+    
     cmfd % openmc_src = ZERO
     cmfd % openmc_total_src = ZERO
     cmfd % flux = ZERO
