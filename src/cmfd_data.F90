@@ -118,6 +118,7 @@ contains
     b = cmfd % idx
     
     ! reset parameters before computation
+    cmfd % openmc_src_rate = ZERO
     cmfd % openmc_src = ZERO
     cmfd % openmc_total_src = ZERO
     cmfd % flux = ZERO
@@ -130,6 +131,8 @@ contains
     cmfd % current = ZERO
     cmfd % quad_current = ZERO
 
+
+    
    ! Begin loop around tallies
    TAL: do ital = 1, n_cmfd_tallies
 
