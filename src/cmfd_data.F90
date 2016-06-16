@@ -136,7 +136,6 @@ contains
 
     end do
     
-    cmfd % openmc_src = ZERO
     cmfd % openmc_total_src = ZERO
     cmfd % flux = ZERO
     cmfd % keff_bal = ZERO
@@ -147,8 +146,6 @@ contains
     cmfd % nfissxs = ZERO
     cmfd % current = ZERO
     cmfd % quad_current = ZERO
-
-
     
    ! Begin loop around tallies
    TAL: do ital = 1, n_cmfd_tallies
