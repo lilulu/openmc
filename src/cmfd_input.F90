@@ -36,6 +36,7 @@ contains
     call time_cmfdsolve % reset()
 
     ! Allocate cmfd object
+    
     call allocate_cmfd(cmfd, n_batches, cmfd_n_save)
 
   end subroutine configure_cmfd
@@ -290,6 +291,7 @@ contains
 
     if (check_for_node(doc, "roll_up_to")) then
        call get_node_value(doc, "roll_up_to", cmfd_n_save)
+       cmfd_current_n_save = 1
        cmfd_flush_every = .true.
     end if
     

@@ -1594,7 +1594,7 @@ void Loo::checkBalance(){
                     /* if residual is larger than a certain threshold,
                      * print to screen */
                     if (true){ //fabs(residual / absorption) > 1e-4) {
-                        printf("residual in (%d %d %d):"
+                        fprintf(_pfile, "residual in (%d %d %d):"
                                " %.2e = %.2e + %.2e - %.2e / %.2e\n", i, j, k,
                                residual, leakage, absorption, fission,  _k);
                     }}}}}

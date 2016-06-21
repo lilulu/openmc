@@ -118,7 +118,11 @@ contains
 
     ! Set batch index for moving window
     b = cmfd % idx
-    
+
+    call write_message("batch " // to_str(current_batch) // &
+         " stored at pos " // to_str(b) // " out of " // &
+         to_str(cmfd_current_n_save) // " bins." , 5)
+
     ! reset parameters before computation
     do k = 1,nz
        
@@ -233,16 +237,16 @@ contains
                   do ii= 1,nx
                     do jj = 1,ny
                       do kk = 1,nz
-                         call write_message("flux at (" // to_str(ii) //&
-                             &to_str(jj) // to_str(kk) // &
-                             &" 1) group 1 = "//&
-                             &to_str(cmfd % flux_rate(1,ii, jj, kk, b)), 5)
+                         call write_message("flux at (" // trim(to_str(ii)) //&
+                              ','// trim(to_str(jj)) // ','// trim(to_str(kk)) &
+                              // ','//") group 1 = "//&
+                             &trim(to_str(cmfd % flux_rate(1,ii,jj,kk,b))), 5)
                       enddo
                     enddo
                   enddo
                   call fatal_error('Detected zero flux without coremap overlay &
-                       &at: (' // to_str(i) // ',' // to_str(j) // ',' // &
-                       &to_str(k) // ') in group ' // to_str(h))
+                       &at: (' // trim(to_str(i)) // ',' // trim(to_str(j)) // ',' // &
+                       &trim(to_str(k)) // ') in group ' // trim(to_str(h)))
                 end if
 
                 ! Get total rr and convert to total xs
@@ -455,7 +459,7 @@ contains
     if (associated(m)) nullify(m)
 
     ! Logics for `expanding' the rolling window tallies
-    if (cmfd_current_n_save /= cmfd_n_save) then
+    if (cmfd_current_n_save <= cmfd_n_save) then
        if (cmfd_current_n_save == 1) then
           cmfd_current_n_save = 2
        else if (cmfd_current_n_save == (2 * b)) then
