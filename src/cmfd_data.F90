@@ -142,10 +142,10 @@ contains
                       cmfd % nfiss_rate(h,g,i,j,k,b) = ZERO
                    end do                
                    do q = 1, 12
-                      cmfd % current_rate(q,h,i,j,k,b) = ZERO
+                      cmfd % current_rate(q,g,i,j,k,b) = ZERO
                    end do
                    do q = 1, 16
-                      cmfd % quad_current_rate(q,h,i,j,k,b) = ZERO
+                      cmfd % quad_current_rate(q,g,i,j,k,b) = ZERO
                    end do
                 end if
 
@@ -499,17 +499,17 @@ contains
                          end do
                          ! current_rate
                          do q = 1, 12
-                            tmp_rates = cmfd % current_rate(q,h,i,j,k,ii)
-                            cmfd % current_rate(q,h,i,j,k,ii) = &
-                                 cmfd % current_rate(q,h,i,j,k,ii+b)
-                            cmfd % current_rate(q,h,i,j,k,ii+b) = tmp_rates
+                            tmp_rates = cmfd % current_rate(q,g,i,j,k,ii)
+                            cmfd % current_rate(q,g,i,j,k,ii) = &
+                                 cmfd % current_rate(q,g,i,j,k,ii+b)
+                            cmfd % current_rate(q,g,i,j,k,ii+b) = tmp_rates
                          end do
                          ! quad_current_rate
                          do q = 1, 16
-                            tmp_rates = cmfd % quad_current_rate(q,h,i,j,k,ii)
-                            cmfd % quad_current_rate(q,h,i,j,k,ii) = &
-                                 cmfd % quad_current_rate(q,h,i,j,k,ii+b)
-                            cmfd % quad_current_rate(q,h,i,j,k,ii+b) = tmp_rates
+                            tmp_rates = cmfd % quad_current_rate(q,g,i,j,k,ii)
+                            cmfd % quad_current_rate(q,g,i,j,k,ii) = &
+                                 cmfd % quad_current_rate(q,g,i,j,k,ii+b)
+                            cmfd % quad_current_rate(q,g,i,j,k,ii+b) = tmp_rates
                          end do
                       end do
                    end do
