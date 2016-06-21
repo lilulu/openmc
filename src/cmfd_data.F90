@@ -126,7 +126,26 @@ contains
 
              do g = 1,ng
     
-                cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
+                ! Temporary feature: only flush the first certain
+                ! batches, after which all parameters are accumulated
+
+                ! if (current_batch < 61) then 
+                if (.true.) then
+                   cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
+                   cmfd % flux_rate(g,i,j,k,b) = ZERO
+                   cmfd % total_rate(g,i,j,k,b) = ZERO
+                   cmfd % p1scatt_rate(g,i,j,k,b) = ZERO
+                   do h = 1, ng
+                      cmfd % scatt_rate(h,g,i,j,k,b) = ZERO
+                      cmfd % nfiss_rate(h,g,i,j,k,b) = ZERO
+                   end do                
+                   do q = 1, 12
+                      cmfd % current_rate(q,h,i,j,k,b) = ZERO
+                   end do
+                   do q = 1, 16
+                      cmfd % quad_current_rate(q,h,i,j,k,b) = ZERO
+                   end do
+                end if
 
              end do
 
@@ -135,7 +154,8 @@ contains
        end do
 
     end do
-    
+
+    ! these should not be necessary anymore
     cmfd % openmc_total_src = ZERO
     cmfd % flux = ZERO
     cmfd % keff_bal = ZERO
@@ -203,7 +223,8 @@ contains
                 score_index = sum((matching_bins(1:t%n_filters) - 1) * t%stride) + 1
 
                 ! Get flux
-                cmfd % flux_rate(h,i,j,k,b) = t % results(1,score_index) % sum / n
+                cmfd % flux_rate(h,i,j,k,b) = cmfd % flux_rate(h,i,j,k,b) + &
+                     t % results(1,score_index) % sum / n
 
                 ! Detect zero flux, abort if located
                 if ((cmfd % flux_rate(h,i,j,k,b) - ZERO) < TINY_BIT) then
@@ -223,10 +244,12 @@ contains
                 end if
 
                 ! Get total rr and convert to total xs
-                cmfd % total_rate(h,i,j,k,b) = t % results(2,score_index) % sum / n
+                cmfd % total_rate(h,i,j,k,b) = cmfd % total_rate(h,i,j,k,b) + &
+                     t % results(2,score_index) % sum / n
 
                 ! Get p1 scatter rr and convert to p1 scatter xs
-                cmfd % p1scatt_rate(h,i,j,k,b) = t % results(3,score_index) % sum / n
+                cmfd % p1scatt_rate(h,i,j,k,b) = cmfd % p1scatt_rate(h,i,j,k,b) + &
+                     t % results(3,score_index) % sum / n
 
               else if (ital == 2) then
 
@@ -255,10 +278,12 @@ contains
                   score_index = sum((matching_bins(1:t%n_filters) - 1) * t%stride) + 1
 
                   ! Get scattering
-                  cmfd % scatt_rate(h,g,i,j,k,b) = t % results(1,score_index) % sum / n
+                  cmfd % scatt_rate(h,g,i,j,k,b) = cmfd % scatt_rate(h,g,i,j,k,b) + &
+                       t % results(1,score_index) % sum / n
 
                   ! Get nu-fission
-                  cmfd % nfiss_rate(h,g,i,j,k,b) = t % results(2,score_index) % sum / n
+                  cmfd % nfiss_rate(h,g,i,j,k,b) = cmfd % nfiss_rate(h,g,i,j,k,b) + &
+                       t % results(2,score_index) % sum / n
  
                   ! Bank fission source: any fission event from group
                   ! h (outgroup) to g (ingroup) is added to group g's
@@ -298,7 +323,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q,h,i,j,k,b) = &
+                   cmfd % current_rate(q,h,i,j,k,b) = cmfd % current_rate(q,h,i,j,k,b) + &
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -309,7 +334,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q+nq,h,i,j,k,b) = &
+                   cmfd % current_rate(q+nq,h,i,j,k,b) = cmfd % current_rate(q+nq,h,i,j,k,b) + &
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -320,7 +345,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q+nq,h,i,j,k,b) = &
+                   cmfd % current_rate(q+nq,h,i,j,k,b) = cmfd % current_rate(q+nq,h,i,j,k,b) + &
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -331,7 +356,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q+2*nq,h,i,j,k,b) = &
+                   cmfd % current_rate(q+2*nq,h,i,j,k,b) = cmfd % current_rate(q+2*nq,h,i,j,k,b) +&
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -342,7 +367,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q+2*nq,h,i,j,k,b) = &
+                   cmfd % current_rate(q+2*nq,h,i,j,k,b) = cmfd % current_rate(q+2*nq,h,i,j,k,b) +&
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -353,7 +378,7 @@ contains
                    matching_bins(i_filter_surf) = q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % current_rate(q+3*nq,h,i,j,k,b) = &
+                   cmfd % current_rate(q+3*nq,h,i,j,k,b) = cmfd % current_rate(q+3*nq,h,i,j,k,b) +&
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -373,7 +398,7 @@ contains
                    matching_bins(i_filter_surf) = 6 + q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current_rate(q,h,i,j,k,b) = &
+                   cmfd % quad_current_rate(q,h,i,j,k,b) = cmfd % quad_current_rate(q,h,i,j,k,b)+&
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -384,7 +409,7 @@ contains
                    matching_bins(i_filter_surf) = 6 + q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current_rate(q+nq,h,i,j,k,b) = &
+                   cmfd % quad_current_rate(q+nq,h,i,j,k,b) = cmfd % quad_current_rate(q+nq,h,i,j,k,b)+&
                         t % results(1,score_index) % sum / n
                 end do
 
@@ -395,7 +420,7 @@ contains
                    matching_bins(i_filter_surf) = 6 + q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current_rate(q+nq,h,i,j,k,b) = &
+                   cmfd % quad_current_rate(q+nq,h,i,j,k,b) = cmfd % quad_current_rate(q+nq,h,i,j,k,b)+&
                         t % results(1,score_index) % sum / n
                 end do 
 
@@ -406,7 +431,7 @@ contains
                    matching_bins(i_filter_surf) = 6 + q
                    score_index = sum((matching_bins(1:t%n_filters) - 1) &
                         * t % stride) + 1
-                   cmfd % quad_current_rate(q+2*nq,h,i,j,k,b) = &
+                   cmfd % quad_current_rate(q+2*nq,h,i,j,k,b) = cmfd % quad_current_rate(q+2*nq,h,i,j,k,b)+&
                         t % results(1,score_index) % sum / n
                 end do
 
