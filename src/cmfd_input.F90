@@ -284,6 +284,12 @@ contains
 
     if (check_for_node(doc, "n_save")) then
        call get_node_value(doc, "n_save", cmfd_n_save)
+       cmfd_current_n_save = cmfd_n_save
+       cmfd_flush_every = .true.
+    end if
+
+    if (check_for_node(doc, "roll_up_to")) then
+       call get_node_value(doc, "roll_up_to", cmfd_n_save)
        cmfd_flush_every = .true.
     end if
     

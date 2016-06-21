@@ -414,6 +414,7 @@ module global
 
   ! Number of batches to save for in CMFD moving/rolling window
   integer :: cmfd_n_save = 1
+  integer :: cmfd_current_n_save = 1
   logical :: cmfd_flush_every = .false.
   
   ! Information about state points to be written

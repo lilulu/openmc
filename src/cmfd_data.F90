@@ -62,8 +62,9 @@ contains
                             OUT_FRONT, IN_TOP, OUT_TOP, CMFD_NOACCEL, ZERO,     &
                             ONE, TINY_BIT
     use error,        only: fatal_error
-    use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,&
-                            matching_bins, keff, current_batch, cmfd_n_save
+    use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,         &
+                            matching_bins, keff, current_batch, cmfd_n_save,    &
+                            cmfd_current_n_save
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -97,6 +98,7 @@ contains
     integer :: ii
     integer :: jj
     integer :: kk
+    real(8) :: tmp_rates
 
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
@@ -452,9 +454,82 @@ contains
     if (associated(t)) nullify(t)
     if (associated(m)) nullify(m)
 
+    ! Logics for `expanding' the rolling window tallies
+    if (cmfd_current_n_save /= cmfd_n_save) then
+       if (cmfd_current_n_save == 1) then
+          cmfd_current_n_save = 2
+       else if (cmfd_current_n_save == (2 * b)) then
+          ! manipulate position [1,...,b] with [b+1,...,2 * b]
+          do k = 1, nz
+             do j = 1, ny
+                do i = 1, nx
+                   do g = 1, ng
+                      do ii = 1, b
+                         ! openmc_src_rate
+                         tmp_rates = cmfd % openmc_src_rate(g,i,j,k,ii)
+                         cmfd % openmc_src_rate(g,i,j,k,ii) = &
+                              cmfd % openmc_src_rate(g,i,j,k,ii+b)
+                         cmfd % openmc_src_rate(g,i,j,k,ii+b) = tmp_rates
+                         ! flux_rate
+                         tmp_rates = cmfd % flux_rate(g,i,j,k,ii)
+                         cmfd % flux_rate(g,i,j,k,ii) = &
+                              cmfd % flux_rate(g,i,j,k,ii+b)
+                         cmfd % flux_rate(g,i,j,k,ii+b) = tmp_rates
+                         ! total_rate
+                         tmp_rates = cmfd % total_rate(g,i,j,k,ii)
+                         cmfd % total_rate(g,i,j,k,ii) = &
+                              cmfd % total_rate(g,i,j,k,ii+b)
+                         cmfd % total_rate(g,i,j,k,ii+b) = tmp_rates
+                         ! p1scatt_rate
+                         tmp_rates = cmfd % p1scatt_rate(g,i,j,k,ii)
+                         cmfd % p1scatt_rate(g,i,j,k,ii) = &
+                              cmfd % p1scatt_rate(g,i,j,k,ii+b)
+                         cmfd % p1scatt_rate(g,i,j,k,ii+b) = tmp_rates
+                         do h = 1, ng
+                            ! scatt_rate
+                            tmp_rates = cmfd % scatt_rate(h,g,i,j,k,ii)
+                            cmfd % scatt_rate(h,g,i,j,k,ii) = &
+                                 cmfd % scatt_rate(h,g,i,j,k,ii+b)
+                            cmfd % scatt_rate(h,g,i,j,k,ii+b) = tmp_rates
+                            ! nfiss_rate
+                            tmp_rates = cmfd % nfiss_rate(h,g,i,j,k,ii)
+                            cmfd % nfiss_rate(h,g,i,j,k,ii) = &
+                                 cmfd % nfiss_rate(h,g,i,j,k,ii+b)
+                            cmfd % nfiss_rate(h,g,i,j,k,ii+b) = tmp_rates
+                         end do
+                         ! current_rate
+                         do q = 1, 12
+                            tmp_rates = cmfd % current_rate(q,h,i,j,k,ii)
+                            cmfd % current_rate(q,h,i,j,k,ii) = &
+                                 cmfd % current_rate(q,h,i,j,k,ii+b)
+                            cmfd % current_rate(q,h,i,j,k,ii+b) = tmp_rates
+                         end do
+                         ! quad_current_rate
+                         do q = 1, 16
+                            tmp_rates = cmfd % quad_current_rate(q,h,i,j,k,ii)
+                            cmfd % quad_current_rate(q,h,i,j,k,ii) = &
+                                 cmfd % quad_current_rate(q,h,i,j,k,ii+b)
+                            cmfd % quad_current_rate(q,h,i,j,k,ii+b) = tmp_rates
+                         end do
+                      end do
+                   end do
+                end do
+             end do
+          end do
+
+          ! move cmfd % idx counter forward by b to 2 * b; after the
+          ! additional move by 1 (applied to all cases), the new idx
+          ! for next batch should be at the 2 * b + 1 which is at the
+          ! newly expanded position
+          cmfd % idx = cmfd % idx + b
+          ! expand current window size by a factor of 2
+          cmfd_current_n_save = cmfd_current_n_save * 2
+       end if
+    end if
+    
     ! Move batch index
     cmfd % idx = cmfd % idx + 1
-    if (cmfd % idx > cmfd_n_save) then
+    if (cmfd % idx > cmfd_current_n_save) then
        cmfd % idx = 1
     end if
 
@@ -493,7 +568,7 @@ contains
     integer :: nq            ! number of quadratures: 2 for CMFD, 4 for LOO
     integer :: cnt           ! counter for non-zero entripes in openmc_src
     real(8) :: flux          ! store flux for use of computing various cross-sections
-
+    
     ! Extract spatial and energy indices from object
     nx = cmfd % indices(1)
     ny = cmfd % indices(2)
