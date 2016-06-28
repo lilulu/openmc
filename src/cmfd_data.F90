@@ -458,8 +458,16 @@ contains
     if (associated(t)) nullify(t)
     if (associated(m)) nullify(m)
 
-    ! Logics for `expanding' the rolling window tallies
-    if (cmfd_current_n_save <= cmfd_n_save) then
+    ! Logics for `expanding' the rolling window tallies should prevent
+    ! fixed-width rolling window (controlled by <n_save> in cmfd.xml),
+    ! as well as when rolling window hit the target window length (set
+    ! by <roll_up_to>) from entering the following logic that 1)
+    ! expends the arrays that save the parameter histories, 2) copys
+    ! data from old arrays into new arrays and re-arrange them so that
+    ! they are sequential again, and 3) adjust cmfd % idx the index
+    ! counter as well as the window length counter cmfd_current_n_save
+
+    if (cmfd_current_n_save < cmfd_n_save) then
        if (cmfd_current_n_save == 1) then
           cmfd_current_n_save = 2
        else if (cmfd_current_n_save == (2 * b)) then
