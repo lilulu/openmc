@@ -349,7 +349,7 @@ end subroutine print_fission_sources
     use constants,   only: ZERO, ONE
     use error,       only: warning, fatal_error
     use global,      only: meshes, source_bank, work, n_user_meshes, cmfd, &
-                           master, cmfd_begin, current_batch
+                           master, cmfd_begin, current_batch, n_inactive
     use mesh_header, only: StructuredMesh
     use mesh,        only: count_bank_sites, get_mesh_indices
     use search,      only: binary_search
@@ -378,6 +378,10 @@ end subroutine print_fission_sources
     ! no reason to proceed if this is the LOO run that turns on before
     ! actual run
     if ((loo_run) .and. (cmfd_begin == current_batch + 1)) return
+
+    ! FIXME: temporarily no feedback on and after 128 batches for -a128
+    ! 
+    !if (current_batch > n_inactive) return
 
     ! Associate pointer
     m => meshes(n_user_meshes + 1)

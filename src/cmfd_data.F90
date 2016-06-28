@@ -64,7 +64,7 @@ contains
     use error,        only: fatal_error
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,         &
                             matching_bins, keff, current_batch, cmfd_n_save,    &
-                            cmfd_current_n_save
+                            cmfd_current_n_save, n_inactive
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -119,9 +119,18 @@ contains
     ! Set batch index for moving window
     b = cmfd % idx
 
-    call write_message("batch " // to_str(current_batch) // &
-         " stored at pos " // to_str(b) // " out of " // &
-         to_str(cmfd_current_n_save) // " bins." , 5)
+    ! FIXME: reset all parameters at 128 for -a128 and -flush-at-active
+    if (.false.) then
+    !if (current_batch == n_inactive + 1) then 
+       cmfd % openmc_src_rate = ZERO
+       cmfd % flux_rate = ZERO
+       cmfd % total_rate = ZERO
+       cmfd % p1scatt_rate = ZERO
+       cmfd % scatt_rate = ZERO
+       cmfd % nfiss_rate = ZERO
+       cmfd % current_rate = ZERO
+       cmfd % quad_current_rate = ZERO
+    end if 
 
     ! reset parameters before computation
     do k = 1,nz
@@ -132,11 +141,9 @@ contains
 
              do g = 1,ng
     
-                ! Temporary feature: only flush the first certain
-                ! batches, after which all parameters are accumulated
-
-                ! if (current_batch < 61) then 
-                if (.true.) then
+                ! FIXME: stop flushing during active batches for -flush-active executable 
+                if (.false.) then
+                !if (current_batch <= n_inactive) then
                    cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
                    cmfd % flux_rate(g,i,j,k,b) = ZERO
                    cmfd % total_rate(g,i,j,k,b) = ZERO
