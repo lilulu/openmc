@@ -141,9 +141,8 @@ contains
 
              do g = 1,ng
     
-                ! FIXME: stop flushing during active batches for -flush-active executable 
-                if (.false.) then
-                !if (current_batch <= n_inactive) then
+                ! For all: accumulate all active batches results, so only get rid of answers from before
+                if (current_batch < 2 * (n_inactive + 1)) then
                    cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
                    cmfd % flux_rate(g,i,j,k,b) = ZERO
                    cmfd % total_rate(g,i,j,k,b) = ZERO
