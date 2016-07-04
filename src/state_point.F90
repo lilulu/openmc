@@ -141,6 +141,8 @@ contains
           call sp % close_group()
 #endif
           call sp % write_data(1, "cmfd_on")
+          call sp % write_data(cmfd_current_n_save, "cmfd_current_n_save")
+          call sp % write_data(cmfd % idx, "idx", group="cmfd")
           call sp % write_data(cmfd % indices, "indices", length=4, group="cmfd")
           call sp % write_data(cmfd % k_cmfd, "k_cmfd", length=current_batch, &
                group="cmfd")
@@ -818,6 +820,8 @@ contains
 
       ! Read in CMFD info
       if (int_array(1) == 1) then
+        call sp % read_data(cmfd_current_n_save, "cmfd_current_n_save")
+        call sp % read_data(cmfd % idx, "idx", group="cmfd")
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")
         call sp % read_data(cmfd % k_cmfd, "k_cmfd", length=restart_batch, &
              group="cmfd")
