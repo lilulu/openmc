@@ -21,6 +21,8 @@ module mpiio_interface
     module procedure mpi_write_double_2Darray
     module procedure mpi_write_double_3Darray
     module procedure mpi_write_double_4Darray
+    module procedure mpi_write_double_5Darray
+    module procedure mpi_write_double_6Darray    
     module procedure mpi_write_integer
     module procedure mpi_write_integer_1Darray
     module procedure mpi_write_integer_2Darray
@@ -37,6 +39,8 @@ module mpiio_interface
     module procedure mpi_read_double_2Darray
     module procedure mpi_read_double_3Darray
     module procedure mpi_read_double_4Darray
+    module procedure mpi_read_double_5Darray
+    module procedure mpi_read_double_6Darray    
     module procedure mpi_read_integer
     module procedure mpi_read_integer_1Darray
     module procedure mpi_read_integer_2Darray
@@ -523,6 +527,97 @@ contains
 
   end subroutine mpi_read_double_4Darray
 
+!===============================================================================
+! MPI_WRITE_DOUBLE_5DARRAY writes integer 5-D array data using MPI File I/O
+!===============================================================================
+
+  subroutine mpi_write_double_5Darray(fh, buffer, length, collect)
+
+    FH_TYPE, intent(in) :: fh        ! file handle
+    integer, intent(in) :: length(5)  ! length of array
+    real(8), intent(in) :: buffer(length(1),length(2),&
+                           length(3),length(4),length(5)) ! data to write
+    logical, intent(in) :: collect   ! collective I/O
+
+    if (collect) then
+      call MPI_FILE_WRITE_ALL(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    else
+      call MPI_FILE_WRITE(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    end if
+
+  end subroutine mpi_write_double_5Darray
+
+!===============================================================================
+! MPI_READ_DOUBLE_5DARRAY reads integer 5-D array using MPI file I/O
+!===============================================================================
+
+  subroutine mpi_read_double_5Darray(fh, buffer, length, collect)
+
+    FH_TYPE, intent(in)    :: fh        ! file handle
+    integer, intent(in)    :: length(5)    ! length of array
+    real(8), intent(inout) :: buffer(length(1),length(2), &
+                                     length(3),length(4), &
+                                     length(5)) ! read data to here
+    logical, intent(in)    :: collect   ! collective I/O
+
+    if (collect) then
+      call MPI_FILE_READ_ALL(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    else
+      call MPI_FILE_READ(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    end if
+
+  end subroutine mpi_read_double_5Darray
+
+!===============================================================================
+! MPI_WRITE_DOUBLE_6DARRAY writes integer 6-D array data using MPI File I/O
+!===============================================================================
+
+  subroutine mpi_write_double_6Darray(fh, buffer, length, collect)
+
+    FH_TYPE, intent(in) :: fh        ! file handle
+    integer, intent(in) :: length(6)  ! length of array
+    real(8), intent(in) :: buffer(length(1),length(2),&
+                                  length(3),length(4),&
+                                  length(5),length(6)) ! data to write
+    logical, intent(in) :: collect   ! collective I/O
+
+    if (collect) then
+      call MPI_FILE_WRITE_ALL(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    else
+      call MPI_FILE_WRITE(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    end if
+
+  end subroutine mpi_write_double_6Darray
+
+!===============================================================================
+! MPI_READ_DOUBLE_6DARRAY reads integer 6-D array using MPI file I/O
+!===============================================================================
+
+  subroutine mpi_read_double_6Darray(fh, buffer, length, collect)
+
+    FH_TYPE, intent(in)    :: fh           ! file handle
+    integer, intent(in)    :: length(6)    ! length of array
+    real(8), intent(inout) :: buffer(length(1),length(2), &
+                                     length(3),length(4), &
+                                     length(5),length(6)) ! read data to here
+    logical, intent(in)    :: collect   ! collective I/O
+
+    if (collect) then
+      call MPI_FILE_READ_ALL(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    else
+      call MPI_FILE_READ(fh, buffer, product(length), MPI_REAL8, &
+           MPI_STATUS_IGNORE, mpiio_err)
+    end if
+
+  end subroutine mpi_read_double_6Darray
+  
 !===============================================================================
 ! MPI_WRITE_LONG writes long integer scalar data using MPI file I/O
 !===============================================================================

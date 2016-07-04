@@ -37,6 +37,8 @@ module output_interface
                                       write_double_2Darray, &
                                       write_double_3Darray, &
                                       write_double_4Darray, &
+                                      write_double_5Darray, &
+                                      write_double_6Darray, &
                                       write_integer, &
                                       write_integer_1Darray, &
                                       write_integer_2Darray, &
@@ -49,11 +51,13 @@ module output_interface
                                     read_double_2Darray, &
                                     read_double_3Darray, &
                                     read_double_4Darray, &
+                                    read_double_5Darray, &
+                                    read_double_6Darray, &
                                     read_integer, &
                                     read_integer_1Darray, &
                                     read_integer_2Darray, &
                                     read_integer_3Darray, &
-                                    read_integer_4Darray, &
+                                    read_integer_4Darray, &                                    
                                     read_long, &
                                     read_string
     procedure :: write_double => write_double
@@ -61,6 +65,8 @@ module output_interface
     procedure :: write_double_2Darray => write_double_2Darray
     procedure :: write_double_3Darray => write_double_3Darray
     procedure :: write_double_4Darray => write_double_4Darray
+    procedure :: write_double_5Darray => write_double_5Darray
+    procedure :: write_double_6Darray => write_double_6Darray    
     procedure :: write_integer => write_integer
     procedure :: write_integer_1Darray => write_integer_1Darray
     procedure :: write_integer_2Darray => write_integer_2Darray
@@ -73,6 +79,8 @@ module output_interface
     procedure :: read_double_2Darray => read_double_2Darray
     procedure :: read_double_3Darray => read_double_3Darray
     procedure :: read_double_4Darray => read_double_4Darray
+    procedure :: read_double_5Darray => read_double_5Darray
+    procedure :: read_double_6Darray => read_double_6Darray
     procedure :: read_integer => read_integer
     procedure :: read_integer_1Darray => read_integer_1Darray
     procedure :: read_integer_2Darray => read_integer_2Darray
@@ -808,7 +816,7 @@ contains
     end if
 #else
     write(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
-                       1:length(4))
+         1:length(4))
 #endif
 
   end subroutine write_double_4Darray
@@ -879,6 +887,276 @@ contains
 
   end subroutine read_double_4Darray
 
+!===============================================================================
+! WRITE_DOUBLE_5DARRAY writes double precision 5-D array data
+!===============================================================================
+
+  subroutine write_double_5Darray(self, buffer, name, group, length, collect)
+
+    integer,      intent(in)           :: length(5) ! length of each dimension
+    real(8),      intent(in)           :: buffer(length(1),length(2),&
+                                                 length(3),length(4),&
+                                                 length(5))
+    character(*), intent(in)           :: name ! name of data
+    character(*), intent(in), optional :: group ! HDF5 group name
+    logical,      intent(in), optional :: collect ! collective I/O
+    class(BinaryOutput) :: self
+
+    character(len=MAX_WORD_LEN) :: name_  ! HDF5 dataset name
+    character(len=MAX_WORD_LEN) :: group_ ! HDF5 group name
+    logical :: collect_
+
+    ! Set name
+    name_ = trim(name)
+
+    ! Set group
+    if (present(group)) then
+      group_ = trim(group)
+    end if
+
+    ! Set up collective vs. independent I/O
+    if (present(collect)) then
+      collect_ = collect
+    else
+      collect_ = .true.
+    end if
+
+#ifdef HDF5
+    ! Check if HDF5 group should be created/opened
+    if (present(group)) then
+      call hdf5_open_group(self % hdf5_fh, group_, self % hdf5_grp)
+    else
+      self % hdf5_grp = self % hdf5_fh
+    endif
+# ifdef MPI
+    if (self % serial) then
+      call hdf5_write_double_5Darray(self % hdf5_grp, name_, buffer, length)
+    else
+      call hdf5_write_double_5Darray_parallel(self % hdf5_grp, name_, buffer, length, &
+           collect_)
+    end if
+# else
+    ! Write the data in serial
+    call hdf5_write_double_5Darray(self % hdf5_grp, name_, buffer, length)
+# endif
+    ! Check if HDF5 group should be closed
+    if (present(group)) call hdf5_close_group(self % hdf5_grp)
+#elif MPI
+    if (self % serial) then
+      write(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+           1:length(4),1:length(5))
+    else
+      call mpi_write_double_5Darray(self % mpi_fh, buffer, length, collect_)
+    end if
+#else
+    write(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+         1:length(4),1:length(5))
+#endif
+
+  end subroutine write_double_5Darray
+
+!===============================================================================
+! READ_DOUBLE_5DARRAY reads double precision 5-D array data
+!===============================================================================
+
+  subroutine read_double_5Darray(self, buffer, name, group, length, collect)
+
+    integer,      intent(in)           :: length(5) ! length of each dimension
+    real(8),      intent(inout)        :: buffer(length(1),length(2),&
+                                                 length(3),length(4),&
+                                                 length(5))
+    character(*), intent(in)           :: name ! name of data
+    character(*), intent(in), optional :: group ! HDF5 group name
+    logical,      intent(in), optional :: collect ! collective I/O
+    class(BinaryOutput) :: self
+
+    character(len=MAX_WORD_LEN) :: name_  ! HDF5 dataset name
+    character(len=MAX_WORD_LEN) :: group_ ! HDF5 group name
+    logical :: collect_
+
+    ! Set name
+    name_ = trim(name)
+
+    ! Set group
+    if (present(group)) then
+      group_ = trim(group)
+    end if
+
+    ! Set up collective vs. independent I/O
+    if (present(collect)) then
+      collect_ = collect
+    else
+      collect_ = .true.
+    end if
+
+#ifdef HDF5
+    ! Check if HDF5 group should be created/opened
+    if (present(group)) then
+      call hdf5_open_group(self % hdf5_fh, group_, self % hdf5_grp)
+    else
+      self % hdf5_grp = self % hdf5_fh
+    endif
+# ifdef MPI
+    if (self % serial) then
+      call hdf5_read_double_5Darray(self % hdf5_grp, name_, buffer, length)
+    else
+      call hdf5_read_double_5Darray_parallel(self % hdf5_grp, name_, buffer, length, &
+           collect_)
+    end if
+# else
+    call hdf5_read_double_5Darray(self % hdf5_grp, name_, buffer, length)
+# endif
+    ! Check if HDF5 group should be closed
+    if (present(group)) call hdf5_close_group(self % hdf5_grp)
+#elif MPI
+    if (self % serial) then
+      read(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+           1:length(4),1:length(5))
+    else
+      call mpi_read_double_5Darray(self % mpi_fh, buffer, length, collect_)
+    end if
+#else
+    read(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+         1:length(4),1:length(5))
+#endif
+
+  end subroutine read_double_5Darray
+  
+!===============================================================================
+! WRITE_DOUBLE_6DARRAY writes double precision 6-D array data
+!===============================================================================
+
+  subroutine write_double_6Darray(self, buffer, name, group, length, collect)
+
+    integer,      intent(in)           :: length(6) ! length of each dimension
+    real(8),      intent(in)           :: buffer(length(1),length(2),&
+                                                 length(3),length(4),&
+                                                 length(5),length(6))
+    character(*), intent(in)           :: name ! name of data
+    character(*), intent(in), optional :: group ! HDF5 group name
+    logical,      intent(in), optional :: collect ! collective I/O
+    class(BinaryOutput) :: self
+
+    character(len=MAX_WORD_LEN) :: name_  ! HDF5 dataset name
+    character(len=MAX_WORD_LEN) :: group_ ! HDF5 group name
+    logical :: collect_
+
+    ! Set name
+    name_ = trim(name)
+
+    ! Set group
+    if (present(group)) then
+      group_ = trim(group)
+    end if
+
+    ! Set up collective vs. independent I/O
+    if (present(collect)) then
+      collect_ = collect
+    else
+      collect_ = .true.
+    end if
+
+#ifdef HDF5
+    ! Check if HDF5 group should be created/opened
+    if (present(group)) then
+      call hdf5_open_group(self % hdf5_fh, group_, self % hdf5_grp)
+    else
+      self % hdf5_grp = self % hdf5_fh
+    endif
+# ifdef MPI
+    if (self % serial) then
+      call hdf5_write_double_6Darray(self % hdf5_grp, name_, buffer, length)
+    else
+      call hdf5_write_double_6Darray_parallel(self % hdf5_grp, name_, buffer, length, &
+           collect_)
+    end if
+# else
+    ! Write the data in serial
+    call hdf5_write_double_6Darray(self % hdf5_grp, name_, buffer, length)
+# endif
+    ! Check if HDF5 group should be closed
+    if (present(group)) call hdf5_close_group(self % hdf5_grp)
+#elif MPI
+    if (self % serial) then
+      write(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+           1:length(4),1:length(5),1:length(6))
+    else
+      call mpi_write_double_6Darray(self % mpi_fh, buffer, length, collect_)
+    end if
+#else
+    write(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+         1:length(4),1:length(5),1:length(6))
+#endif
+
+  end subroutine write_double_6Darray
+
+!===============================================================================
+! READ_DOUBLE_6DARRAY reads double precision 6-D array data
+!===============================================================================
+
+  subroutine read_double_6Darray(self, buffer, name, group, length, collect)
+
+    integer,      intent(in)           :: length(6) ! length of each dimension
+    real(8),      intent(inout)        :: buffer(length(1),length(2),&
+                                                 length(3),length(4),&
+                                                 length(5),length(6))
+    character(*), intent(in)           :: name ! name of data
+    character(*), intent(in), optional :: group ! HDF5 group name
+    logical,      intent(in), optional :: collect ! collective I/O
+    class(BinaryOutput) :: self
+
+    character(len=MAX_WORD_LEN) :: name_  ! HDF5 dataset name
+    character(len=MAX_WORD_LEN) :: group_ ! HDF5 group name
+    logical :: collect_
+
+    ! Set name
+    name_ = trim(name)
+
+    ! Set group
+    if (present(group)) then
+      group_ = trim(group)
+    end if
+
+    ! Set up collective vs. independent I/O
+    if (present(collect)) then
+      collect_ = collect
+    else
+      collect_ = .true.
+    end if
+
+#ifdef HDF5
+    ! Check if HDF5 group should be created/opened
+    if (present(group)) then
+      call hdf5_open_group(self % hdf5_fh, group_, self % hdf5_grp)
+    else
+      self % hdf5_grp = self % hdf5_fh
+    endif
+# ifdef MPI
+    if (self % serial) then
+      call hdf5_read_double_6Darray(self % hdf5_grp, name_, buffer, length)
+    else
+      call hdf5_read_double_6Darray_parallel(self % hdf5_grp, name_, buffer, length, &
+           collect_)
+    end if
+# else
+    call hdf5_read_double_6Darray(self % hdf5_grp, name_, buffer, length)
+# endif
+    ! Check if HDF5 group should be closed
+    if (present(group)) call hdf5_close_group(self % hdf5_grp)
+#elif MPI
+    if (self % serial) then
+      read(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+           1:length(4),1:length(5),1:length(6))
+    else
+      call mpi_read_double_6Darray(self % mpi_fh, buffer, length, collect_)
+    end if
+#else
+    read(self % unit_fh) buffer(1:length(1),1:length(2),1:length(3), &
+         1:length(4),1:length(5),1:length(6))
+#endif
+
+  end subroutine read_double_6Darray
+  
 !===============================================================================
 ! WRITE_INTEGER writes integer precision scalar data
 !===============================================================================

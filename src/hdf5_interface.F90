@@ -22,6 +22,8 @@ module hdf5_interface
   integer(HSIZE_T) :: dims2(2)   ! dims type for 2-D array
   integer(HSIZE_T) :: dims3(3)   ! dims type for 3-D array
   integer(HSIZE_T) :: dims4(4)   ! dims type for 4-D array
+  integer(HSIZE_T) :: dims5(5)   ! dims type for 5-D array
+  integer(HSIZE_T) :: dims6(6)   ! dims type for 6-D array  
   type(c_ptr)      :: f_ptr      ! pointer to data
 
   ! Generic HDF5 write procedure interface
@@ -31,6 +33,8 @@ module hdf5_interface
     module procedure hdf5_write_double_2Darray
     module procedure hdf5_write_double_3Darray
     module procedure hdf5_write_double_4Darray
+    module procedure hdf5_write_double_5Darray
+    module procedure hdf5_write_double_6Darray
     module procedure hdf5_write_integer
     module procedure hdf5_write_integer_1Darray
     module procedure hdf5_write_integer_2Darray
@@ -44,6 +48,8 @@ module hdf5_interface
     module procedure hdf5_write_double_2Darray_parallel
     module procedure hdf5_write_double_3Darray_parallel
     module procedure hdf5_write_double_4Darray_parallel
+    module procedure hdf5_write_double_5Darray_parallel
+    module procedure hdf5_write_double_6Darray_parallel    
     module procedure hdf5_write_integer_parallel
     module procedure hdf5_write_integer_1Darray_parallel
     module procedure hdf5_write_integer_2Darray_parallel
@@ -61,6 +67,8 @@ module hdf5_interface
     module procedure hdf5_read_double_2Darray
     module procedure hdf5_read_double_3Darray
     module procedure hdf5_read_double_4Darray
+    module procedure hdf5_read_double_5Darray
+    module procedure hdf5_read_double_6Darray    
     module procedure hdf5_read_integer
     module procedure hdf5_read_integer_1Darray
     module procedure hdf5_read_integer_2Darray
@@ -74,6 +82,8 @@ module hdf5_interface
     module procedure hdf5_read_double_2Darray_parallel
     module procedure hdf5_read_double_3Darray_parallel
     module procedure hdf5_read_double_4Darray_parallel
+    module procedure hdf5_read_double_5Darray_parallel
+    module procedure hdf5_read_double_6Darray_parallel
     module procedure hdf5_read_integer_parallel
     module procedure hdf5_read_integer_1Darray_parallel
     module procedure hdf5_read_integer_2Darray_parallel
@@ -648,6 +658,94 @@ contains
 
   end subroutine hdf5_read_double_4Darray
 
+!===============================================================================
+! HDF5_WRITE_DOUBLE_5DARRAY writes double 5-D array
+!===============================================================================
+
+  subroutine hdf5_write_double_5Darray(group, name, buffer, length)
+
+    integer,        intent(in)    :: length(5) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),        intent(in)    :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5)) ! data to write
+
+    ! Set rank and dimensions
+    hdf5_rank = 5
+    dims5 = length
+
+    ! Write data
+    call h5ltmake_dataset_double_f(group, name, hdf5_rank, dims5, &
+         buffer, hdf5_err)
+
+  end subroutine hdf5_write_double_5Darray
+
+!===============================================================================
+! HDF5_READ_DOUBLE_5DARRAY reads double 5-D array
+!===============================================================================
+
+  subroutine hdf5_read_double_5Darray(group, name, buffer, length)
+
+    integer,        intent(in)    :: length(5) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),        intent(inout) :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5)) ! data to write
+
+    ! Set rank and dimensions
+    dims5 = length
+
+    ! Write data
+    call h5ltread_dataset_double_f(group, name, buffer, dims5, hdf5_err)
+
+  end subroutine hdf5_read_double_5Darray
+
+!===============================================================================
+! HDF5_WRITE_DOUBLE_6DARRAY writes double 6-D array
+!===============================================================================
+
+  subroutine hdf5_write_double_6Darray(group, name, buffer, length)
+
+    integer,        intent(in)    :: length(6) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),        intent(in)    :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5),length(6)) ! data to write
+
+    ! Set rank and dimensions
+    hdf5_rank = 6
+    dims6 = length
+
+    ! Write data
+    call h5ltmake_dataset_double_f(group, name, hdf5_rank, dims6, &
+         buffer, hdf5_err)
+
+  end subroutine hdf5_write_double_6Darray
+
+!===============================================================================
+! HDF5_READ_DOUBLE_6DARRAY reads double 6-D array
+!===============================================================================
+
+  subroutine hdf5_read_double_6Darray(group, name, buffer, length)
+
+    integer,        intent(in)    :: length(6) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),        intent(inout) :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5),length(6)) ! data to write
+
+    ! Set rank and dimensions
+    dims6 = length
+
+    ! Write data
+    call h5ltread_dataset_double_f(group, name, buffer, dims6, hdf5_err)
+
+  end subroutine hdf5_read_double_6Darray
+  
 !===============================================================================
 ! HDF5_WRITE_LONG writes long integer scalar data
 !===============================================================================
@@ -1613,6 +1711,174 @@ contains
 
   end subroutine hdf5_read_double_4Darray_parallel
 
+!===============================================================================
+! HDF5_WRITE_DOUBLE_5DARRAY_PARALLEL writes double 5-D array in parallel
+!===============================================================================
+
+  subroutine hdf5_write_double_5Darray_parallel(group, name, buffer, length, &
+             collect)
+
+    integer,        intent(in)    :: length(5) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),target, intent(in)    :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5))
+    logical,        intent(in)    :: collect ! collective I/O
+
+    ! Set rank and dimensions
+    hdf5_rank = 5
+    dims5 = length
+
+    ! Create property list for independent or collective read
+    call h5pcreate_f(H5P_DATASET_XFER_F, plist, hdf5_err)
+
+    ! Set independent or collective option
+    if (collect) then
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_COLLECTIVE_F, hdf5_err)
+    else
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_INDEPENDENT_F, hdf5_err)
+    end if
+
+    ! Create dataspace
+    call h5screate_simple_f(hdf5_rank, dims5, dspace, hdf5_err)
+
+    ! Create dataset
+    call h5dcreate_f(group, name, H5T_NATIVE_DOUBLE, dspace, dset, hdf5_err)
+
+    ! Write data
+    f_ptr = c_loc(buffer)
+    call h5dwrite_f(dset, H5T_NATIVE_DOUBLE, f_ptr, hdf5_err, xfer_prp=plist)
+
+    ! Close all
+    call h5dclose_f(dset, hdf5_err)
+    call h5sclose_f(dspace, hdf5_err)
+    call h5pclose_f(plist, hdf5_err)
+
+  end subroutine hdf5_write_double_5Darray_parallel
+
+!===============================================================================
+! HDF5_READ_DOUBLE_5DARRAY_PARALLEL reads double 5-D array in parallel
+!===============================================================================
+
+  subroutine hdf5_read_double_5Darray_parallel(group, name, buffer, length, &
+             collect)
+
+    integer,        intent(in)    :: length(5) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),target, intent(inout) :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5)) ! data to read
+    logical,        intent(in)    :: collect   ! collective I/O
+
+    ! Create property list for independent or collective read
+    call h5pcreate_f(H5P_DATASET_XFER_F, plist, hdf5_err)
+
+    ! Set independent or collective option
+    if (collect) then
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_COLLECTIVE_F, hdf5_err)
+    else
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_INDEPENDENT_F, hdf5_err)
+    end if
+
+    ! Open dataset
+    call h5dopen_f(group, name, dset, hdf5_err)
+
+    ! Read data
+    f_ptr = c_loc(buffer)
+    call h5dread_f(dset, H5T_NATIVE_DOUBLE, f_ptr, hdf5_err, xfer_prp=plist)
+
+    ! Close dataset and property list
+    call h5dclose_f(dset, hdf5_err)
+    call h5pclose_f(plist, hdf5_err)
+
+  end subroutine hdf5_read_double_5Darray_parallel
+
+!===============================================================================
+! HDF5_WRITE_DOUBLE_6DARRAY_PARALLEL writes double 6-D array in parallel
+!===============================================================================
+
+  subroutine hdf5_write_double_6Darray_parallel(group, name, buffer, length, &
+             collect)
+
+    integer,        intent(in)    :: length(6) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),target, intent(in)    :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5),length(6))
+    logical,        intent(in)    :: collect ! collective I/O
+
+    ! Set rank and dimensions
+    hdf5_rank = 6
+    dims6 = length
+
+    ! Create property list for independent or collective read
+    call h5pcreate_f(H5P_DATASET_XFER_F, plist, hdf5_err)
+
+    ! Set independent or collective option
+    if (collect) then
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_COLLECTIVE_F, hdf5_err)
+    else
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_INDEPENDENT_F, hdf5_err)
+    end if
+
+    ! Create dataspace
+    call h5screate_simple_f(hdf5_rank, dims6, dspace, hdf5_err)
+
+    ! Create dataset
+    call h5dcreate_f(group, name, H5T_NATIVE_DOUBLE, dspace, dset, hdf5_err)
+
+    ! Write data
+    f_ptr = c_loc(buffer)
+    call h5dwrite_f(dset, H5T_NATIVE_DOUBLE, f_ptr, hdf5_err, xfer_prp=plist)
+
+    ! Close all
+    call h5dclose_f(dset, hdf5_err)
+    call h5sclose_f(dspace, hdf5_err)
+    call h5pclose_f(plist, hdf5_err)
+
+  end subroutine hdf5_write_double_6Darray_parallel
+
+!===============================================================================
+! HDF5_READ_DOUBLE_6DARRAY_PARALLEL reads double 6-D array in parallel
+!===============================================================================
+
+  subroutine hdf5_read_double_6Darray_parallel(group, name, buffer, length, &
+             collect)
+
+    integer,        intent(in)    :: length(6) ! length of array dimensions
+    integer(HID_T), intent(in)    :: group     ! name of group
+    character(*),   intent(in)    :: name      ! name of data
+    real(8),target, intent(inout) :: buffer(length(1),length(2), &
+                                            length(3),length(4), &
+                                            length(5),length(6)) ! data to read
+    logical,        intent(in)    :: collect   ! collective I/O
+
+    ! Create property list for independent or collective read
+    call h5pcreate_f(H5P_DATASET_XFER_F, plist, hdf5_err)
+
+    ! Set independent or collective option
+    if (collect) then
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_COLLECTIVE_F, hdf5_err)
+    else
+      call h5pset_dxpl_mpio_f(plist, H5FD_MPIO_INDEPENDENT_F, hdf5_err)
+    end if
+
+    ! Open dataset
+    call h5dopen_f(group, name, dset, hdf5_err)
+
+    ! Read data
+    f_ptr = c_loc(buffer)
+    call h5dread_f(dset, H5T_NATIVE_DOUBLE, f_ptr, hdf5_err, xfer_prp=plist)
+
+    ! Close dataset and property list
+    call h5dclose_f(dset, hdf5_err)
+    call h5pclose_f(plist, hdf5_err)
+
+  end subroutine hdf5_read_double_6Darray_parallel
+  
 !===============================================================================
 ! HDF5_WRITE_LONG_PARALLEL writes long integer scalar data in parallel
 !===============================================================================

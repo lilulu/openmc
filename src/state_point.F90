@@ -40,6 +40,7 @@ contains
 
     character(MAX_FILE_LEN)       :: filename
     integer                       :: i, j, k
+    integer                       :: length_4d(4), length_5d(5), length_6d(6)
     integer, allocatable          :: id_array(:)
     integer, allocatable          :: key_array(:)
     type(StructuredMesh), pointer :: mesh
@@ -49,7 +50,9 @@ contains
     character(8)                  :: moment_name  ! name of moment (e.g, P3)
     integer                       :: n_order      ! loop index for moment orders
     integer                       :: nm_order     ! loop index for Ynm moment orders
-
+    integer                       :: ng
+    type(StructuredMesh), pointer :: m => null()
+    
     ! Set filename for state point
     filename = trim(path_output) // 'statepoint.' // &
         & zero_padded(current_batch, count_digits(n_max_batches))
@@ -116,6 +119,21 @@ contains
         call sp % write_data(k_abs_tra, "k_abs_tra")
         call sp % write_data(k_combined, "k_combined", length=2)
 
+        if (entropy_on) then
+           ng = 1
+           m => entropy_mesh
+           if (cmfd_on) ng = cmfd % indices(4)
+           call sp % write_data(entropy_s, "entropy_s", &
+                length=(/ng, m % dimension(1), m % dimension(2), &
+                m % dimension(3)/))
+           call sp % write_data(entropy_s_old, "entropy_s_old", &
+                length=(/ng, m % dimension(1), m % dimension(2), &
+                m % dimension(3)/))
+           call sp % write_data(entropy_p, "entropy_p", &
+                length=(/ng, m % dimension(1), m % dimension(2), &
+                m % dimension(3)/))           
+        end if
+
         ! Write out CMFD info
         if (cmfd_on) then
 #ifdef HDF5
@@ -128,28 +146,46 @@ contains
                group="cmfd")
           call sp % write_data(cmfd % k_loo, "k_loo", length=current_batch, &
                group="cmfd")
+          ! 4D array of: ng, nx, ny, nz
+          length_4d = cmfd % indices([4,1,2,3])
           call sp % write_data(cmfd % cmfd_src, "cmfd_src", &
-               length=(/cmfd % indices(4), cmfd % indices(1), &
-               cmfd % indices(2), cmfd % indices(3)/), &
-               group="cmfd")
+               length=length_4d, group="cmfd")
           call sp % write_data(cmfd % loo_src, "loo_src", &
-               length=(/cmfd % indices(4), cmfd % indices(1), &
-               cmfd % indices(2), cmfd % indices(3)/), &
-               group="cmfd")
+               length=length_4d, group="cmfd")
           call sp % write_data(cmfd % openmc_src, "openmc_src", &
-               length=(/cmfd % indices(4), cmfd % indices(1), &
-               cmfd % indices(2), cmfd % indices(3)/), &
-               group="cmfd")
+               length=length_4d, group="cmfd")
           call sp % write_data(cmfd % openmc_total_src, &
                "openmc_total_src", &
-               length=(/cmfd % indices(4), cmfd % indices(1), &
-               cmfd % indices(2), cmfd % indices(3)/), &
-               group="cmfd")
+               length=length_4d, group="cmfd")
           call sp % write_data(cmfd % openmc_src_old, &
                "openmc_src_old", &
-               length=(/cmfd % indices(4), cmfd % indices(1), &
-               cmfd % indices(2), cmfd % indices(3)/), &
-               group="cmfd")
+               length=length_4d, group="cmfd")
+          ! 5D array of: ng, nx, ny, nz, n_save
+          length_5d = (/ cmfd % indices(4), cmfd % indices(1), cmfd % indices(2), &
+               cmfd % indices(3), cmfd_n_save/)
+          call sp % write_data(cmfd % openmc_src_rate, "openmc_src_rate", &
+               length=length_5d, group="cmfd")
+          call sp % write_data(cmfd % flux_rate, "flux_rate", &
+               length=length_5d, group="cmfd")
+          call sp % write_data(cmfd % total_rate, "total_rate", &
+               length=length_5d, group="cmfd")
+          call sp % write_data(cmfd % p1scatt_rate, "p1scatt_rate", &
+               length=length_5d, group="cmfd")
+          ! 6D array of: ng, ng, nx, ny, nz, n_save
+          length_6d = (/ cmfd % indices(4), cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2),cmfd % indices(3), cmfd_n_save/)       
+          call sp % write_data(cmfd % scatt_rate, "scatt_rate", &
+               length=length_6d, group="cmfd")        
+          call sp % write_data(cmfd % nfiss_rate, "nfiss_rate", &
+               length=length_6d, group="cmfd")         
+          ! 6D array for the two currents tallies
+          call sp % write_data(cmfd % current_rate, "current_rate", &
+               length=(/12, cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2),cmfd % indices(3), cmfd_n_save/), group="cmfd")
+          call sp % write_data(cmfd % quad_current_rate, "quad_current_rate", &
+               length=(/16, cmfd % indices(4), cmfd % indices(1), &
+               cmfd % indices(2),cmfd % indices(3), cmfd_n_save/), group="cmfd")           
+          ! The rest of the terms, 1D array
           call sp % write_data(cmfd % entropy, "cmfd_entropy", &
                length=current_batch, group="cmfd")
           call sp % write_data(cmfd % loo_entropy, "loo_entropy", &
@@ -670,7 +706,7 @@ contains
     character(MAX_FILE_LEN)    :: path_temp
     character(19)              :: current_time
     integer                    :: i, j, k
-    integer                    :: length(4)
+    integer                    :: length_4d(4), length_5d(5), length_6d(6)
     integer                    :: int_array(3)
     integer, allocatable       :: id_array(:)
     integer, allocatable       :: key_array(:)
@@ -683,7 +719,9 @@ contains
     integer                    :: n_order      ! loop index for moment orders
     integer                    :: nm_order     ! loop index for Ynm moment orders
     character(8)               :: moment_name  ! name of moment (e.g, P3, Y-1,1)
-
+    integer                       :: ng
+    type(StructuredMesh), pointer :: m => null()
+    
     ! Write message
     call write_message("Loading state point " // trim(path_state_point) &
          &// "...", 1)
@@ -763,6 +801,21 @@ contains
       ! Read in to see if CMFD was on
       call sp % read_data(int_array(1), "cmfd_on")
 
+      if (entropy_on) then
+         ng = 1
+         m => entropy_mesh
+         if (cmfd_on) ng = cmfd % indices(4)
+         call sp % write_data(entropy_s, "entropy_s", &
+              length=(/ng, m % dimension(1), m % dimension(2), &
+              m % dimension(3)/))
+         call sp % write_data(entropy_s_old, "entropy_s_old", &
+              length=(/ng, m % dimension(1), m % dimension(2), &
+              m % dimension(3)/))
+         call sp % write_data(entropy_p, "entropy_p", &
+              length=(/ng, m % dimension(1), m % dimension(2), &
+              m % dimension(3)/))           
+      end if
+
       ! Read in CMFD info
       if (int_array(1) == 1) then
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")
@@ -770,19 +823,43 @@ contains
              group="cmfd")
         call sp % read_data(cmfd % k_loo, "k_loo", length=restart_batch, &
              group="cmfd")
-        length = cmfd % indices([4,1,2,3])
+        ! 4D array of: ng, nx, ny, nz
+        length_4d = cmfd % indices([4,1,2,3])
         call sp % read_data(cmfd % cmfd_src, "cmfd_src", &
-             length=length, group="cmfd")
+             length=length_4d, group="cmfd")
         call sp % read_data(cmfd % loo_src, "loo_src", &
-             length=length, group="cmfd")
+             length=length_4d, group="cmfd")
         call sp % read_data(cmfd % openmc_src, "openmc_src", &
-             length=length, group="cmfd")
-        call sp % read_data(cmfd % openmc_total_src, &
-             "openmc_total_src", &
-             length=length, group="cmfd")
-        call sp % read_data(cmfd % openmc_src_old, &
-             "openmc_src_old", &
-             length=length, group="cmfd")
+             length=length_4d, group="cmfd")
+        call sp % read_data(cmfd % openmc_total_src, "openmc_total_src", &
+             length=length_4d, group="cmfd")
+        call sp % read_data(cmfd % openmc_src_old, "openmc_src_old", &
+             length=length_4d, group="cmfd")
+        ! 5D array of: ng, nx, ny, nz, n_save
+        length_5d = (/ cmfd % indices(4), cmfd % indices(1), cmfd % indices(2), &
+             cmfd % indices(3), cmfd_n_save/)
+        call sp % read_data(cmfd % openmc_src_rate, "openmc_src_rate", &
+             length=length_5d, group="cmfd")
+        call sp % read_data(cmfd % flux_rate, "flux_rate", &
+             length=length_5d, group="cmfd")
+        call sp % read_data(cmfd % total_rate, "total_rate", &
+             length=length_5d, group="cmfd")
+        call sp % read_data(cmfd % p1scatt_rate, "p1scatt_rate", &
+             length=length_5d, group="cmfd")
+        ! 6D array of: ng, ng, nx, ny, nz, n_save
+         length_6d = (/ cmfd % indices(4), cmfd % indices(4), cmfd % indices(1), &
+             cmfd % indices(2),cmfd % indices(3), cmfd_n_save/)       
+        call sp % read_data(cmfd % scatt_rate, "scatt_rate", &
+             length=length_6d, group="cmfd")        
+        call sp % read_data(cmfd % nfiss_rate, "nfiss_rate", &
+             length=length_6d, group="cmfd")         
+        ! 6D array for the two currents tallies
+        call sp % read_data(cmfd % current_rate, "current_rate", &
+             length=(/12, cmfd % indices(4), cmfd % indices(1), &
+             cmfd % indices(2),cmfd % indices(3), cmfd_n_save/), group="cmfd")
+        call sp % read_data(cmfd % quad_current_rate, "quad_current_rate", &
+             length=(/16, cmfd % indices(4), cmfd % indices(1), &
+             cmfd % indices(2),cmfd % indices(3), cmfd_n_save/), group="cmfd")        
         call sp % read_data(cmfd % entropy, "cmfd_entropy", &
              length=restart_batch, group="cmfd")
         call sp % read_data(cmfd % loo_entropy, "loo_entropy", &
