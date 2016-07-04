@@ -38,7 +38,6 @@ contains
 
       ! Save k-effective
       cmfd % k_cmfd(current_batch) = cmfd % keff
-      cmfd % k_loo(current_batch) = cmfd % loo_keff
 
       ! check to perform adjoint on last batch
       if (current_batch == n_batches .and. cmfd_run_adjoint) then
@@ -52,7 +51,10 @@ contains
       call print_fission_sources()
 
       ! Run loo routine here if it is requested
-      if (loo_run) call loo_solver_execute()      
+      if (loo_run) then 
+         call loo_solver_execute()      
+         cmfd % k_loo(current_batch) = cmfd % loo_keff
+      end if
     end if
     
     ! calculate weight factors
