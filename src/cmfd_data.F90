@@ -35,7 +35,7 @@ contains
     call compute_xs()
 
     ! DEBUG: read in Ds, cross-sections when requested
-    call read_in_reference_parameters()
+    !call read_in_reference_parameters()
     
     ! Compute effective downscatter cross section
     if (cmfd_downscatter) call compute_effective_downscatter()

@@ -30,7 +30,7 @@
 #define P0 0.798184
 #define WT_Q 8.0
 #define REFERENCE 0          // control readInReferenceParameters
-#define REFERENCE_TRANS_XS 1 // control whether to force right trans xs in 2G
+#define REFERENCE_TRANS_XS 0 // control whether to force right trans xs in 2G
 #define DIVIDE 0             // divide by number of realizations in MC tallies
 
 double new_loo(int *indices, double *k, double *albedo,
@@ -174,50 +174,9 @@ void meshElement::printElement(std::string string, FILE* pfile){
                 for (int g = 0; g < _ng; g++) {
                     fprintf(pfile, "%.8f, ", getValue(g, i, j, k));
                 }}}}
-
-    if ((string == "fs") || (string == " m-th fission source")) {
-        std::vector<double> reference (_nx);
-
-        if (_nx == 5) { // D = 0.72
-            double ref_val[_nx] = {0.49661414, 1.24116506, 1.52444159, 1.24116506, 0.49661414};
-            reference.insert(reference.begin(), ref_val, ref_val+_nx);
-        }
-        else if (_nx == 45) {
-            double ref_val[_nx] = {0.085247,0.191610,0.297063,0.401107,0.503247,0.602999,0.699890,0.793460,0.883265,0.968879,
-                                   1.049894,1.125928,1.196620,1.261633,1.320659,1.373419,1.419661,1.459167,1.491749,1.517252,
-                                   1.535555,1.546572,1.550250,1.546572,1.535555,1.517252,1.491749,1.459167,1.419661,1.373419,
-                                   1.320659,1.261633,1.196620,1.125928,1.049894,0.968879,0.883265,0.793460,0.699890,0.602999,
-                                   0.503247,0.401107,0.297063,0.191610,0.085247};
-            reference.insert(reference.begin(), ref_val, ref_val+_nx);
-        }
-        else {
-            double ref_val[_nx] = {1.0};
-            reference.insert(reference.begin(), ref_val, ref_val+_nx);
-        }
-
-        double rms = 0;
-        int counter = 0;
-        for (int k = 0; k < _nz; k++) {
-            for (int j = 0; j < _ny; j++) {
-                for (int i = 0; i < _nx; i++) {
-                    if (reference[i] > 1e-5) {
-                        counter += 1;
-                        rms += pow(getValue(0, i, j, k) / reference[i] - 1.0, 2.0);
-                    }
-                }
-            }
-        }
-        rms = sqrt(rms / (double) counter);
-        fprintf(pfile, " => res:");
-        for (int i = 0; i < _nx; i++) {
-            fprintf(pfile, ", %f", getValue(0, i, 0, 0) - reference[i]);
-        }
-        fprintf(pfile, " => rms: %.5f%% ", 100 * rms);
-    }
     
     fprintf(pfile, "\n");
     return;
-
 }
 
 /* applies: scattering & fission cross-sections */
