@@ -122,7 +122,12 @@ contains
         if (entropy_on) then
            ng = 1
            m => entropy_mesh
-           if (cmfd_on) ng = cmfd % indices(4)
+           ! If acceleration is requested, even if it has not started
+           ! at this batch, entropies have been computed into the
+           ! acceleration energy group structure
+           if (cmfd_run) then
+              ng = cmfd % indices(4)
+           end if
            call sp % write_data(entropy_s, "entropy_s", &
                 length=(/ng, m % dimension(1), m % dimension(2), &
                 m % dimension(3)/))
@@ -134,7 +139,7 @@ contains
                 m % dimension(3)/))           
         end if
 
-        ! Write out CMFD info
+        ! Write out CMFD info if cmfd has started at this batch
         if (cmfd_on) then
 #ifdef HDF5
           call sp % open_group("cmfd")
@@ -788,6 +793,8 @@ contains
     ! Read information specific to eigenvalue run
     if (run_mode == MODE_EIGENVALUE) then
       call sp % read_data(int_array(1), "n_inactive")
+      ! Take maximum of statepoint n_inactive and input n_inactive
+      n_inactive = max(n_inactive, int_array(1))       
       call sp % read_data(gen_per_batch, "gen_per_batch")
       call sp % read_data(k_generation, "k_generation", &
            length=restart_batch*gen_per_batch)
@@ -797,29 +804,42 @@ contains
       call sp % read_data(k_abs_tra, "k_abs_tra")
       call sp % read_data(real_array(1:2), "k_combined", length=2)
 
-      ! Take maximum of statepoint n_inactive and input n_inactive
-      n_inactive = max(n_inactive, int_array(1))
-
-      ! Read in to see if CMFD was on
-      call sp % read_data(int_array(1), "cmfd_on")
-
       if (entropy_on) then
          ng = 1
          m => entropy_mesh
-         if (cmfd_on) ng = cmfd % indices(4)
-         call sp % write_data(entropy_s, "entropy_s", &
+         if (cmfd_run) then
+            ng = cmfd % indices(4)
+         end if
+         if (.not. allocated(entropy_p)) then
+            allocate(entropy_s(ng, m % dimension(1), m % dimension(2), &
+                 m % dimension(3)))
+         end if
+         if (.not. allocated(entropy_p)) then
+            allocate(entropy_s_old(ng, m % dimension(1), m % dimension(2), &
+                 m % dimension(3)))
+         end if         
+         if (.not. allocated(entropy_p)) then
+            allocate(entropy_p(ng, m % dimension(1), m % dimension(2), &
+                 m % dimension(3)))
+         end if
+
+         call sp % read_data(entropy_s, "entropy_s", &
               length=(/ng, m % dimension(1), m % dimension(2), &
               m % dimension(3)/))
-         call sp % write_data(entropy_s_old, "entropy_s_old", &
+         call sp % read_data(entropy_s_old, "entropy_s_old", &
               length=(/ng, m % dimension(1), m % dimension(2), &
               m % dimension(3)/))
-         call sp % write_data(entropy_p, "entropy_p", &
+         call sp % read_data(entropy_p, "entropy_p", &
               length=(/ng, m % dimension(1), m % dimension(2), &
-              m % dimension(3)/))           
+              m % dimension(3)/))
       end if
 
-      ! Read in CMFD info
+      ! Read in to see if CMFD was on at this iteration
+      call sp % read_data(int_array(1), "cmfd_on")
+
+      ! Read in CMFD info, could consider enterying by cmfd_run instead
       if (int_array(1) == 1) then
+        cmfd_on = .true.
         call sp % read_data(cmfd_current_n_save, "cmfd_current_n_save")
         call sp % read_data(cmfd % idx, "idx", group="cmfd")
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")
