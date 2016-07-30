@@ -26,14 +26,7 @@
     <cell fill="1" id="10023" name="RCCA bank B axial 4: RCCA AIC" surfaces="-10030 10024" universe="97" />
     <cell id="10024" material="10007" name="RPV" surfaces="-10031 10032 -10009 10010" universe="0" />
     <!-- modify: add an outer box filled with air -->
-    <cell id="10537" material="10000" name="Air" surfaces="-10143 10009" universe="0"/>
-    <cell id="10538" material="10000" name="Air" surfaces="-10143 -10010" universe="0"/>
-    <cell id="10539" material="10000" name="Air" surfaces="10144 10009" universe="0"/>
-    <cell id="10540" material="10000" name="Air" surfaces="10144 -10010" universe="0"/>
-    <cell id="10541" material="10000" name="Air" surfaces="-10145 10143 -10144 10009" universe="0"/>
-    <cell id="10542" material="10000" name="Air" surfaces="-10145 10143 -10144 -10010" universe="0"/>    
-    <cell id="10543" material="10000" name="Air" surfaces="10146 10143 -10144 10009" universe="0"/>
-    <cell id="10544" material="10000" name="Air" surfaces="10146 10143 -10144 -10010" universe="0"/>     
+    <cell id="10537" material="10000" name="Air" surfaces="10031 10143 -10144 10145 -10146 -10009 10010" universe="0"/>
     <!-- end of modify -->
     <cell fill="38" id="10025" name="Baffle East radial 0: Baffle North" surfaces="-10033" rotation="0.0 0.0 270.0" universe="100" />
     <cell fill="36" id="10026" name="Fuel 2.4% enr no instr 12 universe radial outer: Grid sleeve axial universe box W" surfaces="-10013 10011 -10012" universe="141" />
