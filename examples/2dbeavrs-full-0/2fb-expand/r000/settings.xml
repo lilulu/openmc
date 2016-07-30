@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<settings>
+    <eigenvalue>
+        <particles>1000000</particles>
+        <batches>500</batches>
+        <inactive>127</inactive>
+    </eigenvalue>
+    
+    <source>
+        <space type="fission">
+          <parameters>
+            -161.2773 -161.2773 220
+             161.2773  161.2773 240
+          </parameters>
+        </space>
+    </source>
+    
+  <state_point>
+    <batches>400 450 500 1000 1500 2000</batches>
+  </state_point>
+
+  <seed> 495860@@SEED@@ </seed>
+  <run_cmfd> true </run_cmfd>
+  <run_loo> true </run_loo>
+
+  <entropy>
+    <lower_left>
+      -247.29186 -247.29186 220
+    </lower_left>
+    <upper_right>
+       247.29186 247.29186 240
+    </upper_right>
+    <dimension>46 46 1</dimension>
+  </entropy>
+
+
+</settings>
