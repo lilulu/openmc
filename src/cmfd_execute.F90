@@ -278,15 +278,10 @@ contains
     integer :: k       ! iteration counter for z
     integer :: g       ! iteration counter for groups
     logical :: exist
+    type(StructuredMesh), pointer :: m => null()
 
     ! Only perform for master
     if (master) then
-       ! Get maximum of spatial and group indices
-       nx = cmfd % indices(1)
-       ny = cmfd % indices(2)
-       nz = cmfd % indices(3)
-       ng = cmfd % indices(4)
-
        ! Open files
        inquire(file = "fs.dat", exist = exist)
 
@@ -307,34 +302,61 @@ contains
           open(unit = 2, file = "fs.dat", status = "new", action = "write")
        end if
 
-       ! Loop around indices to map to cmfd object
-       ZLOOP: do k = 1, nz
+       if (cmfd_on) then 
+          ! Get maximum of spatial and group indices
+          nx = cmfd % indices(1)
+          ny = cmfd % indices(2)
+          nz = cmfd % indices(3)
+          ng = cmfd % indices(4)
 
-          YLOOP: do j = 1, ny
+          ! Loop around indices to map to cmfd object
+          ZLOOP: do k = 1, nz
 
-             XLOOP: do i = 1, nx
+             YLOOP: do j = 1, ny
 
-                GROUP: do g = 1, ng
+                XLOOP: do i = 1, nx
 
-                   ! Check for core map
-                   if (cmfd_coremap) then
-                      if (cmfd % coremap(i,j,k) == CMFD_NOACCEL) then
-                         cycle
+                   GROUP: do g = 1, ng
+
+                      ! Check for core map
+                      if (cmfd_coremap) then
+                         if (cmfd % coremap(i,j,k) == CMFD_NOACCEL) then
+                            cycle
+                         end if
                       end if
-                   end if
 
-                   write(2, *) current_batch, g, i, j, k, &
-                        cmfd % openmc_src_old(g, i, j, k), &
-                        cmfd % cmfd_src(g, i, j, k), &
-                        cmfd % loo_src(g, i, j, k), &
-                        entropy_p(g, i, j, k), &
-                        cmfd % openmc_src(g, i, j, k), &
-                        entropy_s_old(g, i, j, k)
-                 end do GROUP
-             end do XLOOP
-          end do YLOOP
-       end do ZLOOP
+                      write(2, *) current_batch, g, i, j, k, &
+                           cmfd % openmc_src_old(g, i, j, k), &
+                           cmfd % cmfd_src(g, i, j, k), &
+                           cmfd % loo_src(g, i, j, k), &
+                           entropy_p(g, i, j, k), &
+                           cmfd % openmc_src(g, i, j, k), &
+                           entropy_s_old(g, i, j, k)
+                   end do GROUP
+                end do XLOOP
+             end do YLOOP
+          end do ZLOOP
+       else
+          m => entropy_mesh
+          nx = m % dimension(1)
+          ny = m % dimension(2)
+          nz = m % dimension(3)
+          ng = 1
+          ! Loop around indices to map to cmfd object
+          do k = 1, nz
 
+             do j = 1, ny
+
+                do i = 1, nx
+
+                   do g = 1, ng
+                      write(2, *) current_batch, g, i, j, k, &
+                           entropy_p(g, i, j, k)          
+                   end do
+                end do
+             end do
+          end do
+       end if
     ! Close file
     close(2)
     end if
