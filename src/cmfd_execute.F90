@@ -381,6 +381,9 @@ end subroutine print_fission_sources
     ! actual run
     if ((loo_run) .and. (cmfd_begin == current_batch + 1)) return
 
+    ! do not feedback cmfd at first batch
+    if ((cmfd_run .or. loo_run) .and. (current_batch == 1)) return
+
     ! FIXME: temporarily no feedback on and after 128 batches for -a128
     ! 
     !if (current_batch > n_inactive) return
