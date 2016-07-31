@@ -350,8 +350,12 @@ contains
                 do i = 1, nx
 
                    do g = 1, ng
+                      ! TODO: temporarily put place holder such that
+                      ! entropy_p is at the same location as in the
+                      ! accelerated case such that we can use the same
+                      ! script to process files
                       write(2, *) current_batch, g, i, j, k, &
-                           entropy_p(g, i, j, k)          
+                           i, j, k, entropy_p(g, i, j, k)          
                    end do
                 end do
              end do
