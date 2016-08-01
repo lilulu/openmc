@@ -126,7 +126,7 @@ contains
     logical,        intent(inout) :: found
     integer,        optional      :: search_cells(:)
     integer :: i                    ! index over cells
-    integer :: j                    ! coordinate level index
+    integer :: j, jj                ! coordinate level index
     integer :: i_xyz(3)             ! indices in lattice
     integer :: n                    ! number of cells to search
     integer :: index_cell           ! index in cells array
@@ -146,6 +146,17 @@ contains
       n = size(search_cells)
     else
       use_search_cells = .false.
+      if (p % coord(j) % universe == NONE) then 
+         call handle_lost_particle(p, "particle somehow found"&
+         // " an uninitialized universe at level "// trim(to_str(j)) &
+         // ". Traceback:")
+         do jj = 1, j
+            call warning(" level " // trim(to_str(jj)) &
+            // "(" // to_str(p%coord(jj)%xyz(1))//", "&
+            // to_str(p%coord(jj)%xyz(2)) // ", " &
+            // to_str(p%coord(jj)%xyz(3)) // "). ")
+         end do
+      end if
       univ => universes(p % coord(j) % universe)
       n = univ % n_cells
     end if
@@ -172,7 +183,8 @@ contains
 
       ! Show cell information on trace
       if (verbosity >= 10 .or. trace) then
-        call write_message("    Entering cell " // trim(to_str(c % id)))
+        call write_message("    Entering cell " // trim(to_str(c % id)) &
+        // " of type " // trim(to_str(c % type)) )
       end if
 
       CELL_TYPE: if (c % type == CELL_NORMAL) then
@@ -241,9 +253,13 @@ contains
         else
           ! Particle is outside the lattice.
           if (lat % outer == NO_OUTER_UNIVERSE) then
-            call handle_lost_particle(p, "A particle is outside latttice " &
+            call handle_lost_particle(p, "A particle is outside lattice " &
                  // trim(to_str(lat % id)) // " but the lattice has no &
-                 &defined outer universe.")
+                 &defined outer universe. Particle location in base universe: " &
+                 // "(" // trim(to_str(p%coord(1)%xyz(1))) // ", " &
+                 // trim(to_str(p%coord(1)%xyz(2))) // ", " &
+                 // trim(to_str(p%coord(1)%xyz(3))) // ")." )
+            return
           else
             p % coord(j + 1) % universe = lat % outer
           end if
