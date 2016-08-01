@@ -190,15 +190,9 @@
     <cell fill="36" id="10195" name="Fuel 1.6% enr no instr RCCA D universe radial outer: Grid sleeve axial universe box N" surfaces="10012" universe="88" />
     <cell id="10196" material="10015" name="Empty Guide Tube in Center Position axial 1: water_spn" surfaces="-10087 10026" universe="21" />
     <!-- modify -->
-    <cell fill="61" id="10197" name="Core lattice" surfaces="10143 -10144 10145 -10146 -10009 10010" universe="0" />
-    <cell id="10537" material="10000" name="Air" surfaces="-10143 10009" universe="0"/>
-    <cell id="10538" material="10000" name="Air" surfaces="-10143 -10010" universe="0"/>
-    <cell id="10539" material="10000" name="Air" surfaces="10144 10009" universe="0"/>
-    <cell id="10540" material="10000" name="Air" surfaces="10144 -10010" universe="0"/>
-    <cell id="10541" material="10000" name="Air" surfaces="-10145 10143 -10144 10009" universe="0"/>
-    <cell id="10542" material="10000" name="Air" surfaces="-10145 10143 -10144 -10010" universe="0"/>    
-    <cell id="10543" material="10000" name="Air" surfaces="10146 10143 -10144 10009" universe="0"/>
-    <cell id="10544" material="10000" name="Air" surfaces="10146 10143 -10144 -10010" universe="0"/> 
+    <cell fill="200" id="10545" name="Bounding box" surfaces="10143 -10144 10145 -10146 -10009 10010" universe="0" />
+    <cell fill="61" id="10197" name="Core lattice" surfaces="-10031" universe="200" />
+    <cell id="10537" material="10000" name="Outer air" surfaces="10031" universe="200"/>
     <!-- end of modify -->
     <cell fill="36" id="10198" name="Fuel 1.6% enr no instr RCCA D universe radial outer: Grid sleeve axial universe box E" surfaces="10014 10011 -10012" universe="88" />
     <cell fill="36" id="10199" name="Fuel 1.6% enr instr RCCA SB universe radial outer: Grid sleeve axial universe box E" surfaces="10014 10011 -10012" universe="76" />
@@ -1541,7 +1535,7 @@
     <surface coeffs="1.0 1.80404775527 0.0 0.0" id="10028" name="Shield Panel NWbot/SEtop" type="plane" />
     <surface coeffs="8.36662" id="10029" name="North Baffle Surface" type="y-plane" />
     <surface coeffs="504.10804" id="10030" name="Top of RCCA rod AIC bank B" type="z-plane" />
-    <surface boundary="vacuum" coeffs="0.0 0.0 241.3" id="10031" name="RPV OR" type="z-cylinder" />
+    <surface coeffs="0.0 0.0 241.3" id="10031" name="RPV OR" type="z-cylinder" />
     <surface coeffs="0.0 0.0 219.71" id="10032" name="RPV IR" type="z-cylinder" />
     <surface coeffs="0.0 0.0 4000.0" id="10033" name="Dummy universe filling surface" type="z-cylinder" />
     <surface coeffs="431.876" id="10034" name="Upper nozzle top" type="z-plane" />
