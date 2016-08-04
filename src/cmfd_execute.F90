@@ -9,15 +9,15 @@ module cmfd_execute
 
   implicit none
   private
-  public :: execute_cmfd, cmfd_init_batch, print_fission_sources
+  public :: execute_acceleration, cmfd_init_batch, print_fission_sources
 
 contains
 
 !==============================================================================
-! EXECUTE_CMFD runs the CMFD calculation
+! EXECUTE_ACCELERATION runs the CMFD calculation
 !==============================================================================
 
-  subroutine execute_cmfd()
+  subroutine execute_acceleration()
 
     use cmfd_data,              only: set_up_cmfd
     use cmfd_solver,            only: cmfd_solver_execute
@@ -30,31 +30,33 @@ contains
       ! Start cmfd timer
       call time_cmfd % start()
 
-      ! Create cmfd data from OpenMC tallies
+      ! Create acceleration data from OpenMC tallies
       call set_up_cmfd()
 
       ! Call solver
-      call cmfd_solver_execute()
-
-      ! Save k-effective
-      cmfd % k_cmfd(current_batch) = cmfd % keff
-
-      ! check to perform adjoint on last batch
-      if (current_batch == n_batches .and. cmfd_run_adjoint) then
-        call cmfd_solver_execute(adjoint=.true.)
+      if (cmfd_on) then 
+         call cmfd_solver_execute()
+         
+         ! Save k-effective
+         cmfd % k_cmfd(current_batch) = cmfd % keff
+         
+         ! check to perform adjoint on last batch
+         if (current_batch == n_batches .and. cmfd_run_adjoint) then
+            call cmfd_solver_execute(adjoint=.true.)
+         end if
       end if
-
+      
+      ! Run loo routine here if it is requested
+      if (loo_on) then 
+         call loo_solver_execute()      
+         cmfd % k_loo(current_batch) = cmfd % loo_keff
+      end if
+      
       ! calculate fission source
       call calc_fission_source()
 
       ! print fission sources to file
       call print_fission_sources()
-
-      ! Run loo routine here if it is requested
-      if (loo_run) then 
-         call loo_solver_execute()      
-         cmfd % k_loo(current_batch) = cmfd % loo_keff
-      end if
     end if
     
     ! calculate weight factors
@@ -63,7 +65,7 @@ contains
     ! stop cmfd timer
     if (master) call time_cmfd % stop()
 
-  end subroutine execute_cmfd
+  end subroutine execute_acceleration
 
 !==============================================================================
 ! CMFD_INIT_BATCH handles cmfd options at the start of every batch
@@ -72,7 +74,7 @@ contains
   subroutine cmfd_init_batch()
 
     use global,            only: cmfd_begin, loo_tally, cmfd_on, &
-                                 cmfd_reset, cmfd_run,            &
+                                 loo_on, cmfd_reset, cmfd_run, &
                                  current_batch
 
     ! Check to activate CMFD diffusion and possible feedback this
@@ -85,12 +87,13 @@ contains
     ! values.
     if (loo_run .and. cmfd_begin == current_batch + 1) then
        loo_tally = .true.
-    else
+    else if (loo_run .and. cmfd_begin == current_batch) then
+       loo_on = .true.
+    else if (loo_run) then
        loo_tally = .false.
     end if
     if (cmfd_run .and. cmfd_begin == current_batch) then
        cmfd_on = .true.
-       loo_tally = .false.
     end if
 
     ! If this is a restart run and we are just replaying batches leave
@@ -195,11 +198,16 @@ contains
               idx = get_matrix_idx(1,i,j,k,ng,nx,ny)
 
               ! Compute fission source
-              cmfd % cmfd_src(g,i,j,k) = sum(cmfd % nfissxs(:,g,i,j,k) * &
-                     cmfd % phi(idx:idx + (ng - 1)))*vol
+              if (cmfd_on) then 
+                 cmfd % cmfd_src(g,i,j,k) = sum(cmfd % nfissxs(:,g,i,j,k) * &
+                      cmfd % phi(idx:idx + (ng - 1)))*vol
+                 
+                 if (cmfd % cmfd_src(g, i, j, k) > ZERO) cnt_cmfd = cnt_cmfd + 1
+              end if
 
-              if (cmfd % cmfd_src(g, i, j, k) > ZERO) cnt_cmfd = cnt_cmfd + 1
-              if (cmfd % loo_src(g, i, j, k) > ZERO) cnt_loo = cnt_loo + 1
+              if (loo_on) then 
+                 if (cmfd % loo_src(g, i, j, k) > ZERO) cnt_loo = cnt_loo + 1
+              end if
 
             end do GROUP
 
@@ -302,7 +310,7 @@ contains
           open(unit = 2, file = "fs.dat", status = "new", action = "write")
        end if
 
-       if (cmfd_on) then 
+       if (cmfd_on .or. loo_on) then 
           ! Get maximum of spatial and group indices
           nx = cmfd % indices(1)
           ny = cmfd % indices(2)
@@ -342,7 +350,7 @@ contains
           ny = m % dimension(2)
           nz = m % dimension(3)
           ng = 1
-          ! Loop around indices to map to cmfd object
+          ! Loop around indices to map to entropy meshes
           do k = 1, nz
 
              do j = 1, ny
@@ -377,7 +385,7 @@ end subroutine print_fission_sources
     use constants,   only: ZERO, ONE
     use error,       only: warning, fatal_error
     use global,      only: meshes, source_bank, work, n_user_meshes, cmfd, &
-                           master, cmfd_begin, current_batch, n_inactive
+                           master, cmfd_begin, current_batch
     use mesh_header, only: StructuredMesh
     use mesh,        only: count_bank_sites, get_mesh_indices
     use search,      only: binary_search
@@ -426,7 +434,7 @@ end subroutine print_fission_sources
     ! allocate arrays in cmfd object (can take out later extend to multigroup)
     if (.not.allocated(cmfd%sourcecounts)) then
       allocate(cmfd%sourcecounts(ng,nx,ny,nz))
-      cmfd % sourcecounts = 0
+      cmfd % sourcecounts = ZERO
     end if
     if (.not.allocated(cmfd % weightfactors)) then
       allocate(cmfd % weightfactors(ng,nx,ny,nz))
@@ -551,26 +559,7 @@ end subroutine print_fission_sources
     use output,  only: write_message
     use tally,   only: reset_result
 
-    real(8), allocatable :: openmc_src(:,:,:,:)
-
     integer :: n ! loop counter
-    integer :: i
-    integer :: j
-    integer :: k
-    integer :: h
-    integer :: nx
-    integer :: ny
-    integer :: nz
-    integer :: ng
-
-    ! Extract spatial and energy indices from object
-    nx = cmfd % indices(1)
-    ny = cmfd % indices(2)
-    nz = cmfd % indices(3)
-    ng = cmfd % indices(4)
-
-    allocate(openmc_src(ng,nx,ny,nz))
-    openmc_src = ZERO
 
     ! Print message. notice printing message is disalbed for rolling
     ! windows case because it's too distracting to have it printed out
@@ -578,18 +567,6 @@ end subroutine print_fission_sources
     if (.not. cmfd_flush_every) then 
        call write_message("CMFD tallies reset", 7)
     end if
-
-    ! Save old fission source for LOO
-    do k = 1, nz
-       do j = 1, ny
-          do i = 1, nx
-             do h = 1, ng
-                openmc_src(h, i, j, k) = &
-                     cmfd % openmc_src(h, i, j, k)
-             end do
-          end do
-       end do
-    end do
 
     ! Begin loop around CMFD tallies
     do n = 1, n_cmfd_tallies
@@ -600,23 +577,6 @@ end subroutine print_fission_sources
 
     end do
 
-    go to 100
-    ! Disable this feature for now; FIXME: look into starting a batch
-    ! right after a flush with  some fission source that's not just zero.
-    ! Restore old fission source for LOO
-    do k = 1, nz
-       do j = 1, ny
-          do i = 1, nx
-             do h = 1, ng
-                cmfd % openmc_src(h, i, j, k) = &
-                     openmc_src(h, i, j, k)
-             end do
-          end do
-       end do
-    end do
-100 continue
-
-    deallocate(openmc_src)
   end subroutine cmfd_tally_reset
 
 end module cmfd_execute

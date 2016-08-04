@@ -393,9 +393,13 @@ module global
 
   ! CMFD run logicals: loo_tally is on one iteration before CMFD is
   ! requested so that we have data regarding the data that goes into
-  ! the MC that would generate the first CMFD low-order system
+  ! the MC that would generate the first CMFD low-order system cmfd_on
+  ! is true once we reach the batch after which acceleration is on;
+  ! loo_on is true once we reach the batch after which acceleration is
+  ! on.
   logical :: loo_tally          = .false.
   logical :: cmfd_on            = .false.
+  logical :: loo_on             = .false.
 
   ! CMFD display options, with default values
   character(len=25) :: cmfd_display = 'balance'

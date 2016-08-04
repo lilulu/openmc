@@ -4,7 +4,7 @@ module eigenvalue
   use message_passing
 #endif
 
-  use cmfd_execute, only: cmfd_init_batch, execute_cmfd, print_fission_sources
+  use cmfd_execute, only: cmfd_init_batch, execute_acceleration, print_fission_sources
   use constants,    only: ZERO
   use error,        only: fatal_error, warning
   use global
@@ -142,7 +142,7 @@ contains
     end if
 
     ! check CMFD initialize batch
-    if (cmfd_run) call cmfd_init_batch()
+    if (cmfd_run .or. loo_run) call cmfd_init_batch()
 
   end subroutine initialize_batch
 
@@ -241,9 +241,8 @@ contains
        if (master) call set_up_cmfd()
     end if
 
-    ! Debug
-    if (cmfd_on) then
-       call execute_cmfd()
+    if (cmfd_on .or. loo_on) then
+       call execute_acceleration()
     else
        call print_fission_sources()
     end if
@@ -575,7 +574,7 @@ contains
 
     ! Set decault number of groups to be 1
     ng = 1
-    if (cmfd_run) ng = cmfd % indices(4)
+    if (cmfd_run .or. loo_run) ng = cmfd % indices(4)
 
     ! On the first pass through this subroutine, we need to determine how big
     ! the entropy mesh should be in each direction and then allocate a
@@ -641,7 +640,7 @@ contains
     end if
 
     ! count number of fission sites in fission_bank over mesh
-    if (cmfd_on) then 
+    if (cmfd_on .or. loo_on) then 
        call count_bank_sites(m, fission_bank, entropy_p, &
             cmfd % egrid, size_bank=n_bank, sites_outside=sites_outside)
        ! reverse due to the egrid structure
@@ -659,7 +658,7 @@ contains
     if (master) entropy_s_old = entropy_s
 
     ! count number of fission sites in source_bank over mesh
-    if (cmfd_on) then
+    if (cmfd_on .or. loo_on) then
        call count_bank_sites(m, source_bank, entropy_s, cmfd % egrid)
        ! reverse due to the egrid structure
        entropy_s = entropy_s(ng:1:-1,:,:,:)

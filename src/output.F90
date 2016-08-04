@@ -1499,7 +1499,7 @@ contains
     end if
 
     ! write out cmfd keff if it is active and other display info
-    if (loo_run .and. cmfd_on) then
+    if (loo_on) then
        write(UNIT=OUTPUT_UNIT, FMT='(3X, F10.7)', ADVANCE='NO') &
             cmfd % k_loo(current_batch)
       select case(trim(cmfd_display))

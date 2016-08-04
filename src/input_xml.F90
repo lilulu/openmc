@@ -38,7 +38,7 @@ contains
     call read_geometry_xml()
     call read_materials_xml()
     call read_tallies_xml()
-    if (cmfd_run) call configure_cmfd()
+    if (cmfd_run .or. loo_run) call configure_cmfd()
 
   end subroutine read_input_xml
 
@@ -2144,7 +2144,7 @@ contains
 
     ! Check for user meshes
     n_user_meshes = get_list_size(node_mesh_list)
-    if (cmfd_run) then
+    if (cmfd_run .or. loo_run) then
       n_meshes = n_user_meshes + n_cmfd_meshes
     else
       n_meshes = n_user_meshes

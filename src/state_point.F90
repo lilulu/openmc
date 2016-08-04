@@ -125,7 +125,7 @@ contains
            ! If acceleration is requested, even if it has not started
            ! at this batch, entropies have been computed into the
            ! acceleration energy group structure
-           if (cmfd_run) then
+           if (cmfd_run .or. loo_run) then
               ng = cmfd % indices(4)
            end if
            call sp % write_data(entropy_s, "entropy_s", &
@@ -140,12 +140,14 @@ contains
         end if
 
         ! Write out CMFD info if cmfd has started at this batch
-        if (cmfd_on) then
+        if (cmfd_on .or. loo_on) then
 #ifdef HDF5
           call sp % open_group("cmfd")
           call sp % close_group()
 #endif
-          call sp % write_data(1, "cmfd_on")
+          ! the `cmfd_on' here is just a label that represent both
+          ! accelerations
+          call sp % write_data(1, "cmfd_on") 
           call sp % write_data(cmfd_current_n_save, "cmfd_current_n_save")
           call sp % write_data(cmfd % idx, "idx", group="cmfd")
           call sp % write_data(cmfd % indices, "indices", length=4, group="cmfd")
@@ -202,6 +204,8 @@ contains
           call sp % write_data(cmfd % dom, "cmfd_dominance", &
                length = current_batch, group="cmfd")
        else
+          ! again the "cmfd_on" label here represents both
+          ! accelerations
           call sp % write_data(0, "cmfd_on")
         end if
       end if
@@ -839,7 +843,8 @@ contains
 
       ! Read in CMFD info, could consider enterying by cmfd_run instead
       if (int_array(1) == 1) then
-        cmfd_on = .true.
+         cmfd_on = .true.
+         loo_on = .true.
         call sp % read_data(cmfd_current_n_save, "cmfd_current_n_save")
         call sp % read_data(cmfd % idx, "idx", group="cmfd")
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")
@@ -850,7 +855,7 @@ contains
         ! 4D array of: ng, nx, ny, nz
         length_4d = cmfd % indices([4,1,2,3])
         call sp % read_data(cmfd % cmfd_src, "cmfd_src", &
-             length=length_4d, group="cmfd")
+              length=length_4d, group="cmfd")
         call sp % read_data(cmfd % loo_src, "loo_src", &
              length=length_4d, group="cmfd")
         call sp % read_data(cmfd % openmc_src, "openmc_src", &

@@ -23,7 +23,8 @@ contains
 
     use cmfd_header,         only: allocate_cmfd
     use constants,           only: CMFD_NOACCEL
-    use global,              only: cmfd, cmfd_coremap, cmfd_downscatter
+    use global,              only: cmfd, cmfd_coremap, &
+                                   cmfd_downscatter, cmfd_on
 
     ! Check for core map and set it up
     if ((cmfd_coremap) .and. (cmfd%mat_dim == CMFD_NOACCEL)) call set_coremap()
@@ -31,7 +32,7 @@ contains
     ! Extract tallies to put in cmfd data object
     call extract_tallies()
     
-    ! Calculate all cross sections based on reaction rates from last batch
+    ! Calculate all cross sections based on reaction rates
     call compute_xs()
 
     ! DEBUG: read in Ds, cross-sections when requested
@@ -40,15 +41,16 @@ contains
     ! Compute effective downscatter cross section
     if (cmfd_downscatter) call compute_effective_downscatter()
 
-    ! Check neutron balance
-    call neutron_balance()
+    if (cmfd_on) then 
+       ! Check neutron balance
+       call neutron_balance()
     
-    ! Calculate dtilde
-    call compute_dtilde()
+       ! Calculate dtilde
+       call compute_dtilde()
 
-    ! Calculate dhat
-    call compute_dhat()
-
+       ! Calculate dhat
+       call compute_dhat()
+    end if
   end subroutine set_up_cmfd
 
 !===============================================================================
