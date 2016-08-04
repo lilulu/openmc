@@ -61,7 +61,7 @@ contains
                             FILTER_SURFACE, IN_RIGHT, OUT_RIGHT, IN_FRONT,      &
                             OUT_FRONT, IN_TOP, OUT_TOP, CMFD_NOACCEL, ZERO,     &
                             ONE, TINY_BIT
-    use error,        only: fatal_error
+    use error,        only: fatal_error, warning
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,         &
                             matching_bins, keff, current_batch, cmfd_n_save,    &
                             cmfd_current_n_save, n_inactive
@@ -240,17 +240,7 @@ contains
 
                 ! Detect zero flux, abort if located
                 if ((cmfd % flux_rate(h,i,j,k,b) - ZERO) < TINY_BIT) then
-                  do ii= 1,nx
-                    do jj = 1,ny
-                      do kk = 1,nz
-                         call write_message("flux at (" // trim(to_str(ii)) //&
-                              ','// trim(to_str(jj)) // ','// trim(to_str(kk)) &
-                              // ','//") group 1 = "//&
-                             &trim(to_str(cmfd % flux_rate(1,ii,jj,kk,b))), 5)
-                      enddo
-                    enddo
-                  enddo
-                  call fatal_error('Detected zero flux without coremap overlay &
+                  call warning('Detected zero flux without coremap overlay &
                        &at: (' // trim(to_str(i)) // ',' // trim(to_str(j)) // ',' // &
                        &trim(to_str(k)) // ') in group ' // trim(to_str(h)))
                 end if
@@ -714,7 +704,6 @@ contains
          FILTER_SURFACE, IN_RIGHT, OUT_RIGHT, IN_FRONT,      &
          OUT_FRONT, IN_TOP, OUT_TOP, CMFD_NOACCEL, ZERO,     &
          ONE, TINY_BIT
-    use error,        only: fatal_error
     use global,       only: cmfd, k_generation, overall_gen
     use string,       only: to_str
     use output,       only: write_message
@@ -762,7 +751,10 @@ contains
        totalxs = (/0.64336155, 1.94585169/)
        scattxs = (/0.608241, 0.02568, 0.0, 1.853706/)
        nfissxs = (/0.005233, 0.0, 0.151707, 0.0/)
-       d = (/1.44, 0.284/)
+       !d = (/1.44, 0.284/)
+       !d = (/0.897776105906651, 0.176265616949762/)
+       !d = (/0.575683202193153, 0.112900576056542/)
+       d = (/1.42669, 0.400433/)
        flux = (/ 3.92672896,   1.02983295,   8.8257216 ,   2.45199824,&
         13.40635594,   3.73209005,  17.66224929,   4.91811123,&
         21.5082574 ,   5.98930568,  24.85776969,   6.92183052,&
