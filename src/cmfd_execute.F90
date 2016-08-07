@@ -89,7 +89,6 @@ contains
        loo_tally = .true.
     else if (loo_run .and. cmfd_begin == current_batch) then
        loo_on = .true.
-    else if (loo_run) then
        loo_tally = .false.
     end if
     if (cmfd_run .and. cmfd_begin == current_batch) then
@@ -459,13 +458,12 @@ end subroutine print_fission_sources
 
       ! Have master compute weight factors (watch for 0s)
       if (master) then
-         if (loo_run) then
-         !if (.false.) then      
+         if (loo_on) then
             where(cmfd % loo_src > ZERO .and. cmfd % sourcecounts > ZERO)
                cmfd % weightfactors = cmfd % loo_src/sum(cmfd % loo_src)* &
                     sum(cmfd % sourcecounts) / cmfd % sourcecounts
             end where
-         else
+         elseif (cmfd_on) then
             where(cmfd % cmfd_src > ZERO .and. cmfd % sourcecounts > ZERO)
                cmfd % weightfactors = cmfd % cmfd_src/sum(cmfd % cmfd_src)* &
                     sum(cmfd % sourcecounts) / cmfd % sourcecounts

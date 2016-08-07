@@ -135,16 +135,16 @@ contains
     end if 
 
     ! reset parameters before computation
-    do k = 1,nz
+    ! For all: accumulate all active batches results, so only get rid of answers from before
+    if (current_batch < 2 * (n_inactive + 1)) then
+
+       do k = 1,nz
        
-       do j = 1,ny
+          do j = 1,ny
 
-          do i = 1,nx
+             do i = 1,nx
 
-             do g = 1,ng
-    
-                ! For all: accumulate all active batches results, so only get rid of answers from before
-                if (current_batch < 2 * (n_inactive + 1)) then
+                do g = 1,ng
                    cmfd % openmc_src_rate(g,i,j,k,b) = ZERO
                    cmfd % flux_rate(g,i,j,k,b) = ZERO
                    cmfd % total_rate(g,i,j,k,b) = ZERO
@@ -159,15 +159,11 @@ contains
                    do q = 1, 16
                       cmfd % quad_current_rate(q,g,i,j,k,b) = ZERO
                    end do
-                end if
-
+                end do
              end do
-
           end do
-
        end do
-
-    end do
+    end if  
 
     ! these should not be necessary anymore
     cmfd % openmc_total_src = ZERO
