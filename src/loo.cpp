@@ -35,11 +35,11 @@
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
-               void *psxs, void *pp1sxs, void *pcur, void *pqcur, void *pfs)
+               void *psxs, void *pp1sxs, void *pqcur, void *pfs)
 {
     /* set up loo object */
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
-                  ptxs, pfxs, psxs, pp1sxs, pcur, pqcur, pfs);
+                  ptxs, pfxs, psxs, pp1sxs, pqcur, pfs);
 
     /* divides scalar fluxes by volume, and currents by area */
     loo.processFluxCurrent();
@@ -321,7 +321,7 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
 Loo::Loo(int *indices, double *k, double* albedo,
          void *phxyz, void *pflx, void *ptso,
          void *ptxs, void *pfxs, void *psxs, void *pp1sxs,
-         void *pcur, void *pqcur, void *pfs)
+         void *pqcur, void *pfs)
     : _nx(indices[0]),
       _ny(indices[1]),
       _nz(indices[2]),
@@ -344,7 +344,6 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _k(k[0]),
       _leakage(0.0),
       _albedo(albedo),
-      _rms(0.0),
       /* meshElement */
       _track_length(1, _nx, _ny, _nz),
       _volume(1, _nx, _ny, _nz),
@@ -362,16 +361,13 @@ Loo::Loo(int *indices, double *k, double* albedo,
       _scatt_xs(_ng, _nx, _ny, _nz, psxs),
       /* meshElement */
       _p1_scatt_xs(_ng, _nx, _ny, _nz, pp1sxs),
-      _d(_ng, _nx, _ny, _nz),
       /* surfaceElement */
       _length(3, 1, _nx, _ny, _nz, phxyz),
       _area(3, 1, _nx, _ny, _nz),
-      _current(_ns_3d, _ng, _nx, _ny, _nz, pcur),
       _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
       _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
       _quad_src_form_factor(_nt, _ng, _nx, _ny, _nz),
-      _quad_src_total(_nt, _ng, _nx, _ny, _nz),
       _pfile(NULL)
 {
     // FIXME: need to make sure the albedoes computed from cmfd are physical
@@ -756,11 +752,11 @@ void Loo::readInReferenceParameters() {
 
 
 
-/* process _scalar_flux and _current: the openmc generated
- * _scalar_flux and _current are volume-integrated and
+/* process _scalar_flux and _quad_current: the openmc generated
+ * _scalar_flux and _quad_current are volume-integrated and
  * area-integrated respectively */
 void Loo::processFluxCurrent() {
-  double scalar_flux, current, quad_current, volume, area;
+    double scalar_flux, quad_current, volume, area, length;
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
@@ -778,12 +774,6 @@ void Loo::processFluxCurrent() {
 
                     /* similarly, we need to divide the current by
                      * surface area. */
-		    for (int s = 0; s < _current.getNs(); s++) {
-		      current = _current.getValue(s, g, i, j, k);
-		      area = _area.getValue(s / 4, 0, i, j, k);
-		      _current.setValue(s, g, i, j, k, current / area);
-		    }
-
                     for (int s = 0; s < _quad_current.getNs(); s++) {
                         quad_current = _quad_current.getValue(s, g, i, j, k);
 
@@ -838,8 +828,9 @@ void Loo::processXs() {
                     _scatt_xs.setValue(g1, g1, i, j, k, 
                                        _scatt_xs.getValue(g1, g1, i, j, k) - delta);
 
-                    _d.setValue(g1, i, j, k, 1.0/3.0/trans_xs);
-                }}}}
+                }}
+            //fprintf(_pfile, "\n");
+        }}
     return;
 }
 
@@ -900,8 +891,8 @@ void Loo::computeQuadFlux(){
 }
 
 /* compute the scattering quad source form factor associated with each
- * track and the sum of the eight quadrature fluxes in each mesh
- * cell */
+ * track (needed by both LOO1 and LOO2) and the sum of the eight
+ * quadrature fluxes in each mesh cell (needed only by LOO1) */
 void Loo::computeQuadSourceFormFactor(){
     double xs, l, ex, src, src_form_factor, sum_quad_flux, out, in, fs, quad_src_total;
     double scattering_source, fission_source;
@@ -942,14 +933,23 @@ void Loo::computeQuadSourceFormFactor(){
 
                     src = scattering_source + fs / _k;
 
-                    double total = 0;
+                    /* Should only proceed if src is not close to
+                     * zero, because there is a divide by src coming
+                     * up */
+                    if (src < TINY_THRESHOLD) {
+                        for (int t = 0; t < _nt; t++) {
+                            _quad_src_form_factor.setValue(t, g, i, j, k, 0);
+                        }
+                        _sum_quad_flux.setValue(g, i, j, k, 0.0);
+                        continue;
+                    }
+
                     for (int t = 0; t < _nt; t++) {
                         in = _quad_flux.getValue(in_index[t], g, i, j, k);
                         out = _quad_flux.getValue(out_index[t], g, i, j, k);
                         quad_src_total = xs * (out - ex * in) / (1.0 - ex);
 
                         src_form_factor = quad_src_total / src * WT_Q;
-                        total +=  src_form_factor;
 
                         _quad_src_form_factor.setValue(t, g, i, j, k,
                                                        src_form_factor);
@@ -967,9 +967,7 @@ void Loo::computeQuadSourceFormFactor(){
 
                         /* sum of quad flux uses lagged fission source */
                         sum_quad_flux += quad_src_total / xs + (in - out) / (xs * l);
-                        _quad_src_total.setValue(t,g, i, j, k, quad_src_total);
                     }
-
                     _sum_quad_flux.setValue(g, i, j, k, sum_quad_flux);
                 }
             }
@@ -982,7 +980,7 @@ void Loo::computeQuadSourceFormFactor(){
 
 /* iteratively solve the low-order problem using MOC (LOO) */
 void Loo::executeLoo(){
-    fprintf(_pfile, "data passed into LOO from openmc:\n");
+    fprintf(_pfile, "\ndata passed into LOO from openmc:\n");
     fprintf(_pfile, " _k = %f\n", _k);
     _previous_fission_source.printElement(" m-th fission source", _pfile);
     _energy_integrated_fission_source.printElement("fs", _pfile);
@@ -991,10 +989,9 @@ void Loo::executeLoo(){
     //_scatt_xs.printElement(" scat xs", _pfile);
     //_abs_xs.printElement(" abs xs", _pfile);
     //_p1_scatt_xs.printElement(" p1 scat xs", _pfile);
-    //_d.printElement(" D", _pfile);
     //_nfiss_xs.printElement(" fission xs", _pfile);
     //_quad_current.printElement(" quad current", _pfile);
-    checkBalance();
+    //checkBalance();
     
     /* loo iteration control */
     int min_loo_iter, max_loo_iter;
@@ -1050,20 +1047,6 @@ void Loo::executeLoo(){
         eps = computeL2Norm(fission_source);
         computeK();
 
-        double rms = 0;
-        for (int i = 0; i < _nx; ++i) {
-            for (int j = 0; j < _ny; ++j) {
-                for (int k = 0; k < _nz; ++k) {
-                    rms += pow(_scalar_flux.getValue(0, i, j, k) /
-                               _old_scalar_flux.getValue(0, i, j, k) - 1.0, 2.0);
-                }
-            }
-        }
-        rms /= (double)(_nx * _ny * _nz);
-        rms = pow(rms, 0.5);
-        //fprintf(_pfile, "iter %d: k = %.7f, eps = %e, rms (phi) = %e\n",
-        //        _loo_iter, _k, eps, rms);
-
         /* save _energy_integrated_fission_source into fission_source */
         _energy_integrated_fission_source.copyTo(fission_source);
 	//if (_loo_iter % 20 == 0) {
@@ -1077,8 +1060,13 @@ void Loo::executeLoo(){
     /* re-normalize _fission_source such that the average is 1.0, so
      * we can examine the solution generated by LOO */
     normalizationByEnergyIntegratedFissionSourceAvg(1.0, false);
-    _energy_integrated_fission_source.printElement("fs", _pfile);
-    fprintf(_pfile, "****** converge after %d iterations **************\n",_loo_iter);
+    //_energy_integrated_fission_source.printElement("fs when LOO exits", _pfile);
+    if (_loo_iter < max_loo_iter) {
+        fprintf(_pfile, "****** LOO converged in %d iterations **************\n\n",_loo_iter);
+    }
+    else {
+        fprintf(_pfile, "****** LOO did not converge in %d iterations **************\n\n",_loo_iter);
+    }
     fclose(_pfile);
 
     /* FIXME: cleans up memory */
@@ -1087,12 +1075,10 @@ void Loo::executeLoo(){
 }
 
 /* compute and store mesh cell _energy_integrated_fission_source:
- * nu_sigma_f * flux * vol, compute and set _rms which is the computed
- * fission sources' deviation from a flat source distribution, and
- * return the average of the mesh cell
+ * nu_sigma_f * flux * vol, and return the average of the mesh cell
  * _energy_integrated_fission_source */
 double Loo::computeEnergyIntegratedFissionSource() {
-    double fission_source, sum, avg, rms;
+    double fission_source, avg;
     int counter;
 
     counter = 0;
@@ -1115,23 +1101,19 @@ double Loo::computeEnergyIntegratedFissionSource() {
 
                 /* store the newly computed fission source into
                  * _energy_integrated_fission_source */
-                _energy_integrated_fission_source.setValue(0, i, j, k, fission_source);
+                _energy_integrated_fission_source.setValue(0, i, j, k, 
+                                                           fission_source);
             }}}
-
+    
     /* compute average of the current fission source distribution */
-    avg = _energy_integrated_fission_source.sum() / ((double) counter);
-
-    /* compute rms relative deviation from flat fission source
-     * distribution */
-    sum = 0;
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                sum += pow(_energy_integrated_fission_source.getValue
-                           (0, i, j, k) / avg - 1, 2.0);
-            }}}
-    rms = sqrt(sum / ((double) counter));
-    _rms = rms;
+    if (counter > 0) {
+        avg = _energy_integrated_fission_source.sum() / ((double) counter);
+    }
+    else {
+        fprintf(_pfile, "LOO iteration %d: something is off, LOO generated "
+                "fission source non-positive in all meshes\n", _loo_iter);
+        avg = 1.0;
+    }
 
     /* finally return the normalization factor to make the current
      * fission source's average to come out to match old_avg */
@@ -1459,7 +1441,6 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
     if (initialization) {
         _old_scalar_flux.normalize(ratio);
         _quad_current.normalize(ratio);
-        _current.normalize(ratio);
         if (DIVIDE) _previous_fission_source.normalize(ratio);
     }
     else {
@@ -1561,31 +1542,6 @@ void Loo::checkBalance(){
                     }}}}}
 
     return;
-}
-
-/* element1 = quad_current, element2 = current*/
-void Loo::verifyPartialCurrent(surfaceElement element1,
-                               surfaceElement element2){
-    double delta;
-    printf("delta \n");
-    for (int k = 0; k < _nz; k++) {
-        for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
-                for (int g = 0; g < _ng; g++) {
-                    // FIXME: temporary, should be _ns
-                    for (int s = 0; s < 12; s++) {
-                        delta = element1.getValue(s, g, i, j, k) -
-                            element2.getValue(s, g, i, j, k);
-                        //if (fabs(delta) > 0) {
-                            printf("(%d %d %d) g = %d, s = %d: %f \n",
-                                   i, j, k, g, s, delta);
-                            //}
-                    }}}}}
-    return;
-}
-
-double Loo::getRms() {
-    return _rms;
 }
 
 double Loo::getK() {

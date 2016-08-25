@@ -13,7 +13,7 @@ module loo_solver
   interface
      real (c_double) function new_loo(indices, k, albedo, hxyz, flux, &
           src_old, totalxs, nfissxs, scattxs, p1scattxs, &
-          current, quad_current, loo_src) &
+          quad_current, loo_src) &
           bind (C)
        use iso_c_binding
        type (c_ptr), value :: indices
@@ -26,7 +26,6 @@ module loo_solver
        type (c_ptr), value :: nfissxs
        type (c_ptr), value :: scattxs
        type (c_ptr), value :: p1scattxs
-       type (c_ptr), value :: current
        type (c_ptr), value :: quad_current
        type (c_ptr), value :: loo_src
      end function new_loo
@@ -53,7 +52,6 @@ contains
     real (c_double), allocatable, target :: nfissxs(:,:,:,:,:)
     real (c_double), allocatable, target :: scattxs(:,:,:,:,:)
     real (c_double), allocatable, target :: p1scattxs(:,:,:,:)
-    real (c_double), allocatable, target :: current(:,:,:,:,:)
     real (c_double), allocatable, target :: quad_current(:,:,:,:,:)
     real (c_double), allocatable, target :: loo_src(:,:,:,:)
 
@@ -69,7 +67,6 @@ contains
     nfissxs = cmfd % nfissxs
     scattxs = cmfd % scattxs
     p1scattxs = cmfd % p1scattxs
-    current = cmfd % current
     quad_current = cmfd % quad_current
     loo_src = cmfd % loo_src
 
@@ -78,7 +75,7 @@ contains
          c_loc(hxyz), c_loc(flux(1,1,1,1)), c_loc(src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), c_loc(nfissxs(1,1,1,1,1)), &
          c_loc(scattxs(1,1,1,1,1)), c_loc(p1scattxs(1,1,1,1)), &
-         c_loc(current(1,1,1,1,1)), c_loc(quad_current(1,1,1,1,1)), &
+         c_loc(quad_current(1,1,1,1,1)), &
          c_loc(loo_src(1,1,1,1)))
 
     cmfd % loo_src = loo_src
