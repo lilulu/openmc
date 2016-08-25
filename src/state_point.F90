@@ -203,9 +203,9 @@ contains
                length=current_batch, group="cmfd")
           call sp % write_data(cmfd % dom, "cmfd_dominance", &
                length = current_batch, group="cmfd")
-       else
+        else
           ! again the "cmfd_on" label here represents both
-          ! accelerations
+          ! accelerations. TODO: separate out cmfd_on and loo_on flags.
           call sp % write_data(0, "cmfd_on")
         end if
       end if
@@ -811,7 +811,7 @@ contains
       if (entropy_on) then
          ng = 1
          m => entropy_mesh
-         if (cmfd_run) then
+         if (cmfd_run .or. loo_run) then
             ng = cmfd % indices(4)
          end if
          if (.not. allocated(entropy_p)) then
@@ -841,10 +841,19 @@ contains
       ! Read in to see if CMFD was on at this iteration
       call sp % read_data(int_array(1), "cmfd_on")
 
-      ! Read in CMFD info, could consider enterying by cmfd_run instead
-      if (int_array(1) == 1) then
-         cmfd_on = .true.
-         loo_on = .true.
+      ! Read in CMFD info, could consider entering by cmfd_run from
+      ! the restart input file instead
+
+      if (int_array(1) == 1) then 
+
+      ! To be backward compatible with previous statepoint files, I
+      ! have information of an acceleration method being on, without
+      ! knowing which one. Hence for now I am not going to use it to
+      ! set the cmfd_on or loo_on flags, but rather rely on the input
+      ! files that restart this case to set such flags. 
+
+        !cmfd_on = .true.
+        !loo_on = .true.
         call sp % read_data(cmfd_current_n_save, "cmfd_current_n_save")
         call sp % read_data(cmfd % idx, "idx", group="cmfd")
         call sp % read_data(cmfd % indices, "indices", length=4, group="cmfd")

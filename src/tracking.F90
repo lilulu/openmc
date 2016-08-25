@@ -150,8 +150,8 @@ contains
         ! figure out what mesh surfaces were crossed
 
         if (active_current_tallies % size() > 0) then
-           call score_surface_current(p)
-           call score_surface_quad_current(p)
+           if (cmfd_on) call score_surface_current(p)
+           if (loo_tally .or. loo_on) call score_surface_quad_current(p)
         end if
 
         ! Clear surface component

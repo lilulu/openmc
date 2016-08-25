@@ -332,8 +332,8 @@ contains
         ! physically moving the particle forward slightly
 
         p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
-        call score_surface_current(p)
-        call score_surface_quad_current(p)
+        if (cmfd_on) call score_surface_current(p)
+        if (loo_tally .or. loo_on) call score_surface_quad_current(p)
       end if
 
       ! Score to global leakage tally
@@ -368,8 +368,8 @@ contains
 
       if (active_current_tallies % size() > 0) then
         p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
-        call score_surface_current(p)
-        call score_surface_quad_current(p)
+        if (cmfd_on) call score_surface_current(p)
+        if (loo_tally .or. loo_on) call score_surface_quad_current(p)
         p % coord(1) % xyz = p % coord(1) % xyz - TINY_BIT * p % coord(1) % uvw
       end if
 

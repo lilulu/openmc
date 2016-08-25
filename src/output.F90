@@ -1615,11 +1615,14 @@ contains
     write(ou,100) "    Sampling source sites", time_bank_sample % elapsed
     write(ou,100) "    SEND/RECV source sites", time_bank_sendrecv % elapsed
     write(ou,100) "  Time accumulating tallies", time_tallies % elapsed
-    if (cmfd_run) write(ou,100) "  Time in CMFD", time_cmfd % elapsed
-    if (cmfd_run) write(ou,100) "    Building matrices", &
-                  time_cmfdbuild % elapsed
-    if (cmfd_run) write(ou,100) "    Solving matrices", &
-                  time_cmfdsolve % elapsed
+    if (cmfd_run) then 
+       write(ou,100) "  Time in CMFD", time_cmfd % elapsed
+       write(ou,100) "    Building matrices", time_cmfdbuild % elapsed
+       write(ou,100) "    Solving matrices", time_cmfdsolve % elapsed
+    end if
+
+    if (loo_run) write(ou,100) "  Time in LOO", time_cmfd % elapsed
+
     write(ou,100) "Total time for finalization", time_finalize % elapsed
     write(ou,100) "Total time elapsed", time_total % elapsed
 

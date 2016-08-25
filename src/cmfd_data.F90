@@ -66,7 +66,8 @@ contains
     use error,        only: fatal_error, warning
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,         &
                             matching_bins, keff, current_batch, cmfd_n_save,    &
-                            cmfd_current_n_save, n_inactive
+                            cmfd_current_n_save, n_inactive, cmfd_on, loo_tally,&
+                            loo_on
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -98,8 +99,6 @@ contains
     type(StructuredMesh), pointer :: m => null() ! pointer for mesh object
     ! for debugging
     integer :: ii
-    integer :: jj
-    integer :: kk
     real(8) :: tmp_rates
 
     ! Extract spatial and energy indices from object
@@ -307,6 +306,8 @@ contains
 
              else if (ital == 3) then
 
+                if (cmfd_on) then 
+
                 ! Set number of quadrature to be 2 for CMFD, 4 for LOO
                  nq = 2
 
@@ -381,6 +382,9 @@ contains
                    cmfd % current_rate(q+3*nq,h,i,j,k,b) = cmfd % current_rate(q+3*nq,h,i,j,k,b) +&
                         t % results(1,score_index) % sum / n
                 end do
+                end if 
+
+                if (loo_tally .or. loo_on) then
 
                 ! Set number of quadrature to be 4 for LOO quad currents
                  nq = 4
@@ -436,6 +440,8 @@ contains
                 end do
 
                 ! FIXME: add top & bottom for 3D implementation
+                end if
+
               end if TALLY
 
             end do OUTGROUP
@@ -504,19 +510,23 @@ contains
                             cmfd % nfiss_rate(h,g,i,j,k,ii+b) = tmp_rates
                          end do
                          ! current_rate
-                         do q = 1, 12
-                            tmp_rates = cmfd % current_rate(q,g,i,j,k,ii)
-                            cmfd % current_rate(q,g,i,j,k,ii) = &
-                                 cmfd % current_rate(q,g,i,j,k,ii+b)
-                            cmfd % current_rate(q,g,i,j,k,ii+b) = tmp_rates
-                         end do
+                         if (cmfd_on) then 
+                            do q = 1, 12
+                               tmp_rates = cmfd % current_rate(q,g,i,j,k,ii)
+                               cmfd % current_rate(q,g,i,j,k,ii) = &
+                                    cmfd % current_rate(q,g,i,j,k,ii+b)
+                               cmfd % current_rate(q,g,i,j,k,ii+b) = tmp_rates
+                            end do
+                         end if
                          ! quad_current_rate
-                         do q = 1, 16
-                            tmp_rates = cmfd % quad_current_rate(q,g,i,j,k,ii)
-                            cmfd % quad_current_rate(q,g,i,j,k,ii) = &
-                                 cmfd % quad_current_rate(q,g,i,j,k,ii+b)
-                            cmfd % quad_current_rate(q,g,i,j,k,ii+b) = tmp_rates
-                         end do
+                         if (loo_tally .or. loo_on) then
+                            do q = 1, 16
+                               tmp_rates = cmfd % quad_current_rate(q,g,i,j,k,ii)
+                               cmfd % quad_current_rate(q,g,i,j,k,ii) = &
+                                    cmfd % quad_current_rate(q,g,i,j,k,ii+b)
+                               cmfd % quad_current_rate(q,g,i,j,k,ii+b) = tmp_rates
+                            end do
+                         end if
                       end do
                    end do
                 end do
@@ -554,7 +564,7 @@ contains
                             ONE, TINY_BIT
     use error,        only: fatal_error
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,&
-                            matching_bins, keff
+                            matching_bins, keff, cmfd_on, loo_tally, loo_on
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -626,8 +636,10 @@ contains
                 cmfd % p1scattxs(h,i,j,k) = sum(cmfd % p1scatt_rate(h,i,j,k,:)) / flux
 
                 ! Calculate diffusion coefficient
-                cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(cmfd % totalxs(h,i,j,k) - &
-                     cmfd % p1scattxs(h,i,j,k)))
+                if (cmfd_on) then 
+                   cmfd % diffcof(h,i,j,k) = ONE/(3.0_8*(cmfd % totalxs(h,i,j,k) - &
+                          cmfd % p1scattxs(h,i,j,k)))
+                end if
 
                 cmfd % openmc_src(h,i,j,k) = sum(cmfd % openmc_src_rate(h,i,j,k,:))
 
@@ -642,19 +654,22 @@ contains
                 end do INGROUP
 
                 ! Set number of quadrature to be 2 for CMFD, 4 for LOO
-                nq = 12
-
-                do q = 1, nq
-                   cmfd % current(q,h,i,j,k) = sum(cmfd % current_rate(q,h,i,j,k,:))
-                end do
+                if (cmfd_on) then
+                   nq = 12
+                   do q = 1, nq
+                      cmfd % current(q,h,i,j,k) = sum(cmfd % current_rate(q,h,i,j,k,:))
+                   end do
+                end if
 
                 ! Set number of quadrature to be 4 for LOO quad currents
                 ! FIXME: increase nq for 3D implementation
-                nq = 16
+                if (loo_tally .or. loo_on) then
+                   nq = 16
 
-                do q = 1, nq
-                   cmfd % quad_current(q,h,i,j,k) = sum(cmfd % quad_current_rate(q,h,i,j,k,:))
-                end do
+                   do q = 1, nq
+                      cmfd % quad_current(q,h,i,j,k) = sum(cmfd % quad_current_rate(q,h,i,j,k,:))
+                   end do
+                end if
 
              end do OUTGROUP
 
@@ -714,9 +729,8 @@ contains
     integer :: j             ! iteration counter for y
     integer :: k             ! iteration counter for z
     integer :: h             ! iteration counter for energy group
-    integer :: g             ! iteration counter for energy group       
     integer :: s             ! iteration counter for surfaces
-    integer :: index, index2
+    integer :: index
 
     !real, dimension(60) :: current
     !real, dimension(80) :: quad_current
