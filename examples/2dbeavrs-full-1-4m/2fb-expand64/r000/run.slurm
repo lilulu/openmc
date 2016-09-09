@@ -10,5 +10,4 @@
 
 export CROSS_SECTIONS=/pool001/bforget/openmc/data/nndc/cross_sections.xml
 export GFORTRAN_UNBUFFERED_ALL=y
-
 ../../../../bin/openmc-loo2-mapped

@@ -116,7 +116,9 @@
     <cell fill="4" id="10113" name="Grids axial universe axial 17: Top/Bottom grid pincell" surfaces="-10077 10045" universe="3" />
     <cell fill="36" id="10114" name="Fuel 3.1% enr no instr 6N universe radial outer: Grid sleeve axial universe box S" surfaces="-10011" universe="114" />
     <cell fill="8" id="10115" name="Grids axial universe axial 9: Intermediate grid pincell" surfaces="-10078 10063" universe="3" />
-    <cell id="10116" material="10003" name="RCCA B4C radial 0: b4c_rod" surfaces="-10066" universe="13" />
+    <!-- modify: withdraw bank d B4C rod by replacing b4c with water -->
+    <cell id="10116" material="10014" name="RCCA B4C radial 0: b4c_rod" surfaces="-10066" universe="13" />
+    <!-- end of modify -->
     <cell id="10117" material="10006" name="Intermediate grid sleeve pincell radial 0: zirc" surfaces="10069 -10079 10080 -10081" universe="9" />
     <cell fill="36" id="10118" name="Fuel 1.6% enr no instr RCCA SC universe radial outer: Grid sleeve axial universe box S" surfaces="-10011" universe="93" />
     <cell id="10119" material="10005" name="Top/Bottom grid pincell radial outer: inconel box E" surfaces="10082 10083 -10084" universe="4" />
@@ -1518,9 +1520,9 @@
     <surface coeffs="0.0 0.0 201.63" id="10006" name="Shield Panel OR" type="z-cylinder" />
     <surface coeffs="1.0 -1.80404775527 0.0 0.0" id="10007" name="Shield Panel NEbot/SWtop" type="plane" />
     <surface coeffs="1.0 -0.554309051453 0.0 0.0" id="10008" name="Shield Panel NEtop/SWbot" type="plane" />
-    <!-- modify z-plans from vacuum 0->460 to reflective 220->240.0 -->
-    <surface boundary="reflective" coeffs="240.0" id="10009" name="Highest Extent" type="z-plane" />
-    <surface boundary="reflective" coeffs="220.0" id="10010" name="Lowest Extent" type="z-plane" />
+    <!-- modify z-plans from vacuum 0->460 to reflective BCs from mid-plane between grid 3&4 to that between grid 4&5-->
+    <surface boundary="reflective" coeffs="230" id="10009" name="Highest Extent" type="z-plane" />
+    <surface boundary="reflective" coeffs="180" id="10010" name="Lowest Extent" type="z-plane" />
     <!-- end of modification -->
     <surface coeffs="-10.70864" id="10011" name="Pinlattice Y min" type="y-plane" />
     <surface coeffs="10.70864" id="10012" name="Pinlattice Y max" type="y-plane" />

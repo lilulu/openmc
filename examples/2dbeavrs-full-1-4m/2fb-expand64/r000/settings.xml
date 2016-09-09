@@ -9,8 +9,8 @@
     <source>
         <space type="fission">
           <parameters>
-            -161.2773 -161.2773 220
-             161.2773  161.2773 240
+            -161.2773 -161.2773 180
+             161.2773  161.2773 230
           </parameters>
         </space>
     </source>
@@ -25,10 +25,10 @@
 
   <entropy>
     <lower_left>
-      -182.78094 -182.78094 220
+      -182.78094 -182.78094 180
     </lower_left>
     <upper_right>
-       182.78094 182.78094 240
+       182.78094  182.78094 230
     </upper_right>
     <dimension>34 34 1</dimension>
   </entropy>

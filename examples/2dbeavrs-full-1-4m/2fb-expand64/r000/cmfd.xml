@@ -3,8 +3,8 @@
 
   <mesh>
     <dimension>34 34 1</dimension>
-    <lower_left>-182.78094 -182.78094 220</lower_left>
-    <upper_right>182.78094  182.78094 240</upper_right>
+    <lower_left>-182.78094 -182.78094 180</lower_left>
+    <upper_right>182.78094  182.78094 230</upper_right>
     <energy> 0.0 0.625e-6 100.0 </energy>
     <albedo>0.0 0.0 0.0 0.0 1.0 1.0</albedo>
     <map>
