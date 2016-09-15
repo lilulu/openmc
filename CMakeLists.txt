@@ -22,7 +22,7 @@ endif()
 option(openmp   "Enable shared-memory parallelism with OpenMP"   ON)
 option(profile  "Compile with profiling flags"                   OFF)
 option(debug    "Compile with debug flags"                       OFF)
-option(optimize "Turn on all compiler optimization flags"        OFF)
+option(optimize "Turn on all compiler optimization flags"        ON)
 option(verbose  "Create verbose Makefiles"                       OFF)
 option(coverage "Compile with coverage analysis flags"           OFF)
 option(mpif08   "Use Fortran 2008 MPI interface"                 OFF)
@@ -67,6 +67,7 @@ endif()
 #===============================================================================
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  message("GNU compiler")
   # Make sure version is sufficient
   execute_process(COMMAND ${CMAKE_Fortran_COMPILER} -dumpversion
     OUTPUT_VARIABLE GCC_VERSION)
@@ -77,8 +78,11 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   # GNU Fortran compiler options
   set(f90flags  "-cpp -std=f2008 -fbacktrace")
   if(debug)
-    set(f90flags  "-g -Wall -pedantic -fbounds-check -ffpe-trap=invalid,overflow,underflow ${f90flags}")
-    set(ldflags   "-g")
+    #set(f90flags  "-g -Wall -pedantic -fbounds-check -ffpe-trap=invalid,overflow,underflow ${f90flags}")
+    #set(f90flags  "-Og -fsanitize=address -fbounds-check -ffpe-trap=invalid,overflow,underflow ${f90flags}")
+    set(f90flags  "-gdwarf-2 -Wall -pedantic -fbounds-check -ffpe-trap=invalid,overflow,zero ${f90flags}")
+    #set(ldflags   "-g -fsanitize=address")
+    set(ldflags   "-gdwarf-2")
   endif()
   if(profile)
     set(f90flags  "-pg ${f90flags}")
@@ -97,6 +101,7 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   endif()
 
 elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+  message("Intel fortran compiler")
   # Intel Fortran compiler options
   set(f90flags  "-fpp -std08 -assume byterecl -traceback")
   if(debug)
