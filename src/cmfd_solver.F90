@@ -100,7 +100,7 @@ contains
   subroutine init_data(adjoint)
 
     use constants, only: ONE, ZERO
-    use global,    only: cmfd, cmfd_shift, keff, cmfd_ktol, cmfd_stol, &
+    use global,    only: cmfd_shift, keff, cmfd_ktol, cmfd_stol, &
                          cmfd_write_matrices
 
     logical, intent(in) :: adjoint
@@ -191,7 +191,7 @@ contains
     
     use constants,  only: ONE
     use error,      only: fatal_error, warning
-    use global,     only: cmfd, cmfd_atoli, cmfd_rtoli, k_generation, overall_gen
+    use global,     only: cmfd, cmfd_atoli, cmfd_rtoli
     use string,     only: to_str
 
     integer :: i ! iteration counter
@@ -228,11 +228,11 @@ contains
     call wielandt_shift()
     totalits = 0
 
-    imax = 10000
+    imax = 1000
     ! Begin power iteration
     do i = 1, imax
 
-      ! Check if reached iteration 10000
+      ! Check if reached iteration 1000
       if (i == imax) then
          call warning("Reached maximum iterations of "// trim(to_str(i)) //&
               &" in CMFD power iteration solver, kerr, ktol = "//&
@@ -264,7 +264,7 @@ contains
         call cmfd_linsolver_ng(loss, s_o, phi_n, toli, innerits)
       end select
 
-      ! Compute new source vector
+      ! Compute new source vector from phi_n
       call prod % vector_multiply(phi_n, s_n)
 
       ! Compute new shifted eigenvalue
@@ -283,7 +283,8 @@ contains
       ! Renormalize the old source
       s_o % val = s_o % val * k_lo
 
-      ! Check convergence
+      ! record old norm, check convergence
+      norm_o = norm_n
       call convergence(i, innerits, iconv)
       totalits = totalits + innerits
 
@@ -295,7 +296,6 @@ contains
       k_oo = k_o
       k_o = k_n
       k_lo = k_ln
-      norm_o = norm_n
 
       ! Get new tolerance for inners
       toli = max(atoli, rtoli*serr)
@@ -538,7 +538,7 @@ contains
     n = A % n
 
     ! Perform Gauss Seidel iterations
-    GS: do igs = 1, 10000
+    GS: do igs = 1, 1000
 
       ! Check for max iterations met
       if (igs == 10000) then
