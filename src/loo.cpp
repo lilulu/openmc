@@ -896,7 +896,7 @@ void Loo::generate2dTracknxnMapped() {
     } /* complete all loops */
 
     // debug
-    if (true) {
+    if (false) {
         fprintf(_pfile, "_num_loops: %d %d\n", _num_loops[0],
                 _num_loops[1]);
         fprintf(_pfile, "boundary cells:\n");
