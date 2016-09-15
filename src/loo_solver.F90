@@ -1,7 +1,9 @@
 module loo_solver
 
-  use global,         only: cmfd, keff, current_batch, entropy_s, entropy_p, &
-       entropy_s_old, overall_gen, gen_per_batch, k_generation
+  use global,         only: cmfd, keff, current_batch, entropy_s, &
+       entropy_p, entropy_s_old, overall_gen, gen_per_batch, &
+       k_generation
+       
   use iso_c_binding,  only: c_int, c_double, c_loc
   use, intrinsic :: ISO_FORTRAN_ENV
 
@@ -13,7 +15,7 @@ module loo_solver
   interface
      real (c_double) function new_loo(indices, k, albedo, hxyz, flux, &
           src_old, totalxs, nfissxs, scattxs, p1scattxs, &
-          quad_current, loo_src) &
+          quad_current, loo_src, coremap) &
           bind (C)
        use iso_c_binding
        type (c_ptr), value :: indices
@@ -28,6 +30,7 @@ module loo_solver
        type (c_ptr), value :: p1scattxs
        type (c_ptr), value :: quad_current
        type (c_ptr), value :: loo_src
+       type (c_ptr), value :: coremap
      end function new_loo
   end interface
 
@@ -54,7 +57,8 @@ contains
     real (c_double), allocatable, target :: p1scattxs(:,:,:,:)
     real (c_double), allocatable, target :: quad_current(:,:,:,:,:)
     real (c_double), allocatable, target :: loo_src(:,:,:,:)
-
+    integer (c_int), allocatable, target :: coremap(:,:,:)
+    
     indices = cmfd % indices
     k = k_generation(overall_gen)
     albedo = cmfd % albedo
@@ -69,14 +73,15 @@ contains
     p1scattxs = cmfd % p1scattxs
     quad_current = cmfd % quad_current
     loo_src = cmfd % loo_src
-
+    coremap = cmfd % coremap
+    
     ! note: k value is not over-written, loo_src is;
     loo_k = new_loo(c_loc(indices), c_loc(k), c_loc(albedo), &
          c_loc(hxyz), c_loc(flux(1,1,1,1)), c_loc(src_old(1,1,1,1)), &
          c_loc(totalxs(1,1,1,1)), c_loc(nfissxs(1,1,1,1,1)), &
          c_loc(scattxs(1,1,1,1,1)), c_loc(p1scattxs(1,1,1,1)), &
          c_loc(quad_current(1,1,1,1,1)), &
-         c_loc(loo_src(1,1,1,1)))
+         c_loc(loo_src(1,1,1,1)), c_loc(coremap(1,1,1)))
 
     cmfd % loo_src = loo_src
     cmfd % loo_keff = loo_k

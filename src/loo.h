@@ -35,11 +35,14 @@
 #include <math.h>
 #include <time.h>       /* time_t, time, ctime */
 #include <vector>
+#include <fenv.h>       /* catch floating point exceptions */
 
 #define FOUR_PI 12.566370614359172
 #define TWO_PI 6.283185307179586
 #define ONE_OVER_FOUR_PI 0.07957747154594767
 #define PI 3.141592653589793
+#define SMALL_THRESHOLD 1e-5
+#define TINY_THRESHOLD 1e-15
 
 class meshElement {
 protected:
@@ -92,28 +95,50 @@ public:
     void normalize(int s, int g, int i, int j, int k, double value);
     void printElement(std::string string, FILE* pfile);
     void zero();
-    void one();
+    void initialize(double);
 };
 
 class Loo {
 private:
+    bool _mapped;
     int _nx;
     int _ny;
     int _nz;
     int _ng;
-    int _nt;
+    /* number of low-order tracks in a mesh cell */
+    int _nt; 
     int _num_dimension;
     int _ns_2d;
     int _ns_3d;
+    /* number of loops possible */
     int _num_loop;
+    /* max number of trakcs in any loop; _num_tracks[loop_id] holds
+     * the actual number of tracks in a given loop in the case where
+     * coremap is specified */
     int _num_track;
     int _loo_iter;
+
+    /* the mesh's x index in [0, _nx) given a global track id in [0,
+     * _num_loop * _num_track) */
     int *_i_array;
+    /* the mesh's y index in [0, _ny) given a global track id in [0,
+     * _num_loop * _num_track) */    
     int *_j_array;
+    /* the forward track id in [0, _nt) given a global track id in [0,
+     * _num_loop * _num_track) */
     int *_t_array;
+    /* the backward track id in [0, _nt) given a global track id in [0,
+     * _num_loop * _num_track) */
     int *_t_arrayb;
+    
+    /* coremap passed in from main routine, defined in cmfd.xml */
+    int *_map;
+    int *_num_loops;
+    int *_num_tracks;
+    int *_boundary_cells;
     double _k;
     double _leakage;
+    /* the global albedo passed in from main routine, set in cmfd.xml */
     double *_albedo;
 
     /* track lengthes in LOO: first calculated in 2D then projected
@@ -155,6 +180,10 @@ private:
     
     /* $\qhat^{m+1/2}$ divided by $\Qbar_S^{m+1/2} + \Qbar_F^{m}/k$ */
     surfaceElement _quad_src_form_factor;
+
+    /* albedos (computed only at boundary cells), given track id,
+     * energy group, mesh indexes */
+    surfaceElement _albedos;
     
     FILE* _pfile;
 
@@ -162,13 +191,18 @@ public:
     Loo(int *indices, double *k, double *albedo,
         void *phxyz, void *pflx, void *ptso,
         void *ptxs, void *pfxs, void *psxs, void *pp1sxs,
-        void *pqcur, void *pfs);
+        void *pqcur, void *pfs, int *pcor);
     virtual ~Loo();
 
-    // main methods
     /* open log file for printing */
     void openLogFile();
 
+    // getters, per say
+    /* return true for active mesh */
+    bool getMapValue(int, int);
+    bool getMapped();
+    double getK();    
+    
     /* compute the surface areas and volume for each mesh cell */
     void computeAreaVolume();
 
@@ -181,8 +215,12 @@ public:
     /* generate track laydown */
     void generate2dTrack();
     void generate2dTracknxn();
+    void generate2dTracknxnMapped();
     void generate2dTracknx1();
 
+    /* generate albedo conditions */
+    void generateAlbedos();
+    
     /* process _scalar_flux and _quad_current: the openmc generated
      * _scalar_flux and _quad_current are volume-integrated and
      * area-integrated respectively */
@@ -212,6 +250,9 @@ public:
      * cell _energy_integrated_fission_source */
     double computeEnergyIntegratedFissionSource();
 
+    /* compute loo source for outputing to external routines */
+    void computeSource();
+
     /* compute quad_src */
     void computeQuadSource(surfaceElement& quad_src);
 
@@ -229,6 +270,8 @@ public:
                          surfaceElement quad_src,
                          double psi, int g, int nt, int direction);
 
+    bool cellOnBoundary(int, int, int, int);
+    
     /* return bool representing whether a track starts from the mesh
      * geometry's specific surface, in the direction specified */
     bool startFromBoundary(int t, int i, int j, int k, int s, int dir);
@@ -236,6 +279,8 @@ public:
     /* return bool representing whether a track starts from a vacuum
      * geometry boundary, in the direction specified */
     bool startFromAnyVacuumBoundary(int t, int i, int j, int k, int dir);
+
+    bool startFromAnyBoundary(int t, int i, int j, int k, int dir);
 
     /* return area of the surface that a track t crosses with its
        start point (e = 0) or end point (e = 1) */
@@ -265,14 +310,14 @@ public:
     // helper routines
     void readInReferenceParameters();
     void checkBalance();
-    
-    double getK();
+    /* debug: print out the coremap passed in from main routine */
+    void printCoreMap();
 };
 
 extern "C" {
     double new_loo(int *indices, double *k, double *albedo,
                    void *phxyz, void *pflx, void *ptso,
                    void *ptxs, void *pfxs, void *psxs, void *pp1sxs,
-                   void *pqcur, void *pfs);
+                   void *pqcur, void *pfs, int *pcor);
 }
 #endif /* LOO_H_ */

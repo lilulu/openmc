@@ -35,11 +35,14 @@
 
 double new_loo(int *indices, double *k, double *albedo,
                void *phxyz, void *pflx, void *ptso, void *ptxs, void *pfxs,
-               void *psxs, void *pp1sxs, void *pqcur, void *pfs)
+               void *psxs, void *pp1sxs, void *pqcur, void *pfs, int *pcor)
 {
+    /* Enable floating point exceptions: invalid, divide by zero, overflow */
+    feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+
     /* set up loo object */
     Loo loo = Loo(indices, k, albedo, phxyz, pflx, ptso,
-                  ptxs, pfxs, psxs, pp1sxs, pqcur, pfs);
+                  ptxs, pfxs, psxs, pp1sxs, pqcur, pfs, pcor);
 
     /* divides scalar fluxes by volume, and currents by area */
     loo.processFluxCurrent();
@@ -62,6 +65,9 @@ double new_loo(int *indices, double *k, double *albedo,
     /* computes _quad_flux from _quad_current */
     loo.computeQuadFlux();
 
+    /* compute fuel-reflector albedos from quad flux */
+    if (loo.getMapped()) loo.generateAlbedos();
+    
     /* computes _quad_src from _quad_flux and total xs */
     loo.computeQuadSourceFormFactor();
 
@@ -154,7 +160,8 @@ void meshElement::normalize(double ratio) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    if (getValue(g, i, j, k) > 1e-15) {
+                    if ((getValue(g, i, j, k) > TINY_THRESHOLD) 
+                        && (ratio > TINY_THRESHOLD)) {
                         setValue(g, i, j, k, getValue(g, i, j, k) * ratio);
                     }}}}}
     return;
@@ -172,9 +179,10 @@ void meshElement::printElement(std::string string, FILE* pfile){
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
-                    fprintf(pfile, "%.8f, ", getValue(g, i, j, k));
-                }}}}
-    
+                    fprintf(pfile, "%.4f, ", getValue(g, i, j, k));
+                }}
+            fprintf(pfile, "\n");
+        }}
     fprintf(pfile, "\n");
     return;
 }
@@ -215,8 +223,10 @@ void energyElement::printElement(std::string string, FILE* pfile){
             for (int i = 0; i < _nx; i++) {
                 for (int g1 = 0; g1 < _ng; g1++) {
                     for (int g2 = 0; g2 < _ng; g2++) {
-                        fprintf(pfile, "%f, ", getValue(g1, g2, i, j, k));
-                    }}}}}
+                        fprintf(pfile, "%.4f, ", getValue(g1, g2, i, j, k));
+                    }}}
+            fprintf(pfile, "\n");
+        }}
     fprintf(pfile, "\n");
 
     return;
@@ -266,7 +276,7 @@ void surfaceElement::normalize(double ratio) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        if (getValue(s, g, i, j, k) > 1e-15) {
+                        if (getValue(s, g, i, j, k) > TINY_THRESHOLD) {
                             setValue(s, g, i, j, k, getValue(s, g, i, j, k) * ratio);
                         }}}}}}
     return;
@@ -288,14 +298,13 @@ void surfaceElement::zero() {
     return;
 }
 
-
-void surfaceElement::one(){
+void surfaceElement::initialize(double value){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        setValue(s, g, i, j, k, 1.0);
+                        setValue(s, g, i, j, k, value);
                     }}}}}
     return;
 }
@@ -305,9 +314,10 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                fprintf(pfile, "(%d %d):", i, j);
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _ns; s++) {
-                        fprintf(pfile, "%f, ", getValue(s, g, i, j, k));
+                        fprintf(pfile, "%.4e, ", getValue(s, g, i, j, k));
                     }
                     fprintf(pfile, "\n");
                 }}}}
@@ -321,59 +331,66 @@ void surfaceElement::printElement(std::string string, FILE* pfile){
 Loo::Loo(int *indices, double *k, double* albedo,
          void *phxyz, void *pflx, void *ptso,
          void *ptxs, void *pfxs, void *psxs, void *pp1sxs,
-         void *pqcur, void *pfs)
-    : _nx(indices[0]),
-      _ny(indices[1]),
-      _nz(indices[2]),
-      _ng(indices[3]),
-      _nt(8),
-      // FIXME: CMFD: ns = 12; LOO: ns = 16 in 2D
-      // FIEMX: for 3D, _num_dimension 2-> 3, _ns 16-> 48
-      _num_dimension(2),
-      _ns_2d(16),
-      _ns_3d(12),
-      // FIXME:_num_loop, _num_track may not general for all mesh layouts
-      _num_loop(_ny),
-      _num_track(4 * _nx),
-      _loo_iter(0),
-      _i_array(new int[_num_loop * _num_track]),
-      _j_array(new int[_num_loop * _num_track]),
-      _t_array(new int[_num_loop * _num_track]),
-      _t_arrayb(new int[_num_loop *_num_track]),
-      /* double */
-      _k(k[0]),
-      _leakage(0.0),
-      _albedo(albedo),
-      /* meshElement */
-      _track_length(1, _nx, _ny, _nz),
-      _volume(1, _nx, _ny, _nz),
-      _old_scalar_flux(_ng, _nx, _ny, _nz),
-      _scalar_flux(_ng, _nx, _ny, _nz, pflx),
-      _total_xs(_ng, _nx, _ny, _nz, ptxs),
-      _abs_xs(_ng, _nx, _ny, _nz),
-      _sum_quad_flux(_ng, _nx, _ny, _nz),
-      _previous_fission_source(_ng, _nx, _ny, _nz, ptso),
-      _fission_source(_ng, _nx, _ny, _nz, pfs),
-      _energy_integrated_fission_source(1, _nx, _ny, _nz),
-      _total_source(_ng, _nx, _ny, _nz),
-      /* energyElement */
-      _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
-      _scatt_xs(_ng, _nx, _ny, _nz, psxs),
-      /* meshElement */
-      _p1_scatt_xs(_ng, _nx, _ny, _nz, pp1sxs),
-      /* surfaceElement */
-      _length(3, 1, _nx, _ny, _nz, phxyz),
-      _area(3, 1, _nx, _ny, _nz),
-      _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
-      _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
-      _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
-      _quad_src_form_factor(_nt, _ng, _nx, _ny, _nz),
-      _pfile(NULL)
+         void *pqcur, void *pfs, int *pcor)
+    : /* reminder: the following initialization has to be in the same
+       * order as they are declared in the header file */
+    _mapped(true),
+    _nx(indices[0]),
+    _ny(indices[1]),
+    _nz(indices[2]),
+    _ng(indices[3]),
+    _nt(8),
+    // FIXME: CMFD: ns = 12; LOO: ns = 16 in 2D
+    // FIEMX: for 3D, _num_dimension 2-> 3, _ns 16-> 48
+    _num_dimension(2),
+    _ns_2d(16),
+    _ns_3d(12),
+    // FIXME:_num_loop, _num_track may not general for all mesh layouts
+    _num_loop(_ny),
+    _num_track(4 * _nx),
+    _loo_iter(0),
+    _i_array(new int[_num_loop * _num_track]),
+    _j_array(new int[_num_loop * _num_track]),
+    _t_array(new int[_num_loop * _num_track]),
+    _t_arrayb(new int[_num_loop *_num_track]),
+    _map(pcor),
+    _num_loops(new int[2]),
+    _num_tracks(new int[_num_loop]),
+    _boundary_cells(new int[2 * _num_dimension * _num_loop]),
+    /* double */
+    _k(k[0]),
+    _leakage(0.0),
+    _albedo(albedo),
+    /* meshElement */
+    _track_length(1, _nx, _ny, _nz),
+    _volume(1, _nx, _ny, _nz),
+    _old_scalar_flux(_ng, _nx, _ny, _nz),
+    _scalar_flux(_ng, _nx, _ny, _nz, pflx),
+    _total_xs(_ng, _nx, _ny, _nz, ptxs),
+    _abs_xs(_ng, _nx, _ny, _nz),
+    _sum_quad_flux(_ng, _nx, _ny, _nz),
+    _previous_fission_source(_ng, _nx, _ny, _nz, ptso),
+    _fission_source(_ng, _nx, _ny, _nz, pfs),
+    _energy_integrated_fission_source(1, _nx, _ny, _nz),
+    _total_source(_ng, _nx, _ny, _nz),
+    /* energyElement */
+    _nfiss_xs(_ng, _nx, _ny, _nz, pfxs),
+    _scatt_xs(_ng, _nx, _ny, _nz, psxs),
+    /* meshElement */
+    _p1_scatt_xs(_ng, _nx, _ny, _nz, pp1sxs),
+    /* surfaceElement */
+    _length(3, 1, _nx, _ny, _nz, phxyz),
+    _area(3, 1, _nx, _ny, _nz),
+    _quad_current(_ns_2d, _ng, _nx, _ny, _nz, pqcur),
+    _quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
+    _old_quad_flux(_ns_2d, _ng, _nx, _ny, _nz),
+    _quad_src_form_factor(_nt, _ng, _nx, _ny, _nz),
+    _albedos(_nt, _ng, _nx, _ny, _nz),
+    _pfile(NULL)
 {
     // FIXME: need to make sure the albedoes computed from cmfd are physical
-    //printf("albedos: %f %f %f %f %f %f\n", _albedo[0], _albedo[1], _albedo[2],
-    //     _albedo[3], _albedo[4], _albedo[5]);
     openLogFile();
+    //printCoreMap();
     computeAreaVolume();
     computeTrackLength();
     generate2dTrack();
@@ -406,6 +423,35 @@ void Loo::openLogFile() {
     _pfile = fopen(buffer, "a");
 
     return;
+}
+
+void Loo::printCoreMap() {
+
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                int index = i + j * _nx + k * _nx * _ny;
+                printf("%5d ", _map[index]);
+            }
+            printf("\n");
+        }}
+    return;
+}
+
+bool Loo::getMapped() {
+    return _mapped;
+}
+
+/* return true for active mesh, false for inactive mesh */
+bool Loo::getMapValue(int i, int j) {
+    if ((i < 0) || (i >= _nx)) return false;
+    if ((j < 0) || (j >= _ny)) return false;
+    int index = i + j * _nx;
+
+    /* This is consistent with constants.F90: 99999 designates
+     * inactive mesh */
+    if (_map[index] < 99999) return true;
+    return false;
 }
 
 /* compute _area and _volume using _length */
@@ -460,7 +506,7 @@ void Loo::computeTrackLength() {
  *
  */
 void Loo::generate2dTrack() {
-    if (_nx == _ny) generate2dTracknxn();
+    if (_nx == _ny) generate2dTracknxnMapped();//generate2dTracknxn();
     else if (_ny == 1) generate2dTracknx1();
     else printf("mesh of %d x %d might not be supported.\n", _nx, _ny);
     return;
@@ -660,11 +706,252 @@ void Loo::generate2dTracknxn() {
             _i_array[i] = i_index;
             _j_array[i] = j_index;
         }
-
+        
         /* update the side lengths for the next loop */
         len1 -= 2;
         len2 += 2;
     }
+    
+    return;
+}
+
+void Loo::generate2dTracknxnMapped() {
+    /* nl = index of the loop (a loop is when tracks form a complete cycle) */
+    /* nt = local index of track within a loop. */
+    /* i = global index of track, taking into account nl and nt  */
+    /* i_index, j_index = x, y index of cell that the current track is in */
+    int nl, nt, i, i_index, j_index;
+
+    /* the index referring to which of the four sides we are on in
+     * following the tracks around a loop */
+    int side = 0;
+    bool flag = true;
+    bool skip_loop = false;
+    // DEBUG: hard-code in for now: assembly mesh
+    _num_loops[0] = 1;
+    _num_loops[1] = _num_loop - 1;
+
+    // initialize boundary cells to all -1; valid ones would be updated
+    for (i = 0; i < 4 * _num_loop; i++) {
+        _boundary_cells[i] = -1;
+    }
+    
+    for (nl = 0; nl < _num_loop; nl++) {
+        /* when we start the nl-th loop, initialize the cell
+         * indexes. We assume that the loop starts from the bottom
+         * boundary in this plane. */
+        i_index = nl;
+        j_index = _ny - 1;
+        flag = true;
+        skip_loop = false;
+        
+        while (!getMapValue(i_index, j_index) && flag) {
+            if (j_index > 0) { /* if there are cells to move on */
+                j_index -= 1;
+            }
+            else { /* we've finished this entire column of cells */
+                flag = false;
+                skip_loop = true;
+            }
+        }
+        if (skip_loop) {
+            // we want to store the last i_index on the left half of
+            // the geometry, plus 1 (as the next one is the real
+            // starting point) as _num_loops[0], and the first i_index
+            // on the right half of the geometry as _num_loops[1]
+            if (i_index < _nx / 2) _num_loops[0] = i_index + 1;
+            else if (i_index < _num_loops[1]) _num_loops[1] = i_index;
+            continue;
+        }
+
+        // reset: start from 1st side;
+        side = 0;
+
+        // the cells we are starting from are the bottom boundary cells
+        _boundary_cells[3 * _num_loop + nl] = i_index + j_index * _nx;
+        
+        /* iterate through all tracks within this loop */
+        for (nt = 0; nt < _num_track; nt++) {
+            
+            /* update global counter for the current track's index */
+            i = nl * _num_track + nt;
+
+            /* First side (from bottom to right global geometry
+             * boundary): start with 0 index, goes like 0,5,0,5,... */
+            if (side == 0) {
+                if (nt % 2 == 1)
+                    i_index += 1;
+                else if (nt != 0)
+                    j_index -= 1;
+
+                if (!getMapValue(i_index, j_index)) {
+                    side += 1;
+                    // hit right global geometry boundary (global
+                    // surface index of 1)
+                    _boundary_cells[_num_loop + nl] = i_index - 1 + j_index * _nx;
+                }
+                
+                if (nt % 2 == 0) {
+                    _t_array[i] = 0;
+                    _t_arrayb[i] = 1;
+                }
+                else {
+                    _t_array[i] = 5;
+                    _t_arrayb[i] = 4;
+                }
+            }
+            /* 2nd side (from right to top global geometry boundary):
+             * start with odd index, goes like 2,7,... */
+            if (side == 1) {
+                if (nt % 2 == 0)
+                    j_index -= 1;
+                else
+                    i_index -= 1;
+
+                if (!getMapValue(i_index, j_index)) {
+                    side += 1;
+                    // hit top global geometry boundary (global
+                    // surface index of 2)
+                    _boundary_cells[2 * _num_loop + nl] = i_index + (j_index + 1)* _nx;
+                }                
+                
+                if (nt % 2 == 1) {
+                    _t_array[i] = 2;
+                    _t_arrayb[i] = 3;
+                }
+                else {
+                    _t_array[i] = 7;
+                    _t_arrayb[i] = 6;
+                }
+            }
+            
+            /* 3rd side (from top to left global geometry boundary):
+             * start with even index, goes like 4,1,...*/
+            if (side == 2) {
+                if (nt % 2 == 1)
+                    i_index -= 1;
+                else
+                    j_index += 1;
+
+                if (!getMapValue(i_index, j_index)) {
+                    side += 1;
+                    // hit left global geometry boundary (global
+                    // surface index of 0)
+                    _boundary_cells[nl] = i_index + 1 + j_index * _nx;
+                } 
+                
+                if (nt % 2 == 0) {
+                    _t_array[i] = 4;
+                    _t_arrayb[i] = 5;
+                }
+                else {
+                    _t_array[i] = 1;
+                    _t_arrayb[i] = 0;
+                }
+            }
+            
+            /* last side (from left to bottom global geometry
+             * boundary) */
+            if (side == 3) {
+                if (nt % 2 == 0)
+                    j_index += 1;
+                else
+                    i_index += 1;
+
+                if (!getMapValue(i_index, j_index)) {
+                    side += 1;
+                    // hit bottom global geometry boundaries
+                    assert(i_index + (j_index - 1) * _nx
+                           == _boundary_cells[3 * _num_loop + nl]);
+                }                 
+                
+                if (nt % 2 == 1) {
+                    _t_array[i] = 6;
+                    _t_arrayb[i] = 7;
+                }
+                else {
+                    _t_array[i] = 3;
+                    _t_arrayb[i] = 2;
+                }
+            }
+
+            /* the last time we reached the end */
+            if (side > 3) {
+                _num_tracks[nl] = nt;
+                break;
+            }
+            
+            /* store the x, y cell indexes into the corresponding arrays */
+            assert(i_index >= 0);
+            assert(i_index < _nx);
+            assert(j_index >= 0);
+            assert(j_index < _ny);
+            _i_array[i] = i_index;
+            _j_array[i] = j_index;
+
+            //fprintf(_pfile, "(%d, %d) ", _i_array[i], _j_array[i]);
+        } /* completed all tracks for this loop */
+
+        //fprintf(_pfile, "loop %d, num_tracks %d\n", nl, _num_tracks[nl]);
+    } /* complete all loops */
+
+    // debug
+    if (true) {
+        fprintf(_pfile, "_num_loops: %d %d\n", _num_loops[0],
+                _num_loops[1]);
+        fprintf(_pfile, "boundary cells:\n");
+        for (int s = 0; s < 2 * _num_dimension; s++) {
+            for (i = _num_loops[0]; i < _num_loops[1]; i++) {
+                fprintf(_pfile, "m[%d][%d]=1\n",
+                        _boundary_cells[s * _num_loop + i] % _nx,
+                        _boundary_cells[s * _num_loop + i] / _nx);
+            }
+            fprintf(_pfile, "\n");
+        }
+    }
+    return;
+}
+
+void Loo::generateAlbedos() {
+    double value;
+    int incoming_id = -1, outgoing_id = -1;
+
+    // these are the flux ids, where: outgoing id is the incoming flux id of
+    // the current track, the same as in_index[] in the other case
+    int out_index[] = {13, 5, 4, 11, 10, 2, 3, 12};
+    // incoming id is the outgoing flux id of the previous track 
+    int in_index[] = {15, 7, 6, 9, 8, 0, 1, 14};
+    
+    // initialize the whole grid
+    _albedos.initialize(-1.0);
+    
+    // only need to worry about boundary_cells essentially: loop
+    // through four global sides
+    for (int s = 0; s < 2 * _num_dimension; s++) {
+        for (int nl = _num_loops[0]; nl < _num_loops[1]; nl++) {
+            int index = _boundary_cells[s * _num_loop + nl];
+            int i = index % _nx;
+            int j = index / _nx;
+            int k = 0;
+            // loop through each of the 8 tracks
+            for (int t = 0; t < _nt; t++) {
+                incoming_id = in_index[t];
+                outgoing_id = out_index[t];
+                
+                for (int g = 0; g < _ng; g++) {
+                    if (_quad_flux.getValue(incoming_id, g, i, j, k)
+                        > TINY_THRESHOLD) {
+                    value = _quad_flux.getValue(outgoing_id, g, i, j, k)
+                        / _quad_flux.getValue(incoming_id, g, i, j, k);
+                    }
+                    else value = 0;
+                    
+                    _albedos.setValue(t, g, i, j, k, value);
+                }
+            }
+        }
+    }
+    //_albedos.printElement("albedos", _pfile);
     return;
 }
 
@@ -758,19 +1045,25 @@ void Loo::readInReferenceParameters() {
 void Loo::processFluxCurrent() {
     double scalar_flux, quad_current, volume, area, length;
 
+  // temporary: instead of divide phi by volume and current by area,
+  // only multiply current by length.
+
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 volume = _volume.getValue(0, i, j, k);
                 for (int g = 0; g < _ng; g++) {
 
                     /* the scalar flux passed in from openmc has
                        volume in it. This step divides it by volume so
                        _scalar_flux is the real scalar flux.  */
-                    scalar_flux = _scalar_flux.getValue(g, i, j, k)
-                        / volume;
+                    scalar_flux = _scalar_flux.getValue(g, i, j, k);
+                    /// volume;
+                    //_scalar_flux.setValue(g, i, j, k, scalar_flux);
                     _old_scalar_flux.setValue(g, i, j, k, scalar_flux);
-                    _scalar_flux.setValue(g, i, j, k, scalar_flux);
+
 
                     /* similarly, we need to divide the current by
                      * surface area. */
@@ -782,10 +1075,10 @@ void Loo::processFluxCurrent() {
                          * work out that s/8 gives us the surface index
                          * corresponding to surface s */
                         area = _area.getValue(s / 8, 0, i, j, k);
-                        _quad_current.setValue(s, g, i, j, k, quad_current
-                                               / area);
+                        length = volume / area;
+                        _quad_current.setValue(s, g, i, j, k, quad_current * length);
+                        /// area);
                     }}}}}
-
     return;
 }
 
@@ -793,10 +1086,16 @@ void Loo::processFluxCurrent() {
  * \Sigma_{s, g\to g'} */
 void Loo::processXs() {
     double tot_xs, trans_xs, abs_xs, scatt_xs, delta;
-    fprintf(_pfile, "trans xs generated by MC:\n");
+    //_total_xs.printElement("total xs", _pfile);
+    //fprintf(_pfile, "trans xs generated by MC:\n");
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
+                /* no need to proceed if this cell has zero xs to start out with */
+                if (_total_xs.getValue(0, i, j, k) < TINY_THRESHOLD) continue;
+
                 for (int g1 = 0; g1 < _ng; g1++) {
                     scatt_xs = 0;
                     for (int g2 = 0; g2 < _ng; g2++) {
@@ -806,7 +1105,7 @@ void Loo::processXs() {
                     tot_xs = _total_xs.getValue(g1, i, j, k);
                     delta = _p1_scatt_xs.getValue(g1, i, j, k);
                     trans_xs = tot_xs - delta;
-                    fprintf(_pfile, " %f", trans_xs);
+                    //fprintf(_pfile, " %.4f", trans_xs);
                     /* DEBUG: when reference parameters requested,
                      * overwrite trans_xs and delta */
                     if (REFERENCE_TRANS_XS) {
@@ -856,13 +1155,28 @@ void Loo::normalizeTallies() {
     }
     else {
       sum = _previous_fission_source.sum();
-      if ((sum < 1e-5) or (sum > 1e5)) {
+      if ((sum < SMALL_THRESHOLD) or (sum > 1e5)) {
           _previous_fission_source.one();
     }}
-    factor = (double) ( _nx * _ny * _nz) / _previous_fission_source.sum();
+    int counter = 0;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                for (int g = 0; g < _ng; g++) {
+                        if (_previous_fission_source.getValue(g, i, j, k) > 0) 
+                         counter++;
+                     }
+            }
+        }
+    }
+
+    factor = counter / _previous_fission_source.sum();
+
+
     _previous_fission_source.normalize(factor);
 
     /* compute fission source generated by MC. */
+    // DEBUG
     normalizationByEnergyIntegratedFissionSourceAvg(1.0, true);
     return;
 }
@@ -871,6 +1185,8 @@ void Loo::computeQuadFlux(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 for (int g = 0; g < _ng; g++) {
                     for (int s = 0; s < _quad_current.getNs(); s++) {
                         /* compute _quad_flux based on _quad_current */
@@ -905,17 +1221,24 @@ void Loo::computeQuadSourceFormFactor(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 for (int g = 0; g < _ng; g++) {
                     sum_quad_flux = 0;
                     l = _track_length.getValue(0, i, j, k);
                     fs = _previous_fission_source.getValue(g, i, j, k)
-                        / _volume.getValue(0, i, j, k);
+                    / _volume.getValue(0, i, j, k);
                     xs = _total_xs.getValue(g, i, j, k);
-                    /* Debug */
-                    if (xs < 1e-5) {
-                        printf("(%d %d %d) g = %d has tiny xs %f,"
-                               "this would cause infinite src.\n",
-                               i, j, k, g, xs);
+
+                    /* Should only proceed if xs is not too close to
+                     * zero, because there is a divide by 1-ex coming
+                     * up */
+                    if (xs * l < TINY_THRESHOLD) {
+                        for (int t = 0; t < _nt; t++) {
+                            _quad_src_form_factor.setValue(t, g, i, j, k, 0);
+                        }
+                        _sum_quad_flux.setValue(g, i, j, k, 0.0);
+                        continue;
                     }
 
                     ex = exp(-xs * l);
@@ -958,7 +1281,7 @@ void Loo::computeQuadSourceFormFactor(){
                          generated. -1e-5 is used as the cutoff
                          because it looks like at least early on there
                          were multiple slightly negative values. */
-                        if (src < -1e-5){
+                        if (src < -TINY_THRESHOLD){
                             printf("A negative scattering quad src %e is "
                                    "generated for (%d %d %d) group %d "
                                    "track %d, out = %f, total src = %f, fs = %f, k = %f\n",
@@ -982,17 +1305,22 @@ void Loo::computeQuadSourceFormFactor(){
 void Loo::executeLoo(){
     fprintf(_pfile, "\ndata passed into LOO from openmc:\n");
     fprintf(_pfile, " _k = %f\n", _k);
-    _previous_fission_source.printElement(" m-th fission source", _pfile);
-    _energy_integrated_fission_source.printElement("fs", _pfile);
-    _scalar_flux.printElement(" scalar flux", _pfile);
-    //_total_xs.printElement(" total xs", _pfile);
-    //_scatt_xs.printElement(" scat xs", _pfile);
-    //_abs_xs.printElement(" abs xs", _pfile);
-    //_p1_scatt_xs.printElement(" p1 scat xs", _pfile);
-    //_nfiss_xs.printElement(" fission xs", _pfile);
-    //_quad_current.printElement(" quad current", _pfile);
+
+    //_quad_flux.printElement(" quad flux", _pfile);
+    if (false) {
+        _total_xs.printElement(" total xs", _pfile);
+        _scatt_xs.printElement(" scat xs", _pfile);
+        _nfiss_xs.printElement(" fission xs", _pfile);
+        _quad_current.printElement(" quad current", _pfile);
+        _length.printElement(" length", _pfile);
+        _previous_fission_source.printElement(" m-th fission source", _pfile);
+        _scalar_flux.printElement(" scalar flux", _pfile);
+    }
     //checkBalance();
     
+    // DEBUG
+    _energy_integrated_fission_source.printElement(" computed fs before LOO", _pfile);
+
     /* loo iteration control */
     int min_loo_iter, max_loo_iter;
     double eps, eps_converged;
@@ -1006,7 +1334,7 @@ void Loo::executeLoo(){
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-9;
     min_loo_iter = 10;
-    max_loo_iter = 10000;
+    max_loo_iter = 1000;
 
     /* save an old copy of energy-integrated fission source into
      * fission_source, so that when we update the term we can compute
@@ -1060,12 +1388,15 @@ void Loo::executeLoo(){
     /* re-normalize _fission_source such that the average is 1.0, so
      * we can examine the solution generated by LOO */
     normalizationByEnergyIntegratedFissionSourceAvg(1.0, false);
-    //_energy_integrated_fission_source.printElement("fs when LOO exits", _pfile);
+    computeSource();
+    
+    _energy_integrated_fission_source.printElement("loo generated fs", _pfile);
     if (_loo_iter < max_loo_iter) {
         fprintf(_pfile, "****** LOO converged in %d iterations **************\n\n",_loo_iter);
     }
     else {
-        fprintf(_pfile, "****** LOO did not converge in %d iterations **************\n\n",_loo_iter);
+        fprintf(_pfile, "****** LOO did not converge in %d iterations, eps = %e, "
+                "eps threshold = %e *******\n\n", _loo_iter, eps, eps_converged);
     }
     fclose(_pfile);
 
@@ -1079,13 +1410,18 @@ void Loo::executeLoo(){
  * _energy_integrated_fission_source */
 double Loo::computeEnergyIntegratedFissionSource() {
     double fission_source, avg;
-    int counter;
+    int counter = 0;
 
-    counter = 0;
+    // reset _energy_integrated_fission_source to remove any potential
+    // left-over in non-active meshes; since we are not updating the
+    // non-active meshes.
+    _energy_integrated_fission_source.zero();
+
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-
+                if (!getMapValue(i, j)) continue;
+                
                 /* initialize fission source for this cell to be zero */
                 fission_source = 0;
 
@@ -1094,7 +1430,7 @@ double Loo::computeEnergyIntegratedFissionSource() {
                     for (int g2 = 0; g2 < _ng; g2++) {
                         fission_source += _nfiss_xs.getValue(g2, g1, i, j, k)
                             * _scalar_flux.getValue(g2, i, j, k)
-                            * _volume.getValue(0, i, j, k);
+                         * _volume.getValue(0, i, j, k);
                     }}
 
                 if (fission_source > 0) counter++;
@@ -1120,12 +1456,36 @@ double Loo::computeEnergyIntegratedFissionSource() {
     return avg;
 }
 
+/* purpsoe: compute _fission_source to pass back to external routines */
+void Loo::computeSource(){
+    double fission_source;
+    for (int k = 0; k < _nz; k++) {
+        for (int j = 0; j < _ny; j++) {
+            for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
+                for (int g1 = 0; g1 < _ng; g1++) {
+                    fission_source = 0;
+                    for (int g2 = 0; g2 < _ng; g2++) {
+                        fission_source +=
+                            _nfiss_xs.getValue(g2, g1, i, j, k)
+                            * _scalar_flux.getValue(g2, i, j, k);
+                    }
+                    _fission_source.setValue(g1, i, j, k, fission_source
+                                             * _volume.getValue(0, i, j, k));
+                }}}}
+    return;
+}
+
+
 /* compute quad_src for low-order iteration $l$ */
 void Loo::computeQuadSource(surfaceElement& quad_src) {
     double scattering_source, fission_source, total_source, quad_source;
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 for (int g1 = 0; g1 < _ng; g1++) {
                     /* initialize source for this mesh this energy to be zero */
                     /* notice the two sources are not volume-integrated */
@@ -1141,12 +1501,6 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
                             * _scalar_flux.getValue(g2, i, j, k);
                     }
 
-
-                    /* purpsoe: _fission_source passes fission source
-                     * times volume to external files */
-                    _fission_source.setValue(g1, i, j, k, fission_source
-                                             * _volume.getValue(0, i, j, k));
-                    
                     /* purpose: _total_source stores the current total
                      * source without volume */
                     total_source = scattering_source + fission_source / _k;
@@ -1170,65 +1524,61 @@ void Loo::computeQuadSource(surfaceElement& quad_src) {
 void Loo::sweep(meshElement& sum_quad_flux, meshElement& net_current,
                 surfaceElement quad_src) {
     /* current angular flux */
-    double psi, initial_psi;
-
+    double psi;
+    /* indexes for the first cell in each loop */
+    int init_x = -1, init_y = -1, init_z = 0, init_t_global = -1;
+    //int init_t = -1;
+    
     for (int g = 0; g < _ng; g++) {
 
         /* forward */
-        for (int nl = 0; nl < _num_loop; nl++) {
+        for (int nl = _num_loops[0]; nl < _num_loops[1]; nl++) {
             /* get initial psi for this loop of tracks. We always
              * start our track from the bottom boundary. That is, the
-             * first track is mesh cell (nl, _ny - 1, 0)'s quad flux
+             * first track is mesh cell (init_x, init_y, 0)'s quad flux
              * 13 */
-            psi = _quad_flux.getValue(13, g, nl, _ny - 1, 0) * _albedo[3];
-            // debug
-            initial_psi = psi;
+            init_x = _i_array[_num_track * nl];
+            init_y = _j_array[_num_track * nl];
+            init_t_global = _num_track * nl;
+            //init_t = _t_array[init_t_global];
+            //init_albedo = _albedos.getValue(init_t, g, init_x, init_y, init_z);
+
+            // start from the one that goes into the current one,
+            // because albedoes will be applied to it
+            psi = _quad_flux.getValue(15, g, init_x, init_y, init_z);
             
             /* sweeping through tracks in the forward order */
-            for (int nt = _num_track * nl; nt < _num_track * (nl + 1); nt++) {
+            for (int nt = init_t_global; nt < _num_track * nl + _num_tracks[nl];
+                 nt++) {
                 psi = sweepOneTrack(sum_quad_flux, net_current,
                                     quad_src, psi, g, nt, 0);
             }
 
-            /* handle exiting psi: store psi (if reflective) or tally
-             * leakage (if vacuum)*/
-            _quad_flux.setValue(13, g, nl, _ny - 1, 0, psi * _albedo[3]);
-            _leakage += psi * getSurfaceArea(0, nl, _ny - 1, 0, 0)
-                * (1 - _albedo[3]);
-
-            // debug
-            if (false) { //fabs(initial_psi - psi) > 1e-5) {
-                printf(" forward loop %d boundary fluxes has not converged: "
-                       "%f -> %f\n", nl, initial_psi, psi);
-            }
+            //fprintf(_pfile, "forward loop %d: %f -> %f\n", nl, _quad_flux.getValue(15, g, init_x, init_y, init_z), psi);
+            /* store exiting psi */
+            _quad_flux.setValue(15, g, init_x, init_y, init_z, psi);
         }
         
         /* backward */
-        for (int nl = 0; nl < _num_loop; nl++) {
+        for (int nl = _num_loops[0]; nl < _num_loops[1]; nl++) {
             /* similar to forward loop, except track 12 instead of 13 */
-            psi = _quad_flux.getValue(12, g, nl, _ny - 1, 0) * _albedo[3];
+            init_x = _i_array[_num_track * nl];
+            init_y = _j_array[_num_track * nl];
+            init_t_global = _num_track * nl + _num_tracks[nl] - 1;
+            //init_t =  _t_arrayb[init_t_global];
+            //init_albedo = _albedos.getValue(init_t, g, init_x, init_y, init_z);
 
-            // debug
-            initial_psi = psi;
+            psi = _quad_flux.getValue(14, g, init_x, init_y, init_z);
             
             /* sweeping through tracks in the forward order */
-            for (int nt = _num_track * (nl + 1) - 1;
-                 nt > _num_track * nl - 1; nt--) {
+            for (int nt = init_t_global; nt > _num_track * nl - 1; nt--) {
                 psi = sweepOneTrack(sum_quad_flux, net_current,
                                     quad_src, psi, g, nt, 1);
             }
 
-            /* handle exiting psi: store psi (if reflective) or tally
-             * leakage (if vacuum)*/
-            _quad_flux.setValue(12, g, nl, _ny - 1, 0, psi * _albedo[3]);
-            _leakage += psi * getSurfaceArea(7, nl, _ny - 1, 0, 0)
-                * (1 - _albedo[3]);
-
-            // debug
-            if (false) {//initial_psi - psi > -1e-5) {
-                printf(" backward loop %d, boundary fluxes has not converged: "
-                       "%f -> %f\n", nl, initial_psi, psi);
-            }
+            //fprintf(_pfile, "backward loop %d: %f -> %f\n", nl, _quad_flux.getValue(14, g, init_x, init_y, init_z), psi);
+            /* store exiting psi */
+            _quad_flux.setValue(14, g, init_x, init_y, init_z, psi);
         }
     }
 
@@ -1244,12 +1594,12 @@ double Loo::sweepOneTrack(meshElement& sum_quad_flux,
                           surfaceElement quad_src,
                           double psi, int g, int nt, int direction) {
     int i, j, k, t;
-    double delta, xs, l, src;
+    double delta, xs, l, src, albedo;
 
+    /* get mesh id (independent of whether we are forward or backward
+     * direction) for this track; for 2D problem, we only have k = 0 */
     i = _i_array[nt];
     j = _j_array[nt];
-
-    /* for 2D problem, we only have k = 0 */
     k = 0;
 
     if (direction == 0)
@@ -1257,35 +1607,94 @@ double Loo::sweepOneTrack(meshElement& sum_quad_flux,
     else
         t = _t_arrayb[nt];
 
-    /* if we are on a vaccuum boundary, tally leakage and reset psi */
-    if (startFromAnyVacuumBoundary(t, i, j, k, direction)) {
+    /* in coremap situation, check whether this is boundary cell; if
+     * it is, we need to update the quad flux, and tally leakage
+     * accordingly */
+    if (_mapped) {
+        if (startFromAnyBoundary(t, i, j, k, direction)) {
+            //fprintf(_pfile, "found t %d dir %d in %d %d\n", t, direction, i, j);
+            albedo = _albedos.getValue(t, g, i, j, k);
+            if (albedo > -TINY_THRESHOLD) {
+                _leakage += psi * (1 - albedo) * getSurfaceArea(t, i, j, k, 0);
+                psi *= albedo;
+            }
+        }
+    }
+    /* in the non-mapped case, the only boundary condition besides
+     * reflective is vacuum, in which case we tally leakage and reset
+     * psi */
+    else if (startFromAnyVacuumBoundary(t, i, j, k, direction)) {
         _leakage += psi * getSurfaceArea(t, i, j, k, 0);
         psi = 0;
     }
 
-    /* compute delta */
     xs = _total_xs.getValue(g, i, j, k);
-    l = _track_length.getValue(0, i, j, k);
     src = quad_src.getValue(t, g, i, j, k);
-    delta = (psi - src / xs) * (1.0 - exp(-xs * l));
 
-    /* update sum_quad_flux */
-    sum_quad_flux.incrementValue(g, i, j, k, delta / (xs * l) + src / xs);
+    /* compute delta, proceed when there is a positive xs */
+    if (xs > TINY_THRESHOLD){
+        l = _track_length.getValue(0, i, j, k);
+        delta = (psi - src / xs) * (1.0 - exp(-xs * l));
 
-    /* update flux and net current */
-    net_current.incrementValue(g, i, j, k,-psi * getSurfaceArea(t, i, j, k, 0));
-    psi -= delta;
-    net_current.incrementValue(g, i, j, k, psi * getSurfaceArea(t, i, j, k, 1));
+        /* update sum_quad_flux */
+        sum_quad_flux.incrementValue(g, i, j, k, delta / (xs * l) + src / xs);
 
+        /* update flux and net current */
+        net_current.incrementValue(g, i, j, k,-psi * getSurfaceArea(t, i, j, k, 0));
+        psi -= delta;
+        net_current.incrementValue(g, i, j, k, psi * getSurfaceArea(t, i, j, k, 1));
+    }
     return psi;
 }
+
+bool Loo::cellOnBoundary(int i, int j, int k, int s) {
+
+    if (_mapped) {
+        int index = i + j * _nx; 
+        for (int nl = _num_loops[0]; nl < _num_loops[1]; nl++) {
+            if (index == _boundary_cells[s * _num_loop + nl]) 
+                return true;    
+        }
+    }
+    /* no active cell mapping, i.e., all cells are active */
+    else {
+        if ((s == 0) && (i == 0)) return true;
+        if ((s == 1) && (i == _nx - 1)) return true;
+        if ((s == 2) && (j == 0)) return true;
+        if ((s == 3) && (j == _ny - 1)) return true;
+    }
+    return false;
+}
+
 
 /* return bool representing whether a track starts from the mesh
  * geometry's specific surface, in the direction specified */
 //FIXME: might not even need dir as part of the logic here.
 bool Loo::startFromBoundary(int t, int i, int j, int k, int s, int dir) {
+    if ((_nx == _ny) && _mapped) {
+        /* dir = 0 means forward:  t = 6, 2, 4, 0;
+         * dir = 1 means backward: t = 5, 1, 3, 7 */
 
-    if (_nx == _ny) {
+        /* left geometry boundary in 2D */
+        if ((s == 0) && (t == 6 - dir) && cellOnBoundary(i, j, k, s))
+            return true;
+
+        /* right geometry boundary in 2D */
+        if ((s == 1) && (t == 2 - dir) && cellOnBoundary(i, j, k, s))
+            return true;
+            
+        /* top geometry boundary in 2D */
+        if ((s == 2) && (t == 4 - dir) && cellOnBoundary(i, j, k, s))
+            return true;
+
+        /* bottom geometry boundary in 2D */
+        if ((s == 3) && (t == dir * 7) && cellOnBoundary(i, j, k, s))
+            return true;
+
+        return false;        
+    }
+    
+    if ((_nx == _ny) && (!_mapped)) {
         /* dir = 0 means forward:  t = 6, 2, 4, 0;
          * dir = 1 means backward: t = 5, 1, 3, 7 */
 
@@ -1339,13 +1748,21 @@ bool Loo::startFromAnyVacuumBoundary(int t, int i, int j, int k, int dir) {
     /* loop over the 2 * _num_dimension geometry boundary */
     for (int s = 0; s < 2 * _num_dimension; s++) {
         if ((_albedo[s] < 1e-8) && (startFromBoundary(t, i, j, k, s, dir))) {
-            //printf("track %d direction %d in (%d %d) starts at vac\n",
-            //       t, dir, i, j);
+            printf("track %d direction %d in (%d %d) starts at vac\n",
+                   t, dir, i, j);
             return true;
         }
     }
     return false;
 }
+
+bool Loo::startFromAnyBoundary(int t, int i, int j, int k, int dir) {
+    for (int s = 0; s < 2 * _num_dimension; s++) {
+        if (startFromBoundary(t, i, j, k, s, dir)) return true;
+    }
+    return false;
+}
+
 
 /* return area of the surface that a track t crosses with its
    start point (e = 0) or end point (e = 1) */
@@ -1382,8 +1799,12 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux){
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
-            for (int i = 0; i < _nx; i++) {
+            for (int i = 0; i < _nx; i++) {                
+                if (!getMapValue(i, j)) continue;
+                
 	        for (int g = 0; g < _ng; g++) {
+                    if (_sum_quad_flux.getValue(g, i, j, k) < TINY_THRESHOLD) continue;
+
                     phi_ratio = sum_quad_flux.getValue(g, i, j, k) /
 		      _sum_quad_flux.getValue(g, i, j, k);
                     phi = _old_scalar_flux.getValue(g, i, j, k) * phi_ratio;
@@ -1397,20 +1818,29 @@ void Loo::computeScalarFlux(meshElement sum_quad_flux){
 
 /* compute new mesh-cell averaged scalar flux _scalar_flux using LOO2 */
 void Loo::computeScalarFlux2(meshElement net_current){
-    double phi, vol, netcurrent;
+    double phi, vol, netcurrent, xs;
 
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 vol = _volume.getValue(0, i, j, k);
                 
                 for (int g = 0; g < _ng; g++) {
                     netcurrent = net_current.getValue(g, i, j, k)
                         * SIN_THETA_45 * P0;
-
-                    phi = (_total_source.getValue(g, i, j, k)
-                           - netcurrent / vol) /
-                        _total_xs.getValue(g, i, j, k);
+                    xs = _total_xs.getValue(g, i, j, k);
+                    
+                    /* Essentially if there is a zero xs, the best
+                     * guess is that the flux should be zero too. */
+                    if (xs > TINY_THRESHOLD) {
+                        phi = (_total_source.getValue(g, i, j, k)
+                               - netcurrent / vol) / xs;
+                    }
+                    else {
+                        phi = 0.0;
+                    }
                     
                     //fprintf(_pfile, "(%d %d %d) flux update ratio = %e\n",
                     //        i, j, k, phi / _scalar_flux.getValue(g,i,j,k) - 1.0);
@@ -1424,11 +1854,19 @@ void Loo::computeScalarFlux2(meshElement net_current){
  * energy-integrated fission source is old_avg */
 void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
                                                           bool initialization) {
-    double ratio;
+    double ratio, computed_avg;
 
     /* compute normalization factor such that the energy-integrated
      * fission source average is avg */
-    ratio = avg / computeEnergyIntegratedFissionSource();
+    computed_avg = computeEnergyIntegratedFissionSource();
+    if (computed_avg > TINY_THRESHOLD) {
+        ratio = avg / computed_avg;
+    }
+    else {
+        fprintf(_pfile, " unexpected behavior: fission source computation "
+                "returns an average of %f, do not normalize\n", computed_avg);
+        ratio = 1.0;
+    }
 
     /* purpose: normalize fission source, scalar flux, quad flux, and
      * leakage */
@@ -1448,11 +1886,12 @@ void Loo::normalizationByEnergyIntegratedFissionSourceAvg(double avg,
     }
 
     _leakage *= ratio;
+    return;
 }
 
 /* compute the L2 norm of relative change between the passed in
  * fission_source variable (old fs from last iteration) and the stored
- * _fission_source (current fs from this iteration) */
+ * _energy_integrated_fission_source (current fs from this iteration) */
 double Loo::computeL2Norm(meshElement fission_source) {
     int counter;
     double eps, sum;
@@ -1461,15 +1900,20 @@ double Loo::computeL2Norm(meshElement fission_source) {
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
-                if (fission_source.getValue(0, i, j, k) > 0) {
+                if (!getMapValue(i, j)) continue;
+                
+                if (fission_source.getValue(0, i, j, k) > TINY_THRESHOLD) {
                     counter++;
                     sum += pow(_energy_integrated_fission_source.getValue
                                (0, i, j, k) /
                                fission_source.getValue(0, i, j, k) - 1
                                , 2);
                 }}}}
-    sum /= (double) (counter);
-    eps = sqrt(sum);
+    if (counter > 0) {
+        sum /= (double) (counter);
+        eps = sqrt(sum);
+    }
+    else eps = 100; 
     return eps;
 }
 
@@ -1482,6 +1926,8 @@ void Loo::computeK(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 for (int g = 0; g < _ng; g++) {
                         absorption_total += _abs_xs.getValue(g, i, j, k)
                             * _scalar_flux.getValue(g, i, j, k)
@@ -1500,6 +1946,8 @@ void Loo::checkBalance(){
     for (int k = 0; k < _nz; k++) {
         for (int j = 0; j < _ny; j++) {
             for (int i = 0; i < _nx; i++) {
+                if (!getMapValue(i, j)) continue;
+                
                 fission = _energy_integrated_fission_source.getValue(0, i, j, k);
                 absorption = 0;
                 leakage = 0;
