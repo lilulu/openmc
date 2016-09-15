@@ -36,14 +36,14 @@ contains
     call compute_xs()
 
     ! DEBUG: read in Ds, cross-sections when requested
-    !call read_in_reference_parameters()
+    call read_in_reference_parameters()
     
     ! Compute effective downscatter cross section
     if (cmfd_downscatter) call compute_effective_downscatter()
 
     if (cmfd_on) then 
-       ! Check neutron balance
-       call neutron_balance()
+       ! Check neutron balance for CMFD
+       ! call neutron_balance()
     
        ! Calculate dtilde
        call compute_dtilde()
@@ -475,6 +475,12 @@ contains
           do k = 1, nz
              do j = 1, ny
                 do i = 1, nx
+
+                   ! Check for active mesh cell
+                   if (allocated(cmfd%coremap)) then
+                      if (cmfd%coremap(i,j,k) == CMFD_NOACCEL) cycle
+                   end if
+
                    do g = 1, ng
                       do ii = 1, b
                          ! openmc_src_rate
@@ -628,6 +634,23 @@ contains
 
                 flux = sum(cmfd % flux_rate(h,i,j,k,:))
                 cmfd % flux(h,i,j,k) = flux 
+                
+                ! For safety: when the acceleration map is turned on,
+                ! we shouldn't ever find a mesh with no flux or
+                ! reaction rates. Though in case this happens somehow,
+                ! to avoid divide by zero error message in computing
+                ! xs, we store the flux as zero, and set the internal
+                ! flux counter here to be a large number such that the
+                ! corresponding xs computation would come out to be
+                ! close to zero which is more physical.  Alternative:
+                ! could also just cycle when a close to zero flux is
+                ! found.
+
+                if (flux < 1e-15_8) then 
+                   cmfd % flux(h,i,j,k) = ZERO
+                   cycle
+                   flux = 1e15_8
+                end if
 
                 ! Get total rr and convert to total xs
                 cmfd % totalxs(h,i,j,k) = sum(cmfd % total_rate(h,i,j,k,:)) / flux
@@ -665,7 +688,7 @@ contains
                 ! FIXME: increase nq for 3D implementation
                 if (loo_tally .or. loo_on) then
                    nq = 16
-
+                
                    do q = 1, nq
                       cmfd % quad_current(q,h,i,j,k) = sum(cmfd % quad_current_rate(q,h,i,j,k,:))
                    end do
@@ -681,7 +704,7 @@ contains
 
 
     ! Normalize openmc source distribution such that the average is 1.0
-    cnt = ZERO
+    cnt = 0
 
     do k = 1,nz
 
@@ -717,7 +740,7 @@ contains
          FILTER_SURFACE, IN_RIGHT, OUT_RIGHT, IN_FRONT,      &
          OUT_FRONT, IN_TOP, OUT_TOP, CMFD_NOACCEL, ZERO,     &
          ONE, TINY_BIT
-    use global,       only: cmfd, k_generation, overall_gen
+    use global,       only: cmfd
     use string,       only: to_str
     use output,       only: write_message
 
@@ -990,7 +1013,9 @@ contains
 
           end do GROUPG
 
+          ! If cmfd rebalance is requested
           if ((cmfd_rebalance) .and. (ng == 2)) then
+
              flux1 = cmfd % flux(1,i,j,k)
              flux2 = cmfd % flux(2,i,j,k)
              sigt1 = cmfd % totalxs(1,i,j,k)
@@ -1022,7 +1047,6 @@ contains
              ! Get scattering and fission
              scattering = ZERO
              GROUPH3: do h = 1, ng
-
                 scattering = scattering + cmfd % scattxs(h,g,i,j,k) * &
                      cmfd % flux(h,i,j,k)
              end do GROUPH3
@@ -1452,34 +1476,40 @@ contains
 
           ! Extract cross sections and flux from object
           flux1 = cmfd % flux(1,i,j,k)
-          flux2 = cmfd % flux(2,i,j,k)
-          sigt1 = cmfd % totalxs(1,i,j,k)
-          sigt2 = cmfd % totalxs(2,i,j,k)
-          sigs11 = cmfd % scattxs(1,1,i,j,k)
-          sigs21 = cmfd % scattxs(2,1,i,j,k)
-          sigs12 = cmfd % scattxs(1,2,i,j,k)
-          sigs22 = cmfd % scattxs(2,2,i,j,k)
 
-          ! Compute absorption xs
-          siga1 = sigt1 - sigs11 - sigs12
-          siga2 = sigt2 - sigs22 - sigs21
+          ! Make sure flux1 is not zero, because we need to perform a
+          ! flux2/flux1 later
 
-          ! Compute effective downscatter xs
-          sigs12_eff = sigs12 - sigs21*flux2/flux1
+          if (flux1 > 1e-15_8) then 
+             flux2 = cmfd % flux(2,i,j,k)
+             sigt1 = cmfd % totalxs(1,i,j,k)
+             sigt2 = cmfd % totalxs(2,i,j,k)
+             sigs11 = cmfd % scattxs(1,1,i,j,k)
+             sigs21 = cmfd % scattxs(2,1,i,j,k)
+             sigs12 = cmfd % scattxs(1,2,i,j,k)
+             sigs22 = cmfd % scattxs(2,2,i,j,k)
 
-          ! Recompute total cross sections (use effective and no upscattering)
-          sigt1 = siga1 + sigs11 + sigs12_eff
-          sigt2 = siga2 + sigs22
+             ! Compute absorption xs
+             siga1 = sigt1 - sigs11 - sigs12
+             siga2 = sigt2 - sigs22 - sigs21
 
-          ! Record total xs
-          cmfd % totalxs(1,i,j,k) = sigt1
-          cmfd % totalxs(2,i,j,k) = sigt2
+             ! Compute effective downscatter xs
+             sigs12_eff = sigs12 - sigs21*flux2/flux1
 
-          ! Record effective downscatter xs
-          cmfd % scattxs(1,2,i,j,k) = sigs12_eff
+             ! Recompute total cross sections (use effective and no upscattering)
+             sigt1 = siga1 + sigs11 + sigs12_eff
+             sigt2 = siga2 + sigs22
 
-          ! Zero out upscatter cross section
-          cmfd % scattxs(2,1,i,j,k) = ZERO
+             ! Record total xs
+             cmfd % totalxs(1,i,j,k) = sigt1
+             cmfd % totalxs(2,i,j,k) = sigt2
+
+             ! Record effective downscatter xs
+             cmfd % scattxs(1,2,i,j,k) = sigs12_eff
+
+             ! Zero out upscatter cross section
+             cmfd % scattxs(2,1,i,j,k) = ZERO
+          end if
 
         end do XLOOP
 
