@@ -67,7 +67,7 @@ contains
     use global,       only: cmfd, n_cmfd_tallies, cmfd_tallies, meshes,         &
                             matching_bins, keff, current_batch, cmfd_n_save,    &
                             cmfd_current_n_save, n_inactive, cmfd_on, loo_tally,&
-                            loo_on
+                            loo_on, cmfd_flush_every
     use mesh,         only: mesh_indices_to_bin
     use mesh_header,  only: StructuredMesh
     use string,       only: to_str
@@ -133,9 +133,13 @@ contains
        cmfd % quad_current_rate = ZERO
     end if 
 
-    ! reset parameters before computation
-    ! For all: accumulate all active batches results, so only get rid of answers from before
-    if (current_batch < 2 * (n_inactive + 1)) then
+    ! reset parameters before computation: 
+    ! For <n_save> and <roll_up_to>: the raw tallies are reset every batch, 
+    ! so here controls the actual reseting; we only reset the inactive answers,
+    ! and keep all the active ones.
+    ! For <tally_reset>: cmfd_flush_every = .false., raw tallies only reset at
+    ! specified batch, so we really need to reset it at every batch
+    if ((.not. cmfd_flush_every) .or. (current_batch < 2 * (n_inactive + 1))) then
 
        do k = 1,nz
        
