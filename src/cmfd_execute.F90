@@ -293,11 +293,8 @@ contains
        inquire(file = "fs.dat", exist = exist)
 
        if (exist) then
-          ! In two cases we replace the file: either this is the first of
-          ! a restart fun (which starts at restart_batch + 1), or that
-          ! this is the first run
-          if (((.not. restart_run) .and. (current_batch == 1)) &
-               .or. (restart_run .and. (current_batch == restart_batch + 1))) then
+          ! In one case we replace the file: this is the first run of a fresh run
+          if ((.not. restart_run) .and. (current_batch == 1)) then
              open(unit = 2, file = "fs.dat", status = "replace", action = "write")
              ! If it is not one of the conditions where we replace, then we
              ! consider append to the file if acceleration is on.
