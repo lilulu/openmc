@@ -1993,9 +1993,11 @@ contains
     ! have used Bessel's correction so that the estimator of the variance of the
     ! sample mean is unbiased.
 
-    this % sum    = this % sum/n
-    this % sum_sq = sqrt((this % sum_sq/n - this % sum * &
-         this % sum) / (n - 1))
+    if (n > 1) then
+       this % sum    = this % sum/n
+       this % sum_sq = sqrt((this % sum_sq/n - this % sum * &
+            this % sum) / (n - 1))
+    end if
 
   end subroutine statistics_result
 
