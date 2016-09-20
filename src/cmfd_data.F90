@@ -139,7 +139,10 @@ contains
     ! and keep all the active ones.
     ! For <tally_reset>: cmfd_flush_every = .false., raw tallies only reset at
     ! specified batch, so we really need to reset it at every batch
-    if ((.not. cmfd_flush_every) .or. (current_batch < 2 * (n_inactive + 1))) then
+    !if ((.not. cmfd_flush_every) .or. (current_batch < 2 * (n_inactive + 1))) then
+
+    ! Debug: try keep the maximum rolling window, even during active cycles
+    if (.true.) then
 
        do k = 1,nz
        
