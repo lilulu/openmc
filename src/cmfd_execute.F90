@@ -95,6 +95,12 @@ contains
        cmfd_on = .true.
     end if
 
+    ! debug: special feature to turn off acceleration at active batches
+    if ((loo_on) .and. (current_batch == n_inactive + 1)) then 
+       loo_on = .false.
+    end if
+    
+
     ! If this is a restart run and we are just replaying batches leave
     if (restart_run .and. current_batch <= restart_batch) return
 
