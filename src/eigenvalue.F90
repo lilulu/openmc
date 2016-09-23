@@ -574,6 +574,7 @@ contains
 
     ! Set decault number of groups to be 1
     ng = 1
+    ! Debug: comment out if need to tally and acceleration mesh to be different
     if (cmfd_run .or. loo_run) ng = cmfd % indices(4)
 
     ! On the first pass through this subroutine, we need to determine how big
@@ -641,6 +642,8 @@ contains
 
     ! count number of fission sites in fission_bank over mesh
     if (cmfd_on .or. loo_on) then 
+    ! Debug: do not enter the first loop if tally and acceleration mesh does not agree
+    !if (.false.) then
        call count_bank_sites(m, fission_bank, entropy_p, &
             cmfd % egrid, size_bank=n_bank, sites_outside=sites_outside)
        ! reverse due to the egrid structure
