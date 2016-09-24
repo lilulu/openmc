@@ -1334,7 +1334,7 @@ void Loo::executeLoo(){
     /* loop control variables: min, max number of loo sweeps to be performed */
     eps_converged = 1e-9;
     min_loo_iter = 10;
-    max_loo_iter = 1000;
+    max_loo_iter = 10000;
 
     /* save an old copy of energy-integrated fission source into
      * fission_source, so that when we update the term we can compute
